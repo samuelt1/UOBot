@@ -481,27 +481,27 @@ sub TamingCheckSkill
     if %tameskill >= 760 && %tameskill < 796
         set %tameable BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_TG
     if %tameskill >= 796 && %tameskill < 820
-        set %tameable BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD
     if %tameskill >= 820 && %tameskill < 856
         set %tameable ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB
     if %tameskill >= 856 && %tameskill < 880
-        set %tameable ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF
     if %tameskill >= 880 && %tameskill < 892
-        set %tameable UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ
     if %tameskill >= 892 && %tameskill < 904
-        set %tameable UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE
     if %tameskill >= 904 && %tameskill < 940
-        set %tameable UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB
     if %tameskill >= 940 && %tameskill < 988
-        set %tameable VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_TG_IG_NG_ZF_TF_PF_ZF
+        set %tameable VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC
     if %tameskill >= 988 && %tameskill < 1000
-        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB
     if %tameskill >= 1000 && %tameskill < 1012
-        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC
     if %tameskill >= 1012 && %tameskill < 1036
-        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC_TE_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC_TE
     if %tameskill >= 1036
-        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC_TE_HH_HH_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC_TE_HH_HH
     gosub TamingIgnore gain
 return
 
@@ -564,13 +564,6 @@ sub TameAnimal
     set %tamefollow #followers
     set #ltargetid %tameid
     set #ltargetkind 1
-
-    if %findtype in TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
-    {
-        gosub TamingKill
-        gosub TamingIgnore perm %tameid
-        return
-    }
 
     event macro 13 35 ; animal taming
     target 2s
