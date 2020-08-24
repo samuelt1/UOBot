@@ -147,7 +147,7 @@ goto loop
 sub InitMenu
     menu clear
     menu window title Uncle Dave's Tamer Plus 4.2
-    menu window size 320 190
+    menu window size 320 300
     menu window color $E0E0E0
     menu font bgcolor $E0E0E0
     menu font name MS Sans Serif
@@ -156,7 +156,6 @@ sub InitMenu
     menu text lblmovement 10 5 Features
     menu font style n
     menu check autotame 10 20 130 15 #false Auto Tame Creatures
-    menu edit waypoints 10 165 200
     menu check pickupregs 10 35 130 15 #false Pickup Reagents
     menu font style b
     menu text lblrelease 10 55 Release Option
@@ -165,7 +164,7 @@ sub InitMenu
     menu check weaponattack 10 85 130 15 #false Weapon Attack
     menu check releasekill 10 100 130 15 #false Mage/Necro Kill
     menu font style b
-    menu text lblmisc 10 120 Character Movement
+    menu text lblmisc 10 120 Characmanualtameter Movement
     menu font style n
     menu check dontmove 10 135 130 15 #false Don't Move Character
     menu check returnstart 10 150 130 15 #false Return To Start
@@ -186,11 +185,16 @@ sub InitMenu
     menu button resetstart 150 115 80 25 Reset Start
     menu button ignorecurrent 230 90 80 25 Ignore Current
     menu button resetignore 230 115 80 25 Reset Ignore
-    menu button setregcont 150 140 160 25 Add Waypoint
-    menu shape bgstatus 0 173 320 17 3 7 1 $999999 7 $E0E0E0
+    menu button setregcont 150 140 80 25 Add Waypoint
+    menu button loadWaypointBtn 230 140 80 25 Load Waypoints
+    menu font style b
+    menu text waypointsTitle 10 165 Waypoints:
+    menu font style n
+    menu edit waypointstext 10 180 300
+    menu shape bgstatus 0 283 320 17 3 7 1 $999999 7 $E0E0E0
     menu font color $666666
-    menu text lblstatus 5 175 Status:
-    menu text status 40 175 Initializing
+    menu text lblstatus 5 285 Status:
+    menu text status 40 285 Initializing
     gosub MenuUpdateStats
     menu show
     menu HideEUO
@@ -207,7 +211,7 @@ sub IterateWaypoints
     ;}
 return
 
-sub FindNearestWP
+sub FindNearestWPFindNearestWP
     set %nearestwp 0
     set %nearestwpdist 999
 
@@ -247,6 +251,30 @@ sub AddWaypoint
     set %waypointy . %w #charposy
     set %waypointz . %w #charposz
     set %currwp %w
+    
+    menu get waypointstext
+    if #spc in #menuRes
+    {
+        set !waypointstext #menuRes , #smc
+    }
+    else
+    {
+        set !waypointstext #menuRes
+    }
+    set !current %waypointx . %w , #spc , %waypointy . %w , #spc , %waypointz . %w
+    menu set waypointstext !waypointstext , !current
+
+return
+
+sub LoadWaypoints
+    menu get waypointstext
+    set !buffer #menuRes
+    str pos !buffer #smc
+    set !pos
+return
+
+sub GetWayPoint
+
 return
 
 sub InitAnimalTaming
@@ -344,6 +372,12 @@ sub ScriptIdletime
         set %w -1
         set #menubutton N/A
         gosub AddWaypoint
+    }
+    if #menubutton = loadWaypointBtn
+    {
+        set %w -1
+        set #menubutton N/A
+        gosub LoadWaypoints
     }
     if #menubutton = setregcont 2
         set #menubutton N/A
