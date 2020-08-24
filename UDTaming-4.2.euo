@@ -134,7 +134,7 @@
 ; The animal has been distracted, and you cannot continue taming.
 ; It seems to accept you as master.
 ; <petname> appears to have decided that it is better off without a master!
-;
+; event SysMessage #strRes
 initevents
 gosub InitMenu
 gosub InitAnimalTaming
@@ -181,12 +181,13 @@ sub InitMenu
     menu text tameid 310 50 N/A
     menu text tamecount 310 65 0
     menu font align left
-    menu button manualtame 150 90 80 25 Echo WP's
+    menu button manualtame 150 90 80 25 Find Start
     menu button resetstart 150 115 80 25 Reset Start
     menu button ignorecurrent 230 90 80 25 Ignore Current
     menu button resetignore 230 115 80 25 Reset Ignore
     menu button setregcont 150 140 80 25 Add Waypoint
     menu button loadWaypointBtn 230 140 80 25 Load Waypoints
+    menu button echoAllWpsBtn 290 140 80 25 Echo All Waypoints
     menu font style b
     menu text waypointsTitle 10 165 Waypoints:
     menu font style n
@@ -253,32 +254,71 @@ sub AddWaypoint
     set %currwp %w
 
     menu get waypointstext
-    if #spc in #menuRes
-    {
-        set !waypointstext #menuRes , #smc
-    }
-    else
-    {
-        set !waypointstext #menuRes
-    }
+    set !waypointstext #menuRes
     set !current %waypointx . %w , #spc , %waypointy . %w , #spc , %waypointz . %w
-    menu set waypointstext !waypointstext , !current
+    menu set waypointstext !waypointstext , !current , #smc
 
 return
 
 sub LoadWaypoints
+    set %w 0
     menu get waypointstext
     set %waypointsbuffer #menuRes
+    event SysMessage %waypointsbuffer
 
-
+    str len %waypointsbuffer
+    while #strRes > 0
+    {
     gosub GetWaypoint
+    set %w %w + 1
+    }
 return
 
 sub GetWaypoint
     str pos %waypointsbuffer #smc
     set %waypointBufferPos #strRes
-    str left %waypointsbuffer %waypointBufferPos
+    set %quickmath %waypointBufferPos - 1
+    str left %waypointsbuffer %quickmath
+    set %waypointfull #strRes
+    str del %waypointsbuffer 1 %waypointBufferPos
+    set %waypointsbuffer #strRes
+    event SysMessage %waypointsbuffer
+    gosub GetCoord
+    set %waypointx . %w #result
+    gosub GetCoord
+    set %waypointy . %w #result
+    gosub GetCoord
+    set %waypointz . %w #result
+return
 
+sub GetCoord
+    if  #spc in %waypointfull
+    {
+    str pos %waypointfull #spc
+    set %waypointfullPos #strRes
+    set %quickmath %waypointfullPos - 1
+    str left %waypointfull %quickmath
+    set %cord #strRes
+    str del %waypointfull 1 %waypointfullPos
+    set %waypointfull #strRes
+    }
+    else
+    {
+        set %cord %waypointfull
+    }
+return %cord
+
+sub printWaypoints
+    set %w 0
+    str len %waypointx . %w
+   event SysMessage  #strRes
+    while #strRes > 0
+    {
+    event SysMessage %waypointx . %w
+    event SysMessage %waypointy . %w
+    event SysMessage %waypointz . %w
+      set %w %w + 1
+    }
 return
 
 sub InitAnimalTaming
@@ -376,6 +416,12 @@ sub ScriptIdletime
         set %w -1
         set #menubutton N/A
         gosub AddWaypoint
+    }
+    if #menubutton = echoAllWpsBtn
+    {
+        set %w -1
+        set #menubutton N/A
+        gosub printWaypoints
     }
     if #menubutton = loadWaypointBtn
     {
@@ -485,27 +531,27 @@ sub TamingCheckSkill
     if %tameskill >= 760 && %tameskill < 796
         set %tameable BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_TG
     if %tameskill >= 796 && %tameskill < 820
-        set %tameable BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD
     if %tameskill >= 820 && %tameskill < 856
         set %tameable ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB
     if %tameskill >= 856 && %tameskill < 880
-        set %tameable ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF
     if %tameskill >= 880 && %tameskill < 892
-        set %tameable UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ
     if %tameskill >= 892 && %tameskill < 904
-        set %tameable UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE
     if %tameskill >= 904 && %tameskill < 940
-        set %tameable UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB
     if %tameskill >= 940 && %tameskill < 988
-        set %tameable VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_TG_IG_NG_ZF_TF_PF_ZF
+        set %tameable VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC
     if %tameskill >= 988 && %tameskill < 1000
-        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB
     if %tameskill >= 1000 && %tameskill < 1012
-        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC
     if %tameskill >= 1012 && %tameskill < 1036
-        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC_TE_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC_TE
     if %tameskill >= 1036
-        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC_TE_HH_HH_TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
+        set %tameable SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC_TE_HH_HH
     gosub TamingIgnore gain
 return
 
@@ -568,13 +614,6 @@ sub TameAnimal
     set %tamefollow #followers
     set #ltargetid %tameid
     set #ltargetkind 1
-
-    if %findtype in TG_IG_NG_ZF_TF_PF_ZF_AG_NF_CO
-    {
-        gosub TamingKill
-        gosub TamingIgnore perm %tameid
-        return
-    }
 
     event macro 13 35 ; animal taming
     target 2s
