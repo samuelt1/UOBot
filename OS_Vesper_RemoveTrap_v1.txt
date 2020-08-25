@@ -1,0 +1,87 @@
+;======================================================================
+; Script Name: O/S Vesper Remove Trap
+; Author: O/S
+; Version: 1.1p
+; Client Tested with: OSI
+; EUO version tested with: 334
+; Shard: OSI
+; Public Release: 2019/11
+; Purpose: Trains remove trap (skill gains from 20 - GM)
+; Copyright: public, edit, reedit & redistribute "credits will be fine"
+;======================================================================
+; Instructions:
+;  Go to Vesper Mint.  Enter the North West corner room with
+;  boxes and crates, hit play
+;
+; Edit Notes:
+;  If you want to use in different locations just add your
+;  lock box/chet/keg etc. type to the %detecttype in the setup sub              so y
+;======================================================================
+
+;event SysMessage Target something!
+;set #targCurs 1
+;targLoop:
+;if #targCurs = 1
+;  goto targLoop
+;event SysMessage The ID of the target is #lTargetID
+;halt
+
+gosub setup
+
+
+while #true
+ {
+ while C in #charstatus
+  {
+  event macro 15 24 ;arch cure
+  target 5s
+  event macro 23 0 ;target self
+  wait 4s
+  }
+ if #hits < #maxhits
+  {
+  ;event macro 15 28 ;greater heal
+  event macro 15 3 ;heal
+  target 5s
+  event macro 23 0 ;target self
+  wait 4s
+  }
+ if %disarmtimer < #scnt
+  {
+  finditem %detecttype G_
+  if #findkind = 1
+   {
+   event ExMsg #findid 3 20 Disarming
+   set %disarm #findid
+   set #ltargetid %disarm
+   set #lTargetKind 1
+   event macro 13 48 ;remove trap
+   wait 10
+   event macro 22 0 ;last target
+   
+   ignoreitem #findid list1
+   set %disarmtimer #scnt + 10
+   }
+  if #findkind = -1
+   {
+   ignoreitem reset list1
+   }
+  }
+ }
+ 
+;======== setup sub
+sub setup
+ set #lpc 5
+ event macro 8 2
+ wait 10
+ set %name #charname
+ display yesno %name do you want to use Disarm Script?
+ if #dispRes = no
+  {
+  halt
+  }
+ set %detecttype BUD_BKF_HIF_IIF_IKF_JIF_KKF_TMF_UMF_VMF_WMF_ZTD_UVJC
+ set %disarmtimer #scnt
+return
+  
+

@@ -1,0 +1,525 @@
+;==========================================
+;  Script Name: 0-95 Lockpicking Trainer
+;  Author: EasyGL
+;  Version: 1.2
+;  Client Tested with: 7.0.45.0
+;  EUO version tested with: 1.5.1.287
+;  Shard OSI / FS: OSI
+;  Revision Date:  6/15/15
+;  Public Release: 6/13/15
+;  Global Variables Used: *easygllp
+;  Purpose: Train lockpicking skill 0 to 95
+;==========================================
+; Uses Scripty's Scan buff bar script. Thanks Scripty!
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;  Un-comment ( delete the ; ) the line below to run setup again.  ;;;;;;
+;;;;;;  Re-comment ( replace the ; ) before running the script again!!  ;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SET %reset #TRUE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+STR len *easygllp
+IF #STRRES < 47 || %reset = #TRUE 37
+   SET *easygllp ^
+   EVENT exmsg #CHARID 3 75 Target your storage container!!!
+   GOSUB targetcurs storage , #SPC , container!!!
+   SET *easygllp *easygllp , #LTARGETID , ^
+   move_store:
+   GOSUB getvar storage 1 2
+   FINDITEM #STRRES C
+   IF #FINDCNT < 1 3
+      EVENT exmsg #CHARID 3 75 Move to within 2 tiles of the storage container!!!
+      WAIT 100
+      GOTO move_store
+   GOSUB open_this #FINDID
+   IF #RESULT = #FALSE 2
+      DISPLAY Storage container didn't open. $Open it manually and press play.
+      PAUSE
+   EVENT exmsg #CHARID 3 75 Target your lockpicks!!!
+   GOSUB targetcurs lockpicks!!!
+   FINDITEM #LTARGETID
+   IF #FINDCNT > 0
+   SET *easygllp *easygllp , #FINDTYPE , ^
+   EVENT exmsg #CHARID 3 75 Target your keyring!!!
+   GOSUB targetcurs keyring!!!
+   SET *easygllp *easygllp , #LTARGETID , ^
+   EVENT exmsg #CHARID 3 75 Target your first skill level box!!!
+   GOSUB targetcurs first , #SPC , skill , #SPC , level , #SPC ,  box!!!
+   SET *easygllp *easygllp , #LTARGETID , ^
+   EVENT exmsg #CHARID 3 75 Target your second skill level box!!!
+   GOSUB targetcurs second , #SPC , skill , #SPC , level , #SPC ,  box!!!
+   SET *easygllp *easygllp , #LTARGETID , ^
+   EVENT exmsg #CHARID 3 75 Target your third skill level box!!!
+   GOSUB targetcurs third , #SPC , skill , #SPC , level , #SPC ,  box!!!
+   SET *easygllp *easygllp , #LTARGETID , ^
+   DISPLAY yesno Use alacrity scrolls?
+   IF #DISPRES = yes
+      SET *easygllp *easygllp , y , ^
+   IF #DISPRES = no
+      SET *easygllp *easygllp , n , ^
+GOSUB setup
+REPEAT
+   IF !alacrity = #TRUE
+      GOSUB alacrity
+   GOSUB get_skill lock
+   FINDITEM !picks C
+   IF #FINDCNT > 0
+      SET !pickid #FINDID
+   SET !scan #JINDEX
+   SET #LTARGETID !lockbox
+   SET #LTARGETKIND 1
+   IF %locked
+      SET #LOBJECTID !pickid
+   ELSE
+      SET #LOBJECTID !keyring
+   WHILE %w_t > #SYSTIME
+      WAIT 1
+   EVENT macro 17
+   TARGET
+   EVENT macro 22
+   SET %w_t #SYSTIME + %action_wait
+   WAIT 10
+   WHILE #JINDEX > !scan
+      {
+      SET !scan !scan + 1
+      SCANJOURNAL !scan
+      IF The_lock_quickly_yields_to_your_skill. in #JOURNAL || :_Unlocked_:_crate in #JOURNAL || This_does_not_appear_to_be_locked. in #JOURNAL
+         SET %locked #FALSE
+      ELSE
+         SET %locked #TRUE
+      }
+UNTIL #FINDCNT = 0
+HALT
+
+SUB targetcurs
+SET #TARGCURS 1
+loop:
+SET %t_o #SCNT + 5
+REPEAT
+   WAIT 1
+UNTIL #TARGCURS = 0 || #SCNT > %t_o
+IF #SCNT > %t_o 2
+   EVENT exmsg #CHARID 3 75 Target your , #SPC , %1
+   GOTO loop
+RETURN
+
+SUB get_skill
+CHOOSESKILL %1
+FOR %i 1 3
+   {
+   IF #SKILL <= %upper . %i && #SKILL >= %lower . %i 6
+      FINDITEM !lockbox . %i C
+      IF #FINDCNT < 1 2
+         DISPLAY The appropriate box for your skill level not found!!!
+         HALT
+      SET !lockbox !lockbox . %i
+      BREAK
+   }
+RETURN
+
+SUB alacrity
+IF %alacrity_timer < #SCNT 35
+   alac:
+   FINDITEM TVH C
+   IF #FINDCNT > 0 30
+      EVENT property #FINDID
+      IF #SPC , lock , #SPC , picking , #SPC notin #PROPERTY 2
+         IGNOREITEM #FINDID
+         GOTO alac
+      SET %bbsx #CLILEFT + 805
+      SET %bbsy #CLITOP + 600
+      GOSUB scanbar %bbsx %bbsy
+      IF _ArcaneEmpowerment_ notin #RESULT 22
+         IF #FINDBAGID <> #BACKPACKID 5
+            WHILE %w_t > #SYSTIME
+               WAIT 1
+            EXEVENT drag #FINDID
+            EXEVENT dropc #BACKPACKID
+            SET %w_t #SYSTIME + %action_wait
+         SET #LOBJECTID #FINDID
+         WHILE %w_t > #SYSTIME
+            WAIT 1
+         EVENT macro 17
+         SET %w_t #SYSTIME + %action_wait
+         SET %timeout #SYSTIME + ( %action_wait * 3 )
+         REPEAT
+            WAIT 1
+         UNTIL ( #CONTSIZEX = %alacrity_x && #CONTSIZEY = %alacrity_y ) || #SYSTIME > %timeout
+         IF #SYSTIME > %timeout
+            GOTO alac
+         ELSE 3
+            SET %alax #CONTPOSX + %alacrityx_off
+            SET %alay #CONTPOSY + %alacrityy_off
+            CLICK %alax %alay f
+      SET %alacrity_timer #SCNT + 60
+   ELSE
+      SET !alacrity #FALSE
+RETURN
+
+SUB setup
+SET %alacrity_x 445
+SET %alacrity_y 210
+SET %alacrityx_off 113
+SET %alacrityy_off 182
+SET %alacrity_timer 0
+SET %action_wait 1200
+SET %upper1 500
+SET %lower1 0
+SET %upper2 700
+SET %lower2 501
+SET %upper3 950
+SET %lower3 701
+GOSUB getvar storage 1 2
+SET !storage #RESULT
+FINDITEM !storage C
+IF #FINDCNT < 1 2
+   EVENT exmsg #CHARID 3 75 Storage container not in range!! Script halting!!
+   HALT
+GOSUB getvar picks 2 3
+SET !picks #RESULT
+GOSUB getvar keyring 3 4
+SET !keyring #RESULT
+GOSUB getvar lockbox1 4 5
+SET !lockbox1 #RESULT
+GOSUB getvar lockbox2 5 6
+SET !lockbox2 #RESULT
+GOSUB getvar lockbox3 6 7
+SET !lockbox3 #RESULT
+GOSUB getvar alacrity 7 8
+IF #RESULT = y
+   SET !alacrity #TRUE
+ELSE
+   SET !alacrity #FALSE
+GOSUB open_this !storage
+IF #RESULT = #FALSE 2
+   EVENT exmsg #CHARID 3 75 Storage container did not open!! Script halting!!
+FINDITEM !picks C_ , !storage
+IF #FINDCNT > 0
+   SET !pick_pile #FINDSTACK
+ELSE 2
+   DISPLAY No picks!!
+   HALT
+GOSUB get_skill lock
+SET !scan #JINDEX
+SET #LOBJECTID !lockbox
+WHILE %w_t > #SYSTIME
+   WAIT 1
+EVENT macro 17
+SET %w_t #SYSTIME + %action_wait
+WAIT 10
+WHILE #JINDEX > !scan
+   {
+   SET !scan !scan + 1
+   SCANJOURNAL !scan
+   IF :_It_appears_to_be_locked. in #JOURNAL
+      SET %locked #TRUE
+   ELSE
+      SET %locked #FALSE
+   }
+RETURN
+
+SUB open_this
+FINDITEM %1
+IF #FINDCNT > 0 && #FINDDIST <= 2 14
+   SET %mrt 0
+   SET #LOBJECTID #FINDID
+   retry:
+   EVENT macro 17
+   SET %w_t #SYSTIME + %action_wait
+   SET %mto #SCNT + 2
+   SET %mrt %mrt + 1
+   REPEAT
+      WAIT 1
+   UNTIL #CONTID = %1 || #SCNT > %mto
+   IF #SCNT > %mto 3
+      IF %mrt >= 3
+         RETURN #FALSE
+      GOTO retry
+RETURN
+
+SUB getvar
+STR pos *easygllp ^ %3
+SET !end #STRRES
+STR len *easygllp
+STR del *easygllp !end #STRRES
+SET !line #STRRES
+STR pos !line ^ %2
+STR del !line 1 #STRRES
+RETURN #STRRES
+
+;========================================
+; Script Name: Scripty's ScanBar
+; Author: Scripty
+; Version: 1.1
+; Client Tested with: Latest
+; EUO version tested with: 1.5 build(initial 189)(lastest 208)
+; Shard OSI / FS:  OSI
+; Revision Date: 3.28.11
+; Public Release: 8.17.11 (1.22.12)
+; Credits:
+; Purpose: Build a searchable list of icons on buffbar.
+; Requirements: Buffbar must be facing RIGHT to work and
+; in the BLACK AREA for best performance and UNCOVERED.
+;========================================
+;       _____   _    __ _____
+;      |  _  \ | \ /  /|  _  \
+;      | |_|  ||     / | |_|  |
+;      |    _/ |     \ |    _/
+;  www.|___|   |__|\__\|___| alace.com
+;
+;========================================
+; This script is (c)2011 Scripty. You are given limited rights to use this script
+; in your own scripts with proper credit given.  If you use this code in your script
+; you are REQUIRED to vote for it. :)  And also give thanks in the thread its posted in.
+; If you are given this script, or download it from another site, you are NOT given
+; permission to use it, and must delete it immediately.  You shouldn't be using
+; scripts given to you anyways, you should download them from the ORIGINAL authors/site.
+;========================================
+;========================================
+; returns icons on bar, also sets
+; ===========================TEST CODE BELOW
+;set %loopstarttime #sysTime
+;set %start #sysTime
+;set %loopcnt 0
+;set %startStart #sysTime + 1000
+;set %swaps 0
+;repeat
+  ;call scanbuffbar
+;  gosub scanbar #true
+;  set %swaps %swaps + 1
+;  if %startStart < #sysTime 3
+;    event sysmessage %swaps #result %buffbariconnames %averageLoopTime
+;    set %startStart #sysTime + 1000
+;    set %swaps 0
+;  set %swapCnt %swapCnt + 1
+;  set %loopsPerHour ( %swapCnt * 3600 ) / ( #sysTime - %start )
+;  set %averageLoopTime ( #systime - %loopStartTime ) / %swapCnt
+;until #false
+;halt
+;==============================END TEST CODE
+
+sub scanBar
+  namespace push
+  namespace local scanBar . #charid
+  set !tempLpc #lpc
+  set !newla %1
+  set #lpc 20000
+  if !scanOffset = n/a
+    gosub setVars %1 %2
+  set !buttonX . 1 !blueButtonX . 1 + !blueContPosX . 1
+  set !buttonY . 1 !blueButtonY . 1 + !blueContPosY . 1
+  if #contname <> buffIcons_Gump || ( #contName = buffIcons_Gump && ( #contposx <> !blueContPosX . 1 || #contposy <> !blueContPosY . 1 ) ) 3
+  savepix !buttonX . 1 !buttonY . 1 !savePixelNumber
+  if ( #pixcol < !blueButtonPixCol . 1 - !scanOffset || #pixcol > !blueButtonPixcol . 1 + !scanOffset ) && #pixcol < !high
+    gosub findBarVars
+  set %icons . #charid _
+  set !notFound 0
+  for !scanIcons 1 !scanBarIconCount
+  {
+    set !x !scanX + ( ( !scanIcons - 1 ) * 31 )
+    savepix !x !scanY !savePixelNumber
+    ;event sysmessage #pixcol scan1
+    if #pixcol = 0 || #pixcol > 16779215
+      break
+    if ! . #pixcol <> n/a && ! . #pixcol <> block && ! . #pixcol <> massCurse && ! . #pixcol <> Curse && ! . #pixcol <> Sleep && ! . #pixcol <> Consecrate && ! . #pixcol <> HeatOfBattle && ! . #pixcol <> SplinteringDebuff && ! . #pixcol <> Feeblemind && ! . #pixcol <> Tribulation && ! . #pixcol <> MedusaStone && ! . #pixcol <> FastSkillGain 4
+      if _ , ! . #pixcol , _ in %icons . #charid
+        continue
+      set %icons . #charid %icons . #charid , ! . #pixcol , _
+      continue
+    gosub S1
+    if ( %1 = n/a && !notFound >= 5 ) || ( %1 = #true && !notFound >= 2 )
+      break
+  }
+  set #result %icons . #charid
+  set #lpc !tempLpc
+  namespace pop
+return #result
+sub S1
+  set !x1 ( !scanX + 22 ) + ( ( ( !scanIcons - 1 ) * 31 ) - 5 )
+  if ! . #pixcol = Block
+    set !y1 !scanY + 22 - 17
+  else
+    set !y1 !scanY + 22 - 8
+  savepix !x1 !y1 !savePixelNumber
+  ;event sysmessage #pixcol scan2
+  if !i2 . #pixcol <> n/a && _ , !i2 . #pixcol , _ notin %icons . #charid
+    set %icons . #charid %icons . #charid , !i2 . #pixcol , _
+  else
+    set !notFound !notFound + 1
+return
+sub findBarVars
+  while #contname <> BuffIcons_Gump
+    event macro 57
+  if #contname = bufficons_gump && !percentOhx <> n/a && !percentOhy <> n/a 2
+    contpos !percentOhx !percentOhy
+    wait 1
+  set !blueContPosX . 1 #contposx
+  set !blueContPosY . 1 #contposy
+  set !buttonX . 1 !blueButtonX . 1 + #contposx
+  set !buttonY . 1 !blueButtonY . 1 + #contposy
+  set !scanX 26 + #contposx
+  set !scanY 11 + #contposy
+return
+sub setVars
+  namespace clear
+  set !savePixelNumber 88  ; Number to use for savepix
+  if %0 > 1 2
+    set !percentOhx %1
+    set !percentOhy %2
+  set !scanOffset 512
+  set !buffGumpName buffIcons_gump
+  set !blueButtonX1 10
+  set !blueButtonY1 45
+  set !blueButtonPixCol1 10238224
+  set !blueContPosX1 #contposx
+  set !blueContPosY1 #contposy
+  set !blueButtonX2 10
+  set !blueButtonY2 46
+  set !blueButtonPixCol2 11354640
+  set !blueContPosX2 #contposx
+  set !blueContPosY2 #contposy
+  if #contname = bufficons_gump 5
+    if !percentOhx <> n/a && !percentOhy <> n/a && ( #contposx <> !percentOhx || #contposy <> !percfentOhy ) 2
+      contpos !percentOhx !percentOhy
+      wait 1
+    set !scanX 26 + #contposx
+    set !scanY 11 + #contposy
+  set !high 3000000000
+  gosub Add ImmolatingWeapon  1606689        49
+  gosub Add VampiricEmbrace   2198561   4382282
+  gosub Add CurseBloodOath    2171342   1579230
+  gosub Add EvilOmen          2171375  11908607
+  gosub Add GiftOfRenewal     1625616   2741784
+  gosub Add AnemiaDebuff      2171259       181
+  gosub Add DefenseMastery    1608728   1092880
+  gosub Add Inspire           2177346   3259681
+  gosub Add HorrificBeast     2221857   1094928
+  gosub Add ForceArrow        2693252   5388676
+  gosub Add WraithForm        2701617    566552
+  gosub Add HitLowerDefense   4344394    526476
+  gosub Add PoisonImmunity    5951066   2215465
+  gosub Add Honored           4889674   1621272
+  gosub Add CounterAttack     4371761     12544
+  gosub Add DivineFury        5950984   5951009
+  gosub Add MindRot           7046267  16775143
+  gosub Add Bless             7065096   6540841
+  gosub Add Cunning           7065187      2056
+  gosub Add HonorableExecute  5426787      8472
+  gosub Add GazeOfDespair     528491    1581171
+  gosub Add ReaperForm        4891978   6542947
+  gosub Add Protection        7069266   7071562
+  gosub Add HiryuDebuff       255       1054852
+  gosub Add LightningStrike   48516     1627771
+  gosub Add TribulationCaster 2056       528400
+  gosub Add WeaponFocus       6276        12799
+  gosub Add CorruptionDebuff  6350      1050764
+  gosub Add SpellFocus        50721       52777
+  gosub Add FishPie           50754     3754586
+  gosub Add TalonStrike       526468     526468
+  gosub Add Criminal          526492    2171160
+  gosub Add Poison            526534    1052903
+  gosub Add Perfection        1082376   1096984
+  gosub Add Confidence        1084432   1617176
+  gosub Add Healing           1088520   9229956
+  gosub Add BleedAttack       1579230    526575
+  gosub Add CurseWeapon       1088561     14592
+  gosub Add HitLowerAttack    1579032  11908533
+  gosub Add VeterinaryBuff    1084440  13551310
+  gosub Add FearDebuff        1572930   1577092
+  gosub Add DiseaseDebuff     1583459       115
+  gosub Add Clumsy            528400    2179641
+  gosub Add RageDebuff        528474    1583467
+  gosub Add Evasion           549648    2716440
+  gosub Add Consecrate        558088     558088
+  gosub Add Block             558088    6511194
+  gosub Add Feint             560144    2188114
+  gosub Add PsychicAttack     528606    8101037
+  gosub Add LichForm          560136    3763026
+  gosub Add DualWield         562184    1052696
+  gosub Add SplinteringDebuff 1050747   1577133
+  gosub Add Curse             1052911   1579255
+  gosub Add MassCurse         1052911   7576749
+  gosub Add Feeblemind        1052911   9748174  ;7918
+  gosub Add CorpseSkin        1059071   1579263
+  gosub Add Sleep             1050747   2172961
+  gosub Add Weaken            1052853   3750366
+  gosub Add PainSpike         1052870   7566319
+  gosub Add Tribulation       1052820   1052820
+  gosub Add MedusaStone       1052820   2173382
+  gosub Add RoseOfTrinsic     1080080   1621272
+  gosub Add GrapesOfWrath     2712361   3232355
+  gosub Add Strength          4337721   7575205
+  gosub Add CasterBloodOath   2741776   2217472
+  gosub Add MagicReflection   2748217   1632041
+  gosub Add FireDebuff        2748415   2226175
+  gosub Add Invisibility      3792441   3792441
+  gosub Add Despair           3223890   1052837
+  gosub Add StatLoss          3230455   1052804
+  gosub Add ArcaneEmpowerment 3257856   2725409
+;  gosub Add FastSkillGain     3257856   2725409
+  gosub Add Dismount          4342511   1579255
+  gosub Add WebDebuff         7566245   1579131
+  gosub Add Disarm            8092663   1052919
+  gosub Add MomentumStrike    10274312  2733336
+  gosub Add MortalStrike      9211111   1052886
+  gosub Add EnemyOfOne        9217445   1096960
+  gosub Add Agility           8710011  10270389
+  gosub Add Resilience        8103291   9234316
+  gosub Add Berserk           8107470   5963602
+  gosub Add EnchantBuff       8701440   3794770
+  gosub Add Invigorate        8714116  11919029
+  gosub Add StoneForm         10272206  1579041
+  gosub Add Polymorph         10854044  7048877
+  gosub Add EssenseOfWind     9211135  10274526
+  gosub Add Paralyze          10855935  4868855
+  gosub Add EtherealVoyage    10870346  7578962
+  gosub Add Strangle          12434943 11392743
+  gosub Add Flying            11902100  5395026
+  gosub Add EOODebuff         11910614  3217655
+  gosub Add ReactiveArmour    12445638  9217676
+  gosub Add OrangePetals      11375789  3261993
+  gosub Add Thunderstorm      11388630 13555406
+  gosub Add Preservance       12447677 11885138
+  gosub Add Attunement        13035387  5929868
+  gosub Add SpellPlague       13035503  5408412
+  gosub Add HeatOfBattle      1050747     61439
+  gosub Add AnimalForm        13546999        8
+  gosub Add NightSight        13553630  3270424
+  gosub Add DespairCaster     14056291  9189656
+  gosub Add ManaPhaseBuff     14081643 16252705
+  gosub Add WeaponWard        14589547 14061138
+  gosub Add Meditation        15157793 16777215
+  gosub Add Incognito         16751632  5392986
+  gosub Add HiddenStealthing  16764597  2703946
+  gosub Add GiftOfLife        16777215 15204327
+  gosub Add AureofNausea      1577149     16937
+  set %icons . #charid _
+return
+sub Add
+  if !scanBarIconCount = N/A
+    set !scanBarIconCount 0
+  set !scanBarIconCount !scanBarIconCount + 1
+  set ! . %2 %1
+  set !1 %2 + 256
+  set !2 %2 - 256
+  set !3 %2 + !scanOffset
+  set !4 %2 - !scanOffset
+  set ! . !1 %1
+  set ! . !2 %1
+  set ! . !3 %1
+  set ! . !4 %1
+if %1 = massCurse || %1 = Curse || %1 = Sleep || %1 = Consecrate || %1 = HeatOfBattle || %1 = SplinteringDebuff || %1 = Feeblemind || %1 = Tribulation || %1 = MedusaStone
+{
+  set !i2 . %3 %1
+  set !5 %3 + 256
+  set !6 %3 - 256
+  set !7 %3 + !scanOffset
+  set !8 %3 - !scanOffset
+  set ! . !5 %1
+  set ! . !6 %1
+  set ! . !7 %1
+  set ! . !8 %1
+}
+return

@@ -1,0 +1,202 @@
+;==============================================================
+; Script Name: Ma$$acre's Item Identifier Utility
+; Author: Ma$$acre 
+; Version: 1.4 
+; Client Tested with: 4.0.3b
+; EUO version tested with: 1.42.008a
+; Shard OSI / FS: OSI 
+; Revision Date: 06.22.2003 
+; Public Release: 01.20.2003 
+; Purpose: Allows user to target an item to provide it's ID, Type, and #FindMod to assist in scripting.
+;==============================================================
+;
+; Instructions: Hit Play, follow the menu (target an item)
+;  - If using UO Title Bar instead of the default menu, alt-N = Next and alt-Q = Quit.
+;
+
+; Notes: The #findmod is not accurate unless the mouse is still until the item information is displayed.
+
+; History:
+;1.4 - On Hotkey function to continue identifying items or quit if not using menu
+;    - #findmod values now displayed
+;    - No property displayed if using titlebar
+;1.3 - Added the ability to use titlebar instead of menu (option)
+;1.2 - Made Property display optional for speed, and improved robustness
+;1.1 - Added Properties to Menu
+;1.0 - Fully functional - uses menu
+
+; Future Enhancements:
+;    - Optional recording of all item types to CEO's Filesystem/external file
+;    - Have the option to have the item or character call out the information (only client side visible)
+;#findcol
+;property string length
+;stack amount
+;items location (#findx #findy)
+;Items container's ID
+
+;or, if you just want to keep it simple with the info it already has,
+;you could get rid of the menu, and put it all in the ultima titlebar so its not in the way at all.
+
+event SysMessage Target something!
+set #targCurs 1
+targLoop:
+if #targCurs = 1
+  goto targLoop
+finditem #lTargetID
+event SysMessage The ID of the target is #findtype
+halt
+
+;******************************
+; User Variables:
+;******************************
+set %useproperty #true  ; Set to #false for quick id (no properties) - this option only works if you use the menu.
+set %usemenu #false      ; Will use the title bar instead of an intrusive menu - but space is limited, so no properties.
+
+
+
+
+
+;******************************
+; No need to modify beyond here
+;******************************
+initevents
+;if recording to file - %useproperty will be defaulted true
+if %usemenu = #false
+  {
+  set %useproperty #false
+  }
+
+display OK Target an item for it's information.
+
+start:
+  gosub targeting
+  if %usemenu = #true
+    {
+    gosub set_menu
+    }
+  if %usemenu = #false
+    {
+    gosub set_title
+    }
+goto start
+
+
+;**************************************************
+sub targeting
+;**************************************************
+  set #targCurs 1
+  targLoop:
+  if #targCurs = 1
+    goto targLoop
+  finditem #ltargetid
+  set %modx #cursorx - #findx
+  set %mody #cursory - #findy
+  set %findmod %modx , _ , %mody
+  if %useproperty = #true
+    {
+    gosub waitforprop #ltargetid
+    }
+return
+
+
+
+;**************************************************
+sub waitforprop
+;**************************************************
+  event property #charid
+  wait 1
+  set %oldprop #property
+  event property %1 
+  _testforprop:
+  if #property = %oldprop
+    {
+    goto _testforprop
+    }
+return
+
+
+
+;**************************************************
+sub set_menu
+;**************************************************
+  set #menubutton N/A
+  menu clear
+  menu Window Title Massacre's Item Identifier Utility.
+  menu window color black
+  menu font size 10
+  menu font color blue
+  menu font bgcolor black
+  if %useproperty = #true
+    {
+    menu window size 350 470
+    }
+  else
+    {
+    menu window size 350 120
+    }
+  menu text 1 13 5 Item Type is:
+  menu font color white
+  menu text 1 150 5 #findtype
+  menu font color blue
+  menu text 1 13 25 Item ID is:
+  menu font color white
+  menu text 1 150 25  #ltargetid
+  menu font color blue
+  menu text 1 13 45 FindMod is:
+  menu font color white
+  menu text 1 150 45  %findmod
+  if %useproperty = #true
+    {
+    menu font color blue
+    menu text 1 13 75 Item Properties are:
+    menu font color white
+    menu text 1 33 95 #property
+    }
+  if %useproperty = #true
+    {
+    menu Button Next 250 440 50 25 Next
+    menu Button Quit 300 440 50 25 Quit
+    }
+  else
+    {
+    menu Button Next 250 90 50 25 Next
+    menu Button Quit 300 90 50 25 Quit
+    }
+  menu show 300 130
+
+  _quitnextloop:
+  if #menubutton = Next
+    {
+    return
+    }
+  if #menubutton = Quit
+    {
+    menu hide
+    halt
+    }
+  if #menubutton = Closed
+    {
+    menu hide
+    halt
+    }
+  goto _quitnextloop
+return
+
+
+
+;**************************************************
+sub set_title
+;**************************************************
+;Experimenting with having the item call out it's own information?
+;event exmsg #findid 3 0 Item Type: #findtype | ID: #ltargetid | Properties: #property
+
+  setuotitle Item Type: #findtype | ID: #ltargetid | FindMod: %findmod (alt-N = Next | alt-Q = Quit)
+  _keyloop:
+    onHotKey N alt
+      return
+    onHotKey Q alt    
+      halt      
+  goto _keyloop
+return
+
+
