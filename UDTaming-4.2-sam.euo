@@ -187,11 +187,11 @@ sub InitMenu
     menu button resetignore 230 115 80 25 Reset Ignore
     menu button setregcont 150 140 80 25 Add Waypoint
     menu button loadWaypointBtn 230 140 80 25 Load Waypoints
-    menu button echoAllWpsBtn 290 140 80 25 Echo All Waypoints
+    menu button echoAllWpsBtn 150 165 80 25 Echo Waypoints
     menu font style b
-    menu text waypointsTitle 10 165 Waypoints:
+    menu text waypointsTitle 10 175 Waypoints:
     menu font style n
-    menu edit waypointstext 10 180 300
+    menu edit waypointstext 10 190 300
     menu shape bgstatus 0 283 320 17 3 7 1 $999999 7 $E0E0E0
     menu font color $666666
     menu text lblstatus 5 285 Status:
@@ -204,7 +204,7 @@ return
 
 sub IterateWaypoints
     ;gosub distance %waypointx0 %waypointy0 %waypointx1 %waypointy1
-    event ExMsg #charID 3 0 #charposx , #spc , #charposy , #spc , %waypointx . %currwp , #spc , %waypointy . %currwp , #spc , %currwp
+    event ExMsg #charID 3 0 #charposx , #spc , #charposy , #spc , %waypointx . %w , #spc , %waypointy . %w , #spc , %w
     ;for %i 0 %w
     ;{
     ;    event ExMsg #charID 3 0 %waypointx . %i , #spc , %waypointy . %i
@@ -212,7 +212,7 @@ sub IterateWaypoints
     ;}
 return
 
-sub FindNearestWPFindNearestWP
+sub FindNearestWP
     set %nearestwp 0
     set %nearestwpdist 999
 
@@ -252,26 +252,24 @@ sub AddWaypoint
     set %waypointy . %w #charposy
     set %waypointz . %w #charposz
     set %currwp %w
-    
-    menu get waypointstext
-    set !waypointstext #menuRes
-    set !current %waypointx . %w , #spc , %waypointy . %w , #spc , %waypointz . %w
-    menu set waypointstext !waypointstext , !current , #smc
-
+    set %waypointPointer %w
+    gosub addWaypointToBox
 return
 
 sub LoadWaypoints
     set %w 0
     menu get waypointstext
     set %waypointsbuffer #menuRes
-    event SysMessage %waypointsbuffer
-    
     str len %waypointsbuffer
+    event SysMessage #strRes
     while #strRes > 0
     {
     gosub GetWaypoint
     set %w %w + 1
+    str len %waypointsbuffer
     }
+    set %w %w - 1
+    event SysMessage waypoints loaded
 return
 
 sub GetWaypoint
@@ -282,7 +280,7 @@ sub GetWaypoint
     set %waypointfull #strRes
     str del %waypointsbuffer 1 %waypointBufferPos
     set %waypointsbuffer #strRes
-    event SysMessage %waypointsbuffer
+    event SysMessage %waypointfull
     gosub GetCoord
     set %waypointx . %w #result
     gosub GetCoord
@@ -309,16 +307,18 @@ sub GetCoord
 return %cord
 
 sub printWaypoints
-    set %w 0
-    str len %waypointx . %w
-   event SysMessage  #strRes
-    while #strRes > 0
+    menu set waypointstext
+    for %waypointPointer 0 %w
     {
-    event SysMessage %waypointx . %w
-    event SysMessage %waypointy . %w
-    event SysMessage %waypointz . %w
-      set %w %w + 1
+     gosub addWaypointToBox
     }
+return
+
+sub addWaypointToBox
+    menu get waypointstext
+    set !waypointstext #menuRes
+    set !current %waypointx . %waypointPointer , #spc , %waypointy . %waypointPointer , #spc , %waypointz . %waypointPointer
+    menu set waypointstext !waypointstext , !current , #smc
 return
 
 sub InitAnimalTaming
@@ -344,7 +344,7 @@ sub InitPickupRegs
 return
 
 sub Dispatch
-    ;menu set status Idle
+    menu set status Idle
     gosub ScriptIdletime
     gosub TamingCheckSkill
     set %finditems N/A
@@ -387,7 +387,8 @@ sub Dispatch
            gosub FindNearestWP
            set %currwp %nearestwp
 
-
+            event SysMessage     %currwp
+            
            ; move on to next waypoint
            ; if we fail to move at each step, then still check the error and stop trying to move
             gosub PathfindWait %waypointx . %currwp %waypointy . %currwp %waypointz . %currwp
@@ -415,11 +416,11 @@ sub ScriptIdletime
     {
         set %w -1
         set #menubutton N/A
+        menu set waypointstext
         gosub AddWaypoint
     }
     if #menubutton = echoAllWpsBtn
     {
-        set %w -1
         set #menubutton N/A
         gosub printWaypoints
     }
@@ -939,7 +940,7 @@ sub GetContainerPos
         set %contdropx #findx + 21
         set %contdropy #findy + 10
         return #true
-    if #findtype = LKF 5 ; pouch
+    if #findtype = LKF 5 ; pouch                                                      se
         set %contposx #findx + 22
         set %contposy #findy + 13
         set %contdropx #findx + 25

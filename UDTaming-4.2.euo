@@ -252,12 +252,8 @@ sub AddWaypoint
     set %waypointy . %w #charposy
     set %waypointz . %w #charposz
     set %currwp %w
-
-    menu get waypointstext
-    set !waypointstext #menuRes
-    set !current %waypointx . %w , #spc , %waypointy . %w , #spc , %waypointz . %w
-    menu set waypointstext !waypointstext , !current , #smc
-
+    set %waypointPointer %w
+    gosub addWaypointToBox
 return
 
 sub LoadWaypoints
@@ -265,7 +261,7 @@ sub LoadWaypoints
     menu get waypointstext
     set %waypointsbuffer #menuRes
     event SysMessage %waypointsbuffer
-
+    
     str len %waypointsbuffer
     while #strRes > 0
     {
@@ -309,16 +305,22 @@ sub GetCoord
 return %cord
 
 sub printWaypoints
-    set %w 0
-    str len %waypointx . %w
-   event SysMessage  #strRes
-    while #strRes > 0
+    menu set waypointstext
+     event SysMessage %w
+    for %waypointPointer 0 %w
     {
-    event SysMessage %waypointx . %w
-    event SysMessage %waypointy . %w
-    event SysMessage %waypointz . %w
-      set %w %w + 1
+     event SysMessage %waypointPointer
+     gosub addWaypointToBox
+     halt
     }
+return
+
+sub addWaypointToBox
+     event SysMessage %waypointPointer
+    menu get waypointstext
+    set !waypointstext #menuRes
+    set !current %waypointx . %waypointPointer , #spc , %waypointy . %waypointPointer , #spc , %waypointz . %waypointPointer
+    menu set waypointstext !waypointstext , !current , #smc
 return
 
 sub InitAnimalTaming
@@ -344,7 +346,7 @@ sub InitPickupRegs
 return
 
 sub Dispatch
-    ;menu set status Idle
+    menu set status Idle
     gosub ScriptIdletime
     gosub TamingCheckSkill
     set %finditems N/A
