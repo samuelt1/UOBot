@@ -1,0 +1,238 @@
+;================================== 
+; Script Name: Ambrosia's Cartography Trainer
+; Author: Ambrosia
+; Version: 1.4
+; Client Tested with: 4.0.3e
+; EUO version tested with: 1.42 [build 0096] 
+; Shard OSI / FS: OSI 
+; Revision Date: 11/12/04 
+; Public Release: 7/13/04 
+; Global Variables Used: 
+; Purpose: Trains Cartography using blank scrolls, bags them, and trashes them when done. 
+;==================================
+; Notes:  If this is the first time you are working carto, please double click the
+; Scribes pen and select maps or the script wont work.  I personally run off of 
+; a cable connection, so this may lag a bit much for you. 
+; If this happens, Please set the %slowconnection to TRUE.
+;
+; This script works ONLY with BAGS. Not pouches or backpacks or anything else. 
+;
+; MAKE SURE you do not have any bags in your pack, or the script will throw
+; them in the trash. You have been warned!
+;
+initevents
+;*********************DELAY LINE*********************
+;ADJUST YOUR DELAYS HERE!! SET FROM 1 TO 10 (1 being fastest, 10 being REALLY slow)
+set %wait 2
+;********************SCROLL LINE********************
+;SET NEXT LINE TO NUMBER OF SCROLLS
+; YOU WANT IT TO COLLECT. REMEMBER YOUR
+; BAG HAS A 125 ITEM LIMIT. DEFAULT IS 100.
+; If you go over your item limit, this script will break!!
+;*********************
+set %collect 100
+;*********************
+set %scroll DPF
+set %pen CXF
+set %bag RXJC_CKF
+set %trashcan HIF_BKF
+set %bagid n/a
+set %mapsx 80
+set %mapsy 140
+set %localx 282
+set %localy 122
+set %cityx 282
+set %cityy 141
+set %seax 284
+set %seay 160
+set %worldx 282
+set %worldy 182
+set %delay1 %wait * 10
+set %delay2 %wait * 20
+set %delay3 %wait * 30
+display ok Please Double Click your secure container. $  Restart the script after you have done it.
+pause
+set %secure #lobjectid
+wait %delay1
+event macro 8 1
+wait %delay3
+contpos 630 -156
+event macro 8 7
+wait %delay3
+set %backpack #contid
+contpos 630 167
+finditem %trashcan G_2
+     wait %delay1
+set #lobjectid #findid
+     if #findkind = -1 || #findcnt <> 1
+     {
+     display yesno Your Trashcan could not be found. Do you wish to target it manually? 
+     set #dispres = N/A
+     trashdelay:
+     wait %delay2
+          if #dispres = N/A
+          goto trashdelay
+          if #dispres = YES
+             gosub Trash
+          if #dispres = NO 2
+             display ok No Trash Can. Script Halted.
+             halt
+     }
+event macro 17
+wait %delay3
+contpos 630 370
+set #lobjectid %secure
+event macro 17
+wait %delay3
+contpos 400 360
+
+;********BEGINS MAIN SCRIPT*****************
+display ok This script works with BAGS and BLANK SCROLLS. $Backpacks, pouches, and maps are NOT supported.
+display ok Make Sure these items are all in your $SECURE container, not in your backpack. $ Anything in your backpack will be thrown away.
+display ok If you have an issue with the script throwing away your bag $ and there are still blank scrolls in it, That means $your connection is too slow. $
++ Please adjust the wait line$ (clearly marked at begining of the script)
+display ok If you have any issues with this script, $please post your issue in the script thread. $  The Script is starting now. ENJOY and GOOD LUCK!!
+loop:
+gosub findscrolls
+gosub findpens
+gosub skillcheck
+goto loop
+
+sub findscrolls
+finditem %scroll C_ , %bagid
+if #findkind = -1
+    gosub getscrolls
+return
+
+sub findpens
+finditem %pen C_ , %backpack
+if #findkind = -1
+    gosub getpen
+return
+
+sub skillcheck
+finditem %pen C_ , %backpack
+set #lobjectid #findid
+chooseskill cart
+if #skill = 995
+   {
+   display ok Congratulations! This script has done its job. $ Now time to do the hard work yourself. $ Please go vote for the script if you liked it!
+   halt
+   }
+if #skill < 500
+    gosub local
+if #skill < 750 && #skill => 500
+  gosub city
+if #skill < 850 && #skill => 750
+  gosub sea
+if #skill < 995 && #skill => 850
+  gosub world
+return
+
+sub local
+event macro 17
+wait %delay2
+contpos 50 50
+click %localx %localy
+wait %delay2
+return
+
+sub city
+event macro 17
+wait %delay2
+contpos 50 50
+click %cityx %cityy
+wait %delay2
+return
+
+
+sub sea
+event macro 17
+wait %delay2
+contpos 50 50
+click %seax %seay
+wait %delay2
+return
+
+sub world
+event macro 17
+wait %delay2
+contpos 50 50
+click %worldx %worldy
+wait %delay2
+return
+
+sub getscrolls
+finditem %bag C_ , %backpack
+  if #findkind <> -1
+   {
+   event drag #findid
+   drag4:
+   wait %delay1
+   click 700 450
+   wait %delay1
+   if #lliftedkind = 1
+      goto drag4
+   }
+finditem %bag C_ , %secure
+  if #findkind = -1
+   {
+   display ok You have no empty bags. Please restock.
+   halt
+   }
+event drag #findid
+drag1:
+wait %delay1
+click 700 230
+wait %delay1
+if #lliftedkind = 1
+   goto drag1
+set #lobjectid #findid
+event macro 17
+wait %delay3
+contpos 240 365
+finditem %bag C_ , %backpack
+set %bagid #findid
+finditem %scroll C_ , %secure
+  if #findkind = -1
+  {
+  display ok You have no blank scrolls. Please restock.
+  halt
+  }
+  if #findstack < %collect
+  set %collect #findstack
+event drag #findid
+wait %delay2
+msg %collect $
+drag2:
+wait %delay1
+click 285 430
+if #lliftedkind = 1
+    goto drag2
+return
+
+sub getpen
+finditem %pen C_ , %secure
+if #findkind = -1
+   {
+   display ok You have no Mapmaker's Pens. Please restock. 
+   halt
+   }
+event drag #findid
+drag3:
+wait %delay2
+click 770 220
+wait %delay1
+if #lliftedkind = 1
+    goto drag3
+return
+
+Sub Trash
+set #targcurs 1
+display ok Please target your Trashcan
+Target:
+wait %delay2
+    if #targcurs = 1
+         goto Target
+set #lobjectid #ltargetid
+return

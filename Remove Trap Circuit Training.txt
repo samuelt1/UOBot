@@ -1,0 +1,292 @@
+;==================================================
+; Script Name: Remove Trap Circuit Training
+; Author: Onkelatze
+; Version: 1.00
+; Client Tested with: 7.0.76.0
+; EUO version tested with: 1.50 ver. xxx
+; Shard OSI
+; Revision Date: 26/05/19
+; Public Release: 29/06/19
+; Circuit Trap Kits are available for purchase from the Oddities Trader at the Lycaeum.
+; Start Script up to 75 Remove Trap very fast. To busy to solved > 75 gain :D  Only for 9*9!
+;==================================================
+;==================================================
+set #lpc 400
+set %trainingkit LBKC
+gosub clickthereddata
+gosub findkit
+searchtk:
+set %first
+set %second
+set %rightcnt 0
+startagain:
+gosub usecttk
+if ! #result
+   goto startagain
+gosub clickrandom %rightx %righty
+gosub waitingformygump contname generic_gump contsize 629_414 10
+if ! #result
+   {
+    set %first down
+    gosub usecttk
+    gosub clickrandom %downx %downy
+    gosub waitingformygump contname generic_gump contsize 629_414 10
+    goto second
+   }
+set %first right
+set %rightcnt %rightcnt + 1
+second:
+wait 5
+gosub clickrandom %rightx %righty
+gosub waitingformygump contname generic_gump contsize 629_414 10
+if ! #result
+   {
+    gosub usecttk
+    if %first <> right
+       gosub clickrandom %downx %downy
+    else
+       gosub clickrandom %rightx %righty
+    gosub waitingformygump contname generic_gump contsize 629_414 10
+    gosub clickrandom %downx %downy
+    gosub clickrandom %rightx %righty
+    gosub waitingformygump contname generic_gump contsize 629_414 10
+    if ! #result
+       {
+        gosub usecttk
+        if %first <> right
+           gosub clickrandom %downx %downy
+        else
+           gosub clickrandom %rightx %righty
+        gosub waitingformygump contname generic_gump contsize 629_414 10
+        gosub clickrandom %downx %downy
+        gosub clickrandom %downx %downy
+        gosub waitingformygump contname generic_gump contsize 629_414 10
+        if ! #result
+           {
+            gosub usecttk
+            if %first <> right
+               gosub clickrandom %downx %downy
+            else
+               gosub clickrandom %rightx %righty
+            gosub waitingformygump contname generic_gump contsize 629_414 10
+            gosub clickrandom %downx %downy
+            gosub clickrandom %downx %downy
+            gosub waitingformygump contname generic_gump contsize 629_414 10
+            if ! #result
+               {
+                gosub usecttk
+                if %first <> right
+                   gosub clickrandom %downx %downy
+                else
+                   gosub clickrandom %rightx %righty
+                gosub waitingformygump contname generic_gump contsize 629_414 10
+                gosub clickrandom %downx %downy
+                gosub clickrandom %leftx %lefty
+                gosub clickrandom %downx %downy
+                gosub clickrandom %rightx %righty
+                gosub clickrandom %rightx %righty
+                goto searchtk
+               }
+            gosub clickrandom %rightx %righty
+            goto searchtk
+           }
+        gosub clickrandom %rightx %righty
+        set %first
+        set %second
+        goto searchtk
+       }
+    set %rightcnt %rightcnt + 1
+    if %rightcnt = 2
+       goto jumpmedown
+    gosub clickrandom %rightx %righty
+    if ! #result
+           {
+            gosub usecttk
+            if %first <> right
+               gosub clickrandom %downx %downy
+            else
+               gosub clickrandom %rightx %righty
+            gosub waitingformygump contname generic_gump contsize 629_414 10
+            gosub clickrandom %downx %downy
+            gosub clickrandom %rightx %righty
+            gosub waitingformygump contname generic_gump contsize 629_414 10
+            gosub clickrandom %upx %upy
+            gosub clickrandom %upx %upy
+            gosub waitingformygump contname generic_gump contsize 629_414 10
+            if ! #result
+               {
+                gosub usecttk
+                if %first <> right
+                   gosub clickrandom %downx %downy
+                else
+                   gosub clickrandom %rightx %righty
+                gosub waitingformygump contname generic_gump contsize 629_414 10
+                gosub clickrandom %downx %downy
+                gosub clickrandom %rightx %righty
+                gosub waitingformygump contname generic_gump contsize 629_414 10
+                gosub clickrandom %upx %upy
+                gosub clickrandom %rightx %righty
+                gosub clickrandom %downx %downy
+                }
+            gosub clickrandom %rightx %righty
+            gosub clickrandom %downx %downy
+            gosub clickrandom %downx %downy
+            goto searchtk
+           }
+    jumpmedown:
+    gosub clickrandom %downx %downy
+    goto searchtk
+   }
+set %second right
+third:
+if %first = right && %second = right
+   goto jumpnextstage
+gosub clickrandom %rightx %righty
+gosub waitingformygump contname generic_gump contsize 629_414 10
+if ! #result
+   {
+    gosub usecttk
+    if %first <> right
+       gosub clickrandom %downx %downy
+    else
+       gosub clickrandom %rightx %righty
+    gosub waitingformygump contname generic_gump contsize 629_414 10
+    if %second <> right
+       gosub clickrandom %downx %downy
+    else
+       gosub clickrandom %rightx %righty
+    gosub waitingformygump contname generic_gump contsize 629_414 10
+    gosub clickrandom %upx %upy
+    gosub waitingformygump contname generic_gump contsize 629_414 10
+    if ! #result
+       {
+        gosub usecttk
+        if %first <> right
+           gosub clickrandom %downx %downy
+        else
+           gosub clickrandom %rightx %righty
+        gosub waitingformygump contname generic_gump contsize 629_414 10
+        if %second <> right
+           gosub clickrandom %downx %downy
+        else
+           gosub clickrandom %rightx %righty
+        gosub waitingformygump contname generic_gump contsize 629_414 10
+        gosub clickrandom %downx %downy
+        gosub clickrandom %rightx %righty
+        goto searchtk
+       }
+    gosub clickrandom %rightx %righty
+    gosub waitingformygump contname generic_gump contsize 629_414 10
+    gosub clickrandom %downx %downy
+    gosub clickrandom %downx %downy
+    goto searchtk
+   }
+jumpnextstage:
+gosub clickrandom %downx %downy
+gosub clickrandom %downx %downy
+gosub waitingformygump contname generic_gump contsize 629_414 10
+if ! #result
+   {
+    gosub usecttk
+    gosub clickrandom %rightx %righty
+    gosub clickrandom %rightx %righty
+    if %first = right && %second = right
+       goto jumpnextstage1
+    gosub clickrandom %rightx %righty
+    jumpnextstage1:
+    gosub clickrandom %downx %downy
+    gosub clickrandom %leftx %lefty
+    gosub clickrandom %leftx %lefty
+    gosub waitingformygump contname generic_gump contsize 629_414 10
+    if ! #result
+       {
+        gosub usecttk
+        gosub clickrandom %rightx %righty
+        gosub clickrandom %rightx %righty
+        if %first = right && %second = right
+           goto jumpnextstage2
+        gosub clickrandom %rightx %righty
+        jumpnextstage2:
+        gosub clickrandom %downx %downy
+        gosub clickrandom %leftx %lefty
+        gosub clickrandom %downx %downy
+        gosub clickrandom %rightx %righty
+        goto searchtk
+   }
+gosub clickrandom %downx %downy
+gosub clickrandom %rightx %righty
+gosub clickrandom %rightx %righty
+goto searchtk
+;==================================================
+;==================================================
+sub clickthereddata
+set %upx 450
+set %upy 186
+set %downx 450
+set %downy 245
+set %leftx 410
+set %lefty 225
+set %rightx 475
+set %righty 225
+return
+;==================================================
+;==================================================
+sub clickrandom
+wait
+set %makeitrandomx %1
+set %makeitrandomy %2
+set %random1 #random % 7 + %makeitrandomx          ;   Make
+set %clickrandom1 %random1 + #contposx             ;   a
+set %random2 #random % 7 + %makeitrandomy          ;   Random
+set %clickrandom2 %random2 + #contposy             ;   Click
+click %clickrandom1 %clickrandom2 dmc
+wait 5
+return
+;==================================================
+;==================================================
+sub waitingformygump
+set %gumptimeout #scnt2 + %5
+waitingformygump:
+if # . %1 <> %2 && # . %3 <> %4
+   {
+    if %gumptimeout < #scnt2
+         return #false
+    goto waitingformygump
+   }
+return #true
+;==================================================
+;==================================================
+sub findkit
+findkit:
+finditem %trainingkit c_ , #backpackid
+if #findcnt < 1
+   stop
+event property #findid
+if circuit notin #property 2
+   ignoreitem #findid
+   goto findkit
+set %mytr #findid
+return
+;==================================================
+;==================================================
+sub usecttk
+set #ltargetid %mytr
+set #ltargetkind 1
+event macro 13 48
+target 5s
+event macro 22
+gosub waitingformygump contname generic_gump contsize 629_414 50
+if ! #result
+   return #false
+wait 5
+return #true
+;==================================================
+;==================================================
+;455 186 462 186 ; oben
+;455 243 462 243 ; oben
+;455 245 462 345 ; unten
+;455 302 462 302 ; unten
+;414 225 436 225 ; links
+;414 264 436 264 ; links
+;479 225 503 225 ; rechts
+;479 264 503 264 ; rechts
