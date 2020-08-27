@@ -68,7 +68,7 @@ while #true
    }
   }
  }
- 
+
 ;======== setup sub
 sub setup
  set #lpc 5
@@ -80,7 +80,7 @@ sub setup
   {
   halt
   }
- set %detecttype BUD_BKF_HIF_IIF_IKF_JIF_KKF_TMF_UMF_VMF_WMF_ZTD_UVJC
+ set %detecttype BUD_BKF_HIF_IIF_IKF_JIF_KKF_TMF_UMF_VMF_WMF_ZTD_UVJC_EWJC
  set %disarmtimer #scnt
 return
   
