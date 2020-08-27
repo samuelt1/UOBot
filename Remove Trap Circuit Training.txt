@@ -11,19 +11,32 @@
 ; Start Script up to 75 Remove Trap very fast. To busy to solved > 75 gain :D  Only for 9*9!
 ;==================================================
 ;==================================================
-
-set %size 5 ; change for smaller or bigger
+chooseSkill remo
+if #skill < 1000
+   set %size 5 ; change for smaller or bigger
+if #skill < 950
+   set %size 4 ; change for smaller or bigger
+if #skill < 750
+   set %size 3 ; change for smaller or bigger
 
 ;==================================================
 ;==================================================
 
-gosub InitMenu
 
 ;0 build board
 ;x = blocked
 ;y = clear path
 ;z = maybe
 ;a = path traveled
+;1 find kit
+set #lpc 400
+set %trainingkit LBKC
+gosub clickthereddata
+gosub findkit
+
+while #true
+{
+
 for %x 1 %size
 {
   for %y 1 %size
@@ -32,23 +45,16 @@ for %x 1 %size
   }
 }
 
-;1 find kit
-set #lpc 400
-set %trainingkit LBKC
-gosub clickthereddata
-gosub findkit
+set %wefinished #false
 set %step 23
 set %board11 %step
 set %foundlocatoins 1
 
-;2 reset state, open kit and move to remembered location
-set %secondrunatthis 1
+;2 reset state, open kit
 gosub reset
 
-;3 check new direction
-;- if it's a wall, write down the blocked
-
-while %currentx , %currenty <> 55
+;main loop
+while ! %wefinished
 {
   if %reset
   {
@@ -76,9 +82,11 @@ while %currentx , %currenty <> 55
         continue
        }
        else
+       {
            gosub reset
+           continue
+       }
     }
-
     ;look down
     set %toedip %currenty + 1
     set %pathdown %currentx , %toedip
@@ -100,7 +108,10 @@ while %currentx , %currenty <> 55
           continue
        }
        else
+       {
            gosub reset
+           continue
+       }
     }
 
 
@@ -126,7 +137,10 @@ while %currentx , %currenty <> 55
          continue
        }
        else
+       {
            gosub reset
+           continue
+       }
     }
        
     ;look up
@@ -151,8 +165,12 @@ while %currentx , %currenty <> 55
          continue
        }
        else
+       {
            gosub reset
+           continue
+       }
     }
+}
 }
     
     
@@ -183,13 +201,13 @@ sub reset
   gosub usecttk
 
   ; reset to the beginning
-set %step 23
+  set %step 23
 
   ; set starting locatoin as a clear path
   set %currentx 1
   set %currenty 1
 
-set %reset #true
+  set %reset #true
 
 return
 
@@ -210,7 +228,8 @@ sub jumpforward
             continue
          else 2
              event SysMessage We got a problem going right
-             halt
+             set %wefinished #true
+             break
       }
 
       ;look down
@@ -228,7 +247,8 @@ sub jumpforward
          else
          {
              event SysMessage We got a problem going down
-             halt
+             set %wefinished #true
+             break
          }
       }
 
@@ -244,7 +264,8 @@ sub jumpforward
             continue
          else 2
              event SysMessage We got a problem going left
-             halt
+             set %wefinished #true
+             break
       }
 
       ;look up
@@ -258,7 +279,8 @@ sub jumpforward
             continue
          else 2
              event SysMessage We got a problem going up
-             halt
+             set %wefinished #true
+             break
       }
       ; if we're this far it's because there is no more path forward
       set %pathforward #false
@@ -267,16 +289,6 @@ sub jumpforward
 return
 
 sub goright
-
-    menu set status1 %board11 , #spc , %board21 , #spc , %board31 , #spc , %board41 , #spc , %board51
-    menu set status2 %board12 , #spc , %board22 , #spc , %board32 , #spc , %board42 , #spc , %board52
-    menu set status3 %board13 , #spc , %board23 , #spc , %board33 , #spc , %board43 , #spc , %board53
-    menu set status4 %board14 , #spc , %board24 , #spc , %board34 , #spc , %board44 , #spc , %board54
-    menu set status5 %board15 , #spc , %board25 , #spc , %board35 , #spc , %board45 , #spc , %board55
-    menu set status6 pathright: , %pathright
-    menu set status7 position: , %currentx , %currenty
-    menu set status8 pathright value: , %board . %pathright
-
      gosub clickrandom %rightx %righty
      ; check if we're still in the game
      gosub waitingformygump contname generic_gump contsize 629_414 10
@@ -289,6 +301,9 @@ sub goright
      }
      else
      {
+        scanjournal 1
+        if You_successfully_disarm in #journal
+          set %wefinished #true
          ;if we can't, mark the path as blocked
          set %board . %pathright xx
          return #false
@@ -296,63 +311,26 @@ sub goright
 return
 
 sub goleft
-    menu set status1 %board11 , #spc , %board21 , #spc , %board31 , #spc , %board41 , #spc , %board51
-    menu set status2 %board12 , #spc , %board22 , #spc , %board32 , #spc , %board42 , #spc , %board52
-    menu set status3 %board13 , #spc , %board23 , #spc , %board33 , #spc , %board43 , #spc , %board53
-    menu set status4 %board14 , #spc , %board24 , #spc , %board34 , #spc , %board44 , #spc , %board54
-    menu set status5 %board15 , #spc , %board25 , #spc , %board35 , #spc , %board45 , #spc , %board55
-    menu set status6 pathleft: , %pathleft
-    menu set status7 position: , %currentx , %currenty
-    menu set status8 pathleft value: , %board . %pathleft
-    menu set status9 step: , %step
-
-
-;==========================================debug======================================
-if %board54 = xx && %step = 13
-{
-set %position %currentx , %currenty
-    menu set status1 %board11 , #spc , %board21 , #spc , %board31 , #spc , %board41 , #spc , %board51
-    menu set status2 %board12 , #spc , %board22 , #spc , %board32 , #spc , %board42 , #spc , %board52
-    menu set status3 %board13 , #spc , %board23 , #spc , %board33 , #spc , %board43 , #spc , %board53
-    menu set status4 %board14 , #spc , %board24 , #spc , %board34 , #spc , %board44 , #spc , %board54
-    menu set status5 %board15 , #spc , %board25 , #spc , %board35 , #spc , %board45 , #spc , %board55
-    menu set status6 pathleft: , %pathleft
-    menu set status7 position: , %currentx , %currenty
-    menu set status8 pathleft value: , %board . %pathleft
-    menu set status9 debug: , %leftx , %lefty
-    halt
-}
-;==========================================debug======================================
-
-     sub clickrandom %leftx %lefty
-     ; check if we're still in the game
-     gosub waitingformygump contname generic_gump contsize 629_414 10
-     if #result
-     {
-       ; if we can move forward, then quick stalling, do it!
-       set %step %step - 1
-       set %currentx %toedip
-       return #true
-     }
-     else
-     {
-         ;if we can't, mark the path as blocked
-         set %board . %pathleft xx
-         return #false
-     }
+    gosub clickrandom %leftx %lefty
+    ; check if we're still in the game
+    gosub waitingformygump contname generic_gump contsize 629_414 10
+    if #result
+    {
+     ; if we can move forward, then quick stalling, do it!
+     set %step %step - 1
+     set %currentx %toedip
+     return #true
+    }
+    else
+    {
+       ;if we can't, mark the path as blocked
+       set %board . %pathleft xx
+       return #false
+    }
 
 return
 
 sub goup
-    menu set status1 %board11 , #spc , %board21 , #spc , %board31 , #spc , %board41 , #spc , %board51
-    menu set status2 %board12 , #spc , %board22 , #spc , %board32 , #spc , %board42 , #spc , %board52
-    menu set status3 %board13 , #spc , %board23 , #spc , %board33 , #spc , %board43 , #spc , %board53
-    menu set status4 %board14 , #spc , %board24 , #spc , %board34 , #spc , %board44 , #spc , %board54
-    menu set status5 %board15 , #spc , %board25 , #spc , %board35 , #spc , %board45 , #spc , %board55
-    menu set status6 pathup: , %pathup
-    menu set status7 position: , %currentx , %currenty
-    menu set status8 pathup value: , %board . %pathup
-
      gosub clickrandom %upx %upy
      ; check if we're still in the game
      gosub waitingformygump contname generic_gump contsize 629_414 10
@@ -372,16 +350,6 @@ sub goup
 return
 
 sub godown
-    menu set status1 %board11 , #spc , %board21 , #spc , %board31 , #spc , %board41 , #spc , %board51
-    menu set status2 %board12 , #spc , %board22 , #spc , %board32 , #spc , %board42 , #spc , %board52
-    menu set status3 %board13 , #spc , %board23 , #spc , %board33 , #spc , %board43 , #spc , %board53
-    menu set status4 %board14 , #spc , %board24 , #spc , %board34 , #spc , %board44 , #spc , %board54
-    menu set status5 %board15 , #spc , %board25 , #spc , %board35 , #spc , %board45 , #spc , %board55
-    menu set status6 pathdown: , %pathdown
-    menu set status7 position: , %currentx , %currenty
-    menu set status8 pathdown value: , %board . %pathdown
-
-
      gosub clickrandom %downx %downy
      ; check if we're still in the game
      gosub waitingformygump contname generic_gump contsize 629_414 10
@@ -394,6 +362,9 @@ sub godown
      }
      else
      {
+        scanjournal 1
+        if You_successfully_disarm in #journal
+          set %wefinished #true
          ;if we can't, mark the path as blocked
          set %board . %pathdown xx
          return #false
