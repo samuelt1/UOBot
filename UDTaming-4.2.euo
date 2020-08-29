@@ -162,7 +162,7 @@ sub InitMenu
     menu Combo Create kill 10 70 130 15
     menu Combo Add kill Weapon Attack
     menu Combo Add kill Mage/Necro Kill
-    menu Combo Select kill 2
+    menu Combo Select kill 1
     menu Get kill
     menu font style b
     menu text lblmisc 10 120 Characmanualtameter Movement
@@ -336,8 +336,16 @@ sub InitAnimalTaming
     set %tameigtimer 0
     set %tamecount 0
     set %tameid N/A
+    set %finalattempt #false
     menu set waypointstext 1102 936 -35;1110 943 -35;1111 955 -32;1110 962 -32;1108 972 -31;1102 984 -34;1101 994 -35;1090 1008 -36;1099 1017 -38;1108 1012 -40;1121 1009 -39;1132 1017 -38;1132 1028 -38;1120 1040 -32;1107 1046 -34;1096 1046 -29;1086 1046 -30;1078 1038 -30;1078 1027 -31;1069 1018 -30;1068 1008 -31;1069 1000 -34;1069 993 -38;1070 982 -39;1070 973 -39;1074 965 -39;1074 955 -38;1084 944 -38;1094 943 -39;
     gosub LoadWaypoints
+return
+
+sub gohalfway
+       set %newx ( #charposx + %1 ) / 2
+       set %newy ( #charposy + %2 ) / 2
+       set %newz %3
+       gosub PathfindWait %newx %newy %newz
 return
 
 sub Dispatch
@@ -367,7 +375,13 @@ sub Dispatch
               }
               gosub PathfindWait %waypointx . %currwp %waypointy . %currwp %waypointz . %currwp
               if %moveres = error
-                  menu set returnstart #false
+              {
+                 gosub gohalfway %waypointx . %currwp %waypointy . %currwp %waypointz . %currwp
+                 if %moveres = error
+                 {
+                    break
+                 }
+              }
               return
            }
 
@@ -381,7 +395,13 @@ sub Dispatch
            ; if we fail to move at each step, then still check the error and stop trying to move
             gosub PathfindWait %waypointx . %currwp %waypointy . %currwp %waypointz . %currwp
             if %moveres = error
-                menu set returnstart #false
+              {
+                 gosub gohalfway %waypointx . %currwp %waypointy . %currwp %waypointz . %currwp
+                 if %moveres = error
+                 {
+                    break
+                 }
+              }
         }
     }
     if %finddist <> N/A
@@ -515,7 +535,7 @@ sub TamingCheckSkill
     if %tameskill >= 736 && %tameskill < 760
         set %tameable CO_CG_JG_ZGB_XF_SF_MG_SG_OF_BO_WN_EG_QC_BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH
     if %tameskill >= 760 && %tameskill < 796
-        set %tameable BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF
+        set %tameable BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_TG
     if %tameskill >= 796 && %tameskill < 820
         set %tameable BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD
     if %tameskill >= 820 && %tameskill < 856
