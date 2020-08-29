@@ -1,6 +1,6 @@
 ;=========================================
-; Script Name: Uncle Dave's Tamer Plus
-; Author: Uncle Dave
+; Script Name: TFC Tamer
+; Author: TFC with some of Uncle Dave
 ; Version: 4.2
 ; Client Tested with: 4.0.9b
 ; EUO version tested with: 1.42.00A3
@@ -10,7 +10,8 @@
 ; Global Variables Used: None
 ; Purpose: Finds animals that will give
 ; you the best gains and tames the closest
-; animal to your current location.
+; animal to your current location. Also puts 
+; you on rails
 ;=========================================
 ;
 ; The following table was generated from data gathered off the UO Stratics
@@ -138,7 +139,6 @@
 initevents
 gosub InitMenu
 gosub InitAnimalTaming
-gosub InitPickupRegs
 
 loop:
 gosub Dispatch
@@ -146,7 +146,7 @@ goto loop
 
 sub InitMenu
     menu clear
-    menu window title Uncle Dave's Tamer Plus 4.2
+    menu window title TFC Tamer
     menu window size 320 300
     menu window color $E0E0E0
     menu font bgcolor $E0E0E0
@@ -156,7 +156,6 @@ sub InitMenu
     menu text lblmovement 10 5 Features
     menu font style n
     menu check autotame 10 20 130 15 #false Auto Tame Creatures
-    menu check pickupregs 10 35 130 15 #false Pickup Reagents
     menu font style b
     menu text lblrelease 10 55 Release Option
     menu font style n
@@ -337,30 +336,15 @@ sub InitAnimalTaming
     set %tameid N/A
 return
 
-sub InitPickupRegs
-    set %reagents KUF_JUF_MZF_JZF_KZF_WZF_RZF_SZF
-    event macro 8 7 ; open backpack
-    wait 1s
-return
-
 sub Dispatch
     menu set status Idle
     gosub ScriptIdletime
     gosub TamingCheckSkill
-    set %finditems N/A
     menu get autotame
     if #menures = #true
     {
         gosub TamingIgnore reset
         set %finditems %tameable
-    }
-    menu get pickupregs
-    if #menures = #true
-    {
-        if %finditems = N/A
-            set %finditems %reagents
-        else
-            set %finditems %finditems , _ , %reagents
     }
     gosub FindClosestItem %finditems
     if %finddist = N/A
@@ -400,8 +384,6 @@ sub Dispatch
     {
         if %findtype in %tameable
             gosub Taming %findid
-        if %findtype in %reagents
-            gosub PickupRegs %findid
     }
 return
 
@@ -434,7 +416,6 @@ sub ScriptIdletime
         set #menubutton N/A
         gosub AddWaypoint
     gosub MenuUpdateStats
-    gosub PickupRegsNearby
 return
 
 sub MenuUpdateStats
@@ -837,15 +818,6 @@ sub PickupRegs
     }
     click %contdropx %contdropy
     wait 10
-return
-
-sub PickupRegsNearby
-    menu get pickupregs
-    if #menures = #false
-        return
-    finditem %reagents G_2
-    if #findkind <> -1
-        gosub PickupRegs #findid
 return
 
 sub FindClosestItem
