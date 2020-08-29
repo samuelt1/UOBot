@@ -159,9 +159,11 @@ sub InitMenu
     menu font style b
     menu text lblrelease 10 55 Release Option
     menu font style n
-    menu check releasecontext 10 70 130 15 #false Context Menu
-    menu check weaponattack 10 85 130 15 #false Weapon Attack
-    menu check releasekill 10 100 130 15 #false Mage/Necro Kill
+    menu Combo Create kill 10 70 130 15
+    menu Combo Add kill Weapon Attack
+    menu Combo Add kill Mage/Necro Kill
+    menu Combo Select kill 2
+    menu Get kill
     menu font style b
     menu text lblmisc 10 120 Characmanualtameter Movement
     menu font style n
@@ -324,7 +326,7 @@ sub InitAnimalTaming
     ;event macro 8 2 ; open status
     wait 1s
     set %w -1
-    gosub AddWaypoint
+    ;gosub AddWaypoint
     set %statusposx #contposx
     set %statusposy #contposy
     set %charstartx #charposx
@@ -334,6 +336,8 @@ sub InitAnimalTaming
     set %tameigtimer 0
     set %tamecount 0
     set %tameid N/A
+    menu set waypointstext 1102 936 -35;1110 943 -35;1111 955 -32;1110 962 -32;1108 972 -31;1102 984 -34;1101 994 -35;1090 1008 -36;1099 1017 -38;1108 1012 -40;1121 1009 -39;1132 1017 -38;1132 1028 -38;1120 1040 -32;1107 1046 -34;1096 1046 -29;1086 1046 -30;1078 1038 -30;1078 1027 -31;1069 1018 -30;1068 1008 -31;1069 1000 -34;1069 993 -38;1070 982 -39;1070 973 -39;1074 965 -39;1074 955 -38;1084 944 -38;1094 943 -39;
+    gosub LoadWaypoints
 return
 
 sub Dispatch
@@ -604,13 +608,13 @@ sub TameAnimal
     if #result = success
     {
 
-        menu get releasekill
-        if #menures = #true
-        {
-          gosub TamingKill
-          gosub TamingIgnore perm %tameid
-          return
-        }
+    menu get kill
+    if #menures = 1 || #menures = 2
+    {
+      gosub TamingKill
+      gosub TamingIgnore perm %tameid
+      return
+    }
     }
     if #result = retry
     {
@@ -712,8 +716,10 @@ sub TamingKill
 
     set #ltargetid %tameid
     set #ltargetkind 1
+    menu get kill
+    
     chooseskill eval
-    if #skill >= 500
+    if #skill >= 500 && #menures = 2
     {
         ;event macro 15 50 ; flame strike
         ;event macro 15 41 ; energy bolt
@@ -721,8 +727,7 @@ sub TamingKill
         event macro 15 29 ; lightning
     }
 
-    menu get weaponattack
-    if #menures = #true
+    if #menures = 1
     {
        event macro 27 0  ;attack target with weapon
     }
