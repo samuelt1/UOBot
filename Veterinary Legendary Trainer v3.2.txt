@@ -1,0 +1,1205 @@
+;===========================================================
+; Script Name:  Veterinary Legendary Trainer
+; Author:  Einstein
+; Version:  3.2
+; Client Tested with: 7.0.83.27
+; EUO version tested with: 1.6.0.334
+; Shard OSI
+; Revision Date:  2020/01/18
+; Public Release: 2017/07/17
+; Purpose: Train Veterinary skill to Legendary by healing two
+;          tame pets as they fight or ressurect a ghost pet.
+;============================================================
+; http://www.easyuo.com/forum/viewtopic.php?f=3&t=53312
+;============================================================
+; Requirements:
+;--------------
+; You will be given option of what way to train and skillcap wanted at start.
+; For healing you need to be guilded or in felucca so they do damage to eachother
+; You need 2 pets that will fight, I prefer boura's as they dont die so easy.
+; You need a LOT of bandages - as they burn quickly.
+; You can reach 110 veterinary with healing
+; For ressurection you need a friend to provide a ghost pet to ressurect or 2nd acc to provide
+; Siege support is set up on ressurection
+; You need a LOT of bandages!
+;================================================================================================================
+set #LPC 200
+set %halt_on_too_easy #false   ;#true       ; Halt if targets are too easy - if you got a ball of knowledge with you.
+set %waittime_1 20                           ; Adjust wait time between heal pets here! 20 = 2s
+set %waittime_2 60                           ; Adjust wait time between res pet here!  60 = 6s
+set %eatfood #true
+set %trainit vete
+chooseskill %trainit
+set %skillcap #skillcap                     ;Is set at startup
+set %trainname Veterinary
+set %subtrainskill #true
+if %subtrainskill = #true                   ;For menu if it is a subskill to main training skill
+   {
+   set %trainit2 anil
+   chooseskill %trainint2 real
+   set %skillcap2 #skillcap                    ;Is set at startup
+   set %trainname2 Animal , #spc , Lore
+   }
+set %Pet_Health 95
+set %critical 30
+;================================================================================================================
+;No need for edit below here
+;================================================================================================================
+menu hideEUO
+menu hide
+gosub gainsetup
+wait 5
+gosub targetsetup
+if %healing = #true
+   {
+   set %trainsub Healing
+   }
+if %ressing = #true
+   {
+   set %trainsub Ressing
+   }
+chooseskill %trainit real
+set %rot_skill #skill
+set %rotwaithide #false
+if %ressing = #true
+   {
+   If #Shard = Siege , #Spc , Perilous         ;will set up siege training
+      {
+      set %HideWhileWorking #true
+      set %bluetrain #false
+      Display yesno Will you do alacrity or logout training on siege?
+      if #dispRes = yes
+         {
+         set %bluetrain #true     ; will log out and in when time is due good for blue training on siege. Remember to fill in password
+         gosub pwmenu
+         }
+      else
+      set %bluetrain #false
+      if %bluetrain = #true
+         {
+         set %HideWhileWorking #false
+         }
+      }
+   }
+set %foodtypes HND_YLI_RQD_QUD_MGG_QSD_YRD_BND_AQD_
+set %Time_out #SCNT + 180
+set %trainagain #scnt - 10
+gosub showEUOMenu1
+gosub initial_skills
+menu set status Initializing....
+set %bandagecolor 0
+gosub bandagecount
+if %eatfood = #true
+   {
+   gosub eat_food
+   }
+;================================================================================================================
+Mainloop:
+   event macro 3 0 All follow me
+   wait 10
+if %trainsub = healing
+   {
+   event macro 3 0 All guard me
+   wait 10
+   event macro 3 0 All kill
+   target
+   SET #LTARGETKIND 1
+   SET #LTARGETID %PetID_2
+   Event macro 25 0
+   Event macro 22 0
+   wait 5
+   set %initiate_again #false
+   }
+repeat
+   {
+   if %trainagain < #scnt2
+      {
+      gosub %trainsub
+      }
+   gosub skills
+   gosub update
+   if %ressing = #true
+      {
+      if #skill > %rot_skill
+         {
+         If #Shard = Siege , #Spc , Perilous && #skill > 699            ; Checking for ROT Timer trigger on Siege
+            {
+            Gosub ROT_Timer
+            }
+         }
+      }
+   if #menubutton = Pause
+      {
+      gosub pause
+      }
+   if #menuButton = CLOSED
+      {
+      gosub stop_it
+      }
+   if #menubutton = reposit
+      {
+      set %reposition #false
+      set #menubutton n/a
+      }
+   if %initiate_again = #true && %initiate_timer < #scnt
+      {
+      goto mainloop
+      }
+   }
+until #charghost = yes
+menu set status You are dead...Halting!
+display ok You are dead, Halting!
+halt
+;================================================================================================================
+sub update
+   gosub runtime
+   menu set runtime %runtime
+   gosub bandagecount
+   if %Time_out < #SCNT
+      {
+      if %healing = #true
+         {
+         event macro 3 0 All Guard Me
+         }
+      gosub reset_timeout
+      set %Time_out #SCNT + 180
+      }
+return
+;================================================================================================================
+Sub Healing
+if %healfirst = #true
+   {
+   if %reposition = #true
+      {
+      gosub repos_healthbar
+      }
+   finditem %PetID_1 G_18
+   if #findCnt < 1
+      {
+      menu set status First Pet Gone
+      display First Pet Is Dead! Script halting.
+      halt
+      }
+   if #finddist > 2
+      {
+      event macro 3 0 All Stop
+      wait 10
+      event macro 3 0 All follow me
+      wait 10
+      set %initiate_again #true
+      set %initiate_timer #scnt + 10
+      return
+      }
+   finditem ZLF C_ , #BACKPACKID
+   if #findCnt < 1
+      {
+      wait 10
+      event macro 3 0 All Stop
+      wait 10
+      event macro 3 0 All follow me
+      wait 10
+      menu set status Out of Bandages
+      DISPLAY ok You do not have any bandages in your main pack.$$Get some more and pres resume.
+      gosub pause
+      }
+   gosub HealthbarScan %PetID_1x %PetID_1y 100
+   set %PetID_1_hp #result
+   set %Status %1
+   wait 2
+   if %status <> 3 && %PetID_1_hp > %Pet_Health
+      {
+      set %healfirst #false
+      set %healsecond #true
+      return
+      }
+   if %PetID_1_hp = 0 && %status = 1
+      {
+      Menu set status Your Pet 1 is dead - Halted!
+      halt
+      }
+   if %petID_1_hp < %critical && %initiate_again = #false
+      {
+      event macro 3 0 All Stop
+      wait 10
+      event macro 3 0 All follow me
+      wait 10
+      set %initiate_again #true
+      set %initiate_timer #scnt + 10
+      }
+   menu set status Healing Pet 1!
+   set #LOBJECTID #FINDID
+   event macro 17 0
+   target
+   SET #LTARGETKIND 1
+   SET #LTARGETID %PetID_1
+   event macro 25 0
+   event macro 22 0
+   set %healfirst #false
+   set %healsecond #true
+   set %trainagain #scnt2 + %waittime_1
+   return
+   }
+if %healsecond = #true
+   {
+   if %reposition = #true
+      {
+      gosub repos_healthbar
+      }
+   finditem %PetID_2 G_18
+   if #findCnt < 1
+      {
+      menu set status First Pet Gone
+      display First Pet Is Dead! Script halting.
+      halt
+      }
+   if #finddist > 2
+      {
+      event macro 3 0 All Stop
+      wait 10
+      event macro 3 0 All follow me
+      wait 10
+      set %initiate_again #true
+      set %initiate_timer #scnt + 10
+      return
+      }
+   finditem ZLF C_ , #BACKPACKID
+   if #findCnt < 1
+      {
+      wait 10
+      event macro 3 0 All Stop
+      wait 10
+      event macro 3 0 All follow me
+      wait 10
+      menu set status Out of Bandages
+      DISPLAY ok You do not have any bandages in your main pack.$$Get some more and pres resume.
+      gosub pause
+      }
+   gosub HealthbarScan %PetID_2x %PetID_2y 100
+   set %PetID_2_hp #result
+   set %Status %1
+   wait 2
+   if %status <> 3 && %PetID_2_hp > %Pet_Health
+      {
+      set %healfirst #false
+      set %healsecond #true
+      return
+      }
+   if %PetID_2_hp = 0 && %status = 1
+      {
+      Menu set status Your Pet 2 is dead - Halted!
+      halt
+      }
+   if %petID_2_hp < %critical && %initiate_again = #false
+      {
+      event macro 3 0 All Stop
+      wait 10
+      event macro 3 0 All follow me
+      wait 10
+      set %initiate_again #true
+      set %initiate_timer #scnt + 10
+      }
+   menu set status Healing Pet 2!
+   set #LOBJECTID #FINDID
+   event macro 17 0
+   target
+   SET #LTARGETKIND 1
+   SET #LTARGETID %PetID_2
+   event macro 25 0
+   event macro 22 0
+   set %healfirst #true
+   set %healsecond #false
+   set %trainagain #scnt2 + %waittime_1
+   return
+   }
+return
+;=====================================================
+Sub Ressing
+finditem %PetID_3
+if #findCnt < 1
+   {
+   menu set status Pet Ghost Is Gone
+   display Your Ghost Pet Is Gone! Script halting.
+   halt
+   }
+finditem ZLF C_ , #BACKPACKID
+if #findCnt < 1
+   {
+   menu set status Out of Bandages
+   DISPLAY ok You do not have any bandages in your main pack.$$Get some more and pres resume.
+   gosub pause
+   }
+menu set status Ressing Pet Ghost
+set #LOBJECTID #FINDID
+event macro 17 0
+target
+set #LTARGETKIND 1
+set #LTARGETID %PetID_3
+event macro 22 0
+set %trainagain #scnt2 + %waittime_2
+return
+;=====================================================
+sub bandagecount
+finditem ZLF C_ , #BACKPACKID
+if #FINDCNT > 0
+   {
+   gosub countitem ZLF
+   set %bandagesleft #result
+   }
+else
+    {
+    set %bandagesleft 0
+    }
+if %bandagesleft > 100 && %bandagecolor <> 1
+   {
+   set %bandagecolor 1
+   menu Font Color silver
+   menu delete bandagesleft
+   menu text bandagesleft 68 92 %bandagesleft
+   }
+if %bandagesleft < 100 && %bandagecolor <> 2
+   {
+   set %bandagecolor 2
+   menu Font Color yellow
+   menu delete bandagesleft
+   menu text bandagesleft 68 92 %bandagesleft
+   }
+if %bandagesleft < 60 && %bandagecolor <> 3
+   {
+   set %bandagecolor 3
+   menu Font Color $00A5FF ;orange
+   menu delete bandagesleft
+   menu text bandagesleft 68 92 %bandagesleft
+   }
+if %bandagesleft < 30 && %bandagecolor <> 4
+   {
+   set %bandagecolor 4
+   menu Font Color red
+   menu delete bandagesleft
+   menu text bandagesleft 68 92 %bandagesleft
+   }
+menu set bandagesleft %bandagesleft
+return
+;=====================================================
+sub countitem
+    {
+    set %itemcount 0
+    finditem %1 C_ , #backpackid
+    for %c 1 #findcnt
+        {
+        finditem %1 %c C_ , #backpackid
+        set %itemcount %itemcount + #findstack
+        }
+     return %itemcount
+     }
+;======================================================
+sub eat_food
+Eat_again:
+finditem %foodtypes C_ , #BACKPACKID
+if #findCnt < 1
+   {
+   return
+   }
+set %EatStart #jIndex
+menu set status Eating food
+set #LOBJECTID #FINDID
+event macro 17 0
+wait 10
+set %EatEnd #jIndex
+for %Eating %EatStart %EatEnd
+    {
+    scanjournal %Eating
+    if too_full_to_eat in #journal
+       {
+       set %foodtime #SCNT + 240
+       return
+       }
+    }
+Goto Eat_again
+;=====================================================
+sub targetsetup
+if %healing = #true
+   {
+   Display ok Drag Pet 1 healthbar where you want it - and target it.
+   Set #TARGCURS 1
+   While #TARGCURS = 1
+         {
+         Wait 1s
+         }
+   Set %PetID_1 #LTARGETID
+   wait 5
+   event statbar %PetID_1
+   wait 5
+   set %PetID_1x #contposx
+   set %PetID_1y #contposy
+   Display ok Drag Pet 2 healthbar where you want it - and target it.
+   Set #TARGCURS 1
+   While #TARGCURS = 1
+         {
+         Wait 1s
+         }
+   Set %PetID_2 #LTARGETID
+   wait 5
+   event statbar %PetID_2
+   wait 5
+   set %PetID_2x #contposx
+   set %PetID_2y #contposy
+   wait 2
+   if %PetID_1 = %PetID_2
+      {
+      display You must choose 2 different pets!
+      halt
+      }
+   set %reposition #false
+   set %healfirst #true
+   }
+if %ressing = #true
+   {
+   Display Please Target Ghost Pet.
+   Set #TARGCURS 1
+   While #TARGCURS = 1
+         {
+         Wait 1s
+         }
+   Set %PetID_3 #LTARGETID
+   }
+return
+;=====================================================
+sub GainSetup
+  menu hideuo
+  menu clear
+  menu Window Title Setup
+	menu Window Color $000000
+	menu Window Size 350 120
+	menu Font Transparent #true
+	menu Font Align Right
+	menu Font Name MS Sans Serif
+	menu Font Size 10
+	menu Font Style
+	menu Font Color white
+	menu Font Transparent #false
+	menu Font Align Left
+	menu Font BGColor black
+	menu Font Name Comic Sans MS
+	menu Font Color white
+	menu Text chooseway 18 4 Choose what way to train Veterinary!
+	menu Font Name MS Sans Serif
+	menu Font Size 8
+	menu Font Color gray
+	menu Text chooseway 46 28 Skillcaps:
+	menu Text chooseway 106 28 90.0 = 900
+	menu Text chooseway 176 28 GM = 1000
+	menu Text chooseway 246 28 120 = 1200
+	menu Font Color white
+	menu Text chooseway 278 8 Set Skillcap
+	menu Font Color gray
+	menu Text EUOLabel98 100 51  Heal 2 fighting pets
+	menu Font Color gray
+	menu Text EUOLabel96 100 81  Res pet ghost to friend
+	menu Font Color white
+	menu Text EUOLabel97 225 51  %trainname :
+	menu Font Color white
+	menu Text EUOLabel99 225 81  %trainname2 :
+	menu Font Name MS Sans Serif
+	menu Font Style
+	menu Font Color $000000
+	menu Font BGColor silver
+	menu Button healsetup 18 48 75 21 Heal
+	menu Font BGColor white
+	menu Button ressetup 18 78 75 21 Res
+;	menu Button ressetup 128 32 75 21 Res
+  chooseskill %trainit
+  menu Edit trainit 288 48 35 #skillcap
+  chooseskill %trainit2
+	menu Edit trainit2 288 78 35 #skillcap
+	menu Font BGColor black
+	menu Show 450 350
+	menu HideEUO
+	set #menubutton <> n/a
+	loop:
+  if #menubutton = CLOSED
+     {
+     display Menu closed. Halting.
+     halt
+     }
+	if #menubutton = healsetup
+	   {
+     chooseskill %trainit real
+     menu getnum trainit
+     set %skillcap #menures
+     if %skillcap > #skillcap
+        {
+        set %skillcap #skillcap
+        }
+     if #skill >= %skillcap
+        {
+        display ok You are already at your %skillcap skillcap!!!
+        + Choose another skillcap and try again!
+        set #menubutton <> n/a
+        goto loop
+        }
+     if #skilllock <> up
+        {
+        Display ok You must put your %trainname skill up for to train!
+        + Unlock it and try again!
+        set #menubutton <> n/a
+        goto loop
+        }
+     chooseskill %trainit2 real
+     if #skill < #skillcap
+        {
+        menu getnum trainit2
+        set %skillcap2 #menures
+        if %skillcap2 > #skillcap
+           {
+           set %skillcap2 #skillcap
+           }
+        }
+     set %ressing #false
+     set %healing #true
+     set %healfirst #true
+     goto next
+     }
+  if #menubutton = ressetup
+     {
+     chooseskill %trainit real
+     menu getnum trainit
+     set %skillcap #menures
+     if %skillcap > #skillcap
+        {
+        set %skillcap #skillcap
+        }
+     if #skill >= %skillcap
+        {
+        display ok You are already at your %skillcap skillcap!!!
+        + Choose another skillcap and try again!
+        set #menubutton <> n/a
+        goto loop
+        }
+     if #skilllock <> up
+        {
+        Display ok You must put your %trainname skill up for to train!
+        + Unlock it and try again!
+        set #menubutton <> n/a
+        goto loop
+        }
+     chooseskill %trainit2 real
+     if #skill < #skillcap
+        {
+        menu getnum trainit2
+        set %skillcap2 #menures
+        if %skillcap2 > #skillcap
+           {
+           set %skillcap2 #skillcap
+           }
+        }
+     set %healing #false
+     set %ressing #true
+     goto next
+     }
+  goto loop
+next:
+menu clear
+menu hide
+return
+;================================================================================================================
+sub waitForSysVars
+  set !cnt %0 / 3
+  set !timeOut #scnt + 5
+  if ( %0 % 3 = 1 )
+    set !timeOut #scnt + % . %0
+  for !i 1 !cnt
+  {
+    set !offset 3 * !i - 2
+    set !evaluation !offset + 1
+    set !value !offset + 2
+    if ! ( # . % . !offset % . !evaluation % . !value )
+      set !i 0
+    if #scnt > !timeout
+      return #false
+  }
+return #true
+;================================================================================================================
+sub initial_skills
+set %starttime #scnt
+chooseskill %trainit real
+  set %start #skill
+  set %current #skill
+  str len %start
+  str ins %start #dot #strRes
+menu set start #strRes
+  str len %current
+  str ins %current #dot #strRes
+menu set current #strRes
+ set %change %current - %starting
+ str len %totalgains
+ str ins %totalgains #dot #strRes
+menu set change + 0
+gosub timegain
+menu set timegain %time
+if %subtrainskill = #true
+   {
+   chooseskill %trainit2 real
+   set %current2 #skill
+   str len %current2
+   str ins %current2 #dot #strRes
+   menu set subskill #strRes
+   }
+return
+;================================================================================================================
+sub skills
+chooseskill %trainit real
+if %current < #skill
+   {
+   gosub timegain
+   set %current #skill
+   str len %current
+   str ins %current #dot #strRes
+   menu set current #strRes
+   set %change %current - %start
+   str len %change
+   str ins %change #dot #strRes
+   menu set change + #strRes
+   menu set timegain %time
+   }
+If #Skill >= %skillcap
+   {
+   exevent skillLock %trainit locked
+   menu set status Skillcap Reached!!!
+   if %trainsub = Healing
+      {
+      event macro 3 0 All Stop
+      wait 10
+      event macro 3 0 All follow me
+      wait 10
+      }
+   display You Have Reached Your %trainname Skill Cap!$ Remember to rate it on EasyUO.com Good-Bye!
+   halt
+   }
+if %subtrainskill = #true
+   {
+   chooseskill %trainit2 real
+   if %current2 < #skill
+      {
+      set %current2 #skill
+      str len %current2
+      str ins %current2 #dot #strRes
+      menu set subskill #strRes
+      If #Skill >= %skillcap2
+         {
+         exevent skillLock %trainit2 locked
+         }
+      }
+   }
+return
+;================================================================================================================
+sub stop_it
+wait 10
+event macro 3 0 All stop
+wait 10
+event macro 3 0 All follow me
+menu set status Script Stopped!
+Display I hope you enjoyed my Veterinary Trainer!Remember to rate it on EasyUO.com Good-Bye!
+halt
+return
+;=====================================================                          Sub Reposition Healthbar
+Sub repos_healthbar
+menu set status Relocate Bar
+wait 10
+event statbar %PetID_1
+wait 5
+contpos %PetID_1x %PetID_1y
+if %trainpartner = #true
+   {
+   wait 5
+   event statbar %PetFriend
+   wait 5
+   contpos %PetFriendx %PetFriendy
+   }
+if %trainsub = Healing2Pets
+   {
+   wait 5
+   event statbar %PetID_2
+   wait 5
+   contpos %PetID_2x %PetID_2y
+   }
+set %reposition #false
+return
+;================================================================================================================
+sub pause
+wait 10
+event macro 3 0 All stop
+wait 10
+event macro 3 0 All follow me
+menu set status Script Paused...
+menu delete pause
+menu Button resume 204 8 75 21 Resume
+set #menubutton n/a
+repeat
+  {
+  if #menubutton = CLOSED
+     {
+     display Menu closed. Halting.
+     halt
+     }
+  wait 1s
+  }
+until #menubutton <> N/A
+menu delete resume
+menu Button pause 204 8 75 21 Pause
+menu set status Resuming...
+Wait 10
+if %healing = #true
+   {
+   gosub repos_healthbar
+   event macro 3 0 All guard me
+   wait 10
+   event macro 3 0 All follow me
+   Wait 10
+   event macro 3 0 All kill
+   target
+   set #LTARGETKIND 1
+   set #LTARGETID %PetID_2
+   Event macro 25 0
+   Event macro 22 0
+   Wait 10
+   }
+return
+;================================================================================================================
+sub showEUOMenu1
+	menu Clear
+  menu Font Color black
+	menu Window Title Vet Train #charname
+	menu Window Color black
+	menu Window Size 300 121
+  menu font size 8
+	menu Font BGColor black
+  menu Font Color gray
+	menu Font Transparent #false
+	menu Text EUOLabel1 8 8 Starting %trainname Skill
+  menu Font Color Silver
+  menu Text EUOLabel2 8 24 Current %trainname Skill
+	menu Text Start 152 8
+	menu Text current 152 24
+  if %subtrainskill = #true
+     {
+	   menu Font Color gray
+     menu Text EUOLabel9 8 40 Current %trainname2 Skill
+	   menu Text subskill 152 40
+	   }
+	menu Font Color gray
+	menu Text runlabel 8 56 Time Running :
+  menu text runtime 204 56 %runtime
+  menu text timegain 204 72
+	menu Font Color silver
+	menu Text EUOLabel3 8 72 Total Gains This Session
+	menu Text change 152 72
+	menu Button Pause 204 8 75 21 Pause
+  if %trainsub = Healing
+     {
+     menu Button reposit 204 32 75 21 Reposition
+     }
+  menu font color gray
+  menu Text timegain 204 72
+  menu Text bandages 8 92 Bandages :
+  menu text bandagesleft 68 92 %bandagesleft
+	menu Font Color red
+	menu Text EUOLabel 105 92 Status:
+	menu Font Color red
+	menu Text status 152 92 Initialating
+menu Show
+menu HideEUO
+return
+;================================================================================================================
+sub runtime
+  set %currenttime #scnt
+  set %_rtime %currenttime - %starttime
+  set %hours %_rtime / 3600
+  set %rest1 %_rtime % 3600
+  set %minutes %rest1 / 60
+  if %hours < 10
+    set %hh 0 , %hours
+  else
+    set %hh %hours
+  if %minutes < 10
+    set %mm 0 , %minutes
+  else
+    set %mm %minutes
+  set %seconds %rest1 % 60
+  if %seconds < 10
+    set %ss 0 , %seconds
+  else
+    set %ss %seconds
+  set %runtime %hh , : , %mm , : , %ss
+  menu set runtime %runtime
+;================================================================================================================
+sub time
+;set %AMPM AM                                                          ;Disable AM/PM
+set %d1 %1 / 1 % 10
+set %d2 %1 / 10 % 10
+set %d3 %1 / 100 % 10
+set %d4 %1 / 1000 % 10
+set %d5 %1 / 10000 % 10
+set %d6 %1 / 100000 % 10
+set %temptime %d6 , %d5
+;if %tempampm > 12 && %2 = 12                                          ;Disable AM/PM
+;  {                                                                   ;Disable AM/PM
+;  set %AMPM PM                                                        ;Disable AM/PM
+;  set %tempampm %tempampm - 12                                        ;Disable AM/PM
+;  }                                                                   ;Disable AM/PM
+;if %2 = 12                                                            ;Disable AM/PM
+;  return %tempampm , : , %d4 , %d3 , : , %d2 , %d1 ;, #SPC , %AMPM    ;Disable AM/PM
+return %temptime , : , %d4 , %d3 , : , %d2 , %d1
+return
+;================================================================================================================
+; %1 = ConvertDate  changes date to MM/DD/YY format
+sub ConvertDate
+  str Mid %1 3 2
+  set %tempstr #STRRES , /
+  str Mid %1 5 2
+  set %tempstr %tempstr , #STRRES , /
+  str Mid %1 1 2
+  set %tempstr %tempstr , #STRRES
+return %tempstr
+;================================================================================================================
+sub timegain
+gosub time #time 12
+set %time #RESULT
+gosub ConvertDate #DATE
+set %date #RESULT
+return
+;================================================================================================================
+sub hide
+menu set status Hiding...
+If H notin #CharStatus
+   {
+   repeat
+   Event Macro 13 21       ; Hide
+   if H in #charstatus
+      {
+      wait 5
+      goto continue
+      }
+   Wait %waithide
+   until H in #charstatus
+   }
+continue:
+if %rotwaithide = #true
+   {
+   menu set status Waiting for RoT...
+   }
+return
+;================================================================================================================
+sub reset_timeout
+set %MageBooks MPF_XXM_SPN_ECR_RJR
+if %eatfood = #true
+   {
+   gosub eat_food
+   }
+finditem %MageBooks C_ , #CharID
+If #FindCNT > 0
+   {
+   event macro 8 5                   ; Open spellbook
+   wait 10
+   event macro 9 5                   ; Close spellbook
+   wait 10
+   return
+   }
+finditem %MageBooks C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 5                   ; Open spellbook
+   wait 10
+   event macro 9 5                   ; Close spellbook
+   wait 10
+   return
+   }
+finditem XXM C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 12                   ; Open Necrobook
+   wait 10
+   event macro 9 12                   ; Close Necrobook
+   wait 10
+   return
+   }
+finditem YXM C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 13                   ; Open Paladine Book
+   wait 10
+   event macro 9 13                   ; Close Paladine Book
+   wait 10
+   return
+   }
+finditem QON C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 15                   ; Open Paladine Book
+   wait 10
+   event macro 9 15                   ; Close Paladine Book
+   wait 10
+   return
+   }
+finditem QON C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 15                   ; Open Bushido Book
+   wait 10
+   event macro 9 15                   ; Close Bushido Book
+   wait 10
+   return
+   }
+finditem SPN C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 16                   ; Open Ninjitsu Book
+   wait 10
+   event macro 9 16                   ; Close Ninjitsu Book
+   wait 10
+   return
+   }
+finditem ECR C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 18                   ; Open Spellewaving Book
+   wait 10
+   event macro 9 18                   ; Close Spellweaving Book
+   wait 10
+   return
+   }
+event macro 8 7
+wait 10
+return
+;================================================================================================================
+Sub RoT_Timer       ; Sets the RoT timer
+menu set status Waiting for RoT...
+gosub skills
+Chooseskill %trainit Real
+Set %rot_skill #skill
+set %rotwaithide #true
+set %reposition #true
+If #Skill < 800                        ; 5 Minute Interval
+   {
+   Set %ROTSkillTimerT #SCNT + 300
+   }
+If #Skill >= 800 && #Skill < 900       ; 8 Minute Interval
+   {
+   Set %ROTSkillTimerT #SCNT + 480
+   {
+If #Skill >= 900 && #Skill < 1000      ; 12 Minute Interval
+   {
+   Set %ROTSkillTimerT #SCNT + 720
+   }
+If #Skill >= 1000 && #Skill < 1200     ; 15 Minute Interval
+   {
+   Set %ROTSkillTimerT #SCNT + 900
+   }
+if %bluetrain = #false
+   {
+   set %OldTime #Time
+   }
+If %HideWhileWorking = #True
+   {
+   gosub hide
+   }
+if %bluetrain = #true
+   {
+   gosub logout
+   }
+Repeat
+
+If %ROTSkillTimerT - #SCNT > 120
+   {
+   IF %HideWhileWorking = #True
+      {
+      If H notin #CharStatus
+         {
+         if %bluetrain = #false
+            {
+            gosub hide       ; Hide
+            }
+         }
+   if %bluetrain = #false
+      {
+      If #Time - %OldTIme > 500            ; Time for to prevent timeout
+         {
+         event macro 8 5                   ; Open spellbook
+         wait 1s
+         event macro 9 5
+         wait 10
+         set %OldTime #Time
+         }
+      }
+   Wait 50
+   }
+Until #SCNT >= %ROTSkillTimerT
+if %bluetrain = #true
+      {
+      gosub loginagain
+      wait 3s
+      even macro 8 7
+      wait 1s
+      }
+Until #SCNT >= %ROTSkillTimerT
+set %rotwaithide #false
+return
+;================================================================================================================
+sub logout
+menu set status Logging out
+namespace push
+namespace local logout
+logout:
+set !timeOut #scnt + 5
+event macro 8 1
+wait 20
+waitpaperdoll:
+if #scnt > !timeOut
+   {
+	 goto logout
+	 }
+if #contname <> paperdoll_gump
+   {
+	 goto waitpaperdoll
+	 }
+contpos #clixres 0
+wait 20
+_waitConfirm:
+set !timeOut #scnt + 3
+set !paperDollX #clixres + 210
+click !paperDollX 110
+waitlogout:
+if #scnt > !timeOut
+   {
+	 goto _waitConfirm
+   }
+if #contname <> YesNo_gump
+   {
+	 goto waitlogout
+	 }
+set !x #contposx + 120
+set !y #contposy + 90
+_quit:
+click !x !y
+set !timeOut #scnt + 20
+_waitlogout:
+if #scnt > !timeout
+   {
+	 goto _quit
+   }
+if #contname <> MainMenu_gump
+   {
+	 goto _waitlogout
+	 }
+namespace pop
+menu set status Waiting for RoT
+return
+;================================================================================================================
+sub loginagain
+menu set status Logging in again...
+if #contName = mainmenu_gump && #contKind = KRDD
+   {
+   _Login:
+   gosub EnterPassword
+   gosub PressNextButton
+   gosub WaitForGump normal_gump CHCD 60
+   if #contName = waiting_gump && #contKind = SRHB
+      {
+      click 320 350 f dmc
+      gosub WaitForGump normal_gump UYLB
+      goto _Login
+      }
+    gosub PressNextButton
+    gosub WaitForGump normal_gump UYLB 30
+    gosub SelectChar
+    gosub PressNextButton
+    gosub WaitForLogin
+    }
+return
+;================================================================================================================
+sub PressNextButton
+click 615 445 f dmc ; Next Button
+return
+;================================================================================================================
+sub EnterPassword
+click 510 400 f dmc ; Password
+gosub ClearPlace
+msg %password
+return
+;================================================================================================================
+sub ClearPlace
+for %i 1 16
+    {
+    key BACK
+    }
+return
+;================================================================================================================
+sub SelectChar
+set %cx_ 360
+set %cy_ 100 + ( %Character * 40 )
+click %cx_ %cy_ f dmc
+gosub WaitForGump login_gump AAWB 10
+return
+;================================================================================================================
+sub WaitForGump
+set %contName %1
+set %contKind %2
+set %timeCheck #false
+set %timeOut #scnt
+if %0 = 3
+   {
+   set %timeCheck #true
+   set %timeOut #scnt + %3
+   }
+while #contName <> %contName || #contKind <> %contKind
+    {
+    if %timeCheck && #scnt > %timeOut
+    break
+    }
+return
+;================================================================================================================
+sub WaitForLogin
+set %timeOut #scnt + 60
+while #CliLogged = 0 && #scnt < %timeOut
+wait
+return
+;================================================================================================================
+; Script Name: HealthbarScan
+; Author: Laradel
+; gosub HealthbarScan %HealthBarPositionX %HealthBarPositionY {%MaxHitPoints}
+; you get an approximate Health value if %3 (%MaxHitPoints) provided
+;
+; Returns:
+; #result = Health (% or ~value)
+; %1 = Health state: 0-blue , 1-red (almost dead) , 2-yellow , 3-poisoned
+;
+sub HealthbarScan
+namespace push
+namespace local HealthbarScan , #SYSTIME , #RANDOM
+set !lpc #lpc
+set #lpc 1000
+set !a %1 + 37
+set %2 %2 + 43
+savepix !a %2 1
+set %1 n/a
+str pos 16229962\16229706\6502655\\6502911\\4894463\\4894207\\4390763 #pixcol
+if #strres <> 0
+   set %1 #strres / 18
+set !mod 24
+repeat
+{
+set !mod ( !mod + 1 ) / 2
+set !sec !sec + !mod
+set !x ( 100 * ( !sec - 1 ) / 23 + 3 ) * 98 / 100 + !a
+savepix !x %2 1
+if #pixcol in 3746303\3221908\2695589\2695539\3741902\3744181\3217556\3217564\1579156\2173299\1052746\1579140\1577059\2166924\2166916\2691220\2166907\2166965\1054819\1577034\1579131\1577050\2168931
+   set !sec !sec - !mod
+}
+until !mod = 1
+set #result 100 * !sec / 24
+if %0 > 2 && %3 * %3 <> 0
+   set #result #result * %3 / 100
+set #lpc !lpc
+namespace clear
+namespace pop
+return #result
+
