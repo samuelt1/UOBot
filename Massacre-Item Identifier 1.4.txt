@@ -43,7 +43,9 @@ targLoop:
 if #targCurs = 1
   goto targLoop
 finditem #lTargetID
-event SysMessage The ID of the target is #findtype
+event SysMessage The type of the target is #findtype
+event SysMessage The id of the target is #findid
+halt
 
 finditem #findtype c_ , #backpackid
 if #findcnt < 1

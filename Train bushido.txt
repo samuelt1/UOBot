@@ -1,0 +1,23 @@
+gosub readyUp
+
+loop:
+if You_attack_with_lightning in #SYSMSG
+   {
+     sleep 700
+     event Macro 15 149
+     sleep 1500
+    }
+   }
+if %checkTime < #TIME
+{
+ gosub readyUp
+}
+   sleep 300
+goto loop
+
+sub readyUp
+     event Macro 15 147
+     sleep 1000
+     event Macro 15 149
+     set %checkTime #TIME + 24
+return
