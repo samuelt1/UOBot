@@ -156,6 +156,7 @@ sub InitMenu
     menu text lblmovement 10 5 Features
     menu font style n
     menu check autotame 10 20 130 15 #false Auto Tame Creatures
+    menu check killparagon 10 40 130 15 #false Kill paragons
     menu font style b
     menu text lblrelease 10 55 Release Option
     menu font style n
@@ -193,6 +194,7 @@ sub InitMenu
     menu text waypointsTitle 10 175 Waypoints:
     menu font style n
     menu edit waypointstext 10 190 300
+    menu edit currentlocation 10 210 300
     menu shape bgstatus 0 283 320 17 3 7 1 $999999 7 $E0E0E0
     menu font color $666666
     menu text lblstatus 5 285 Status:
@@ -338,6 +340,7 @@ sub InitAnimalTaming
     set %tameid N/A
     set %finalattempt #false
     menu set waypointstext 1102 936 -35;1110 943 -35;1111 955 -32;1110 962 -32;1108 972 -31;1102 984 -34;1101 994 -35;1090 1008 -36;1099 1017 -38;1108 1012 -40;1121 1009 -39;1132 1017 -38;1132 1028 -38;1120 1040 -32;1107 1046 -34;1096 1046 -29;1086 1046 -30;1078 1038 -30;1078 1027 -31;1069 1018 -30;1068 1008 -31;1069 1000 -34;1069 993 -38;1070 982 -39;1070 973 -39;1074 965 -39;1074 955 -38;1084 944 -38;1094 943 -39;
+    ;menu set waypointstext 1100 929 -35;1111 929 -35;1111 950 -35;1111 968 -35;1092 987 -36;1092 1008 -35;1102 1018 -38;1124 1018 -38;1136 1030 -35;1136 1052 -28;1116 1072 -23;1094 1072 -20;1094 1042 -27;1079 1027 -32;1079 1004 -37;1066 991 -36;1066 967 -42;1066 956 -44;1088 934 -31;
     gosub LoadWaypoints
 return
 
@@ -350,6 +353,7 @@ return
 
 sub Dispatch
     menu set status Idle
+    menu set currentlocation #charposx , #spc , #charposy , #spc , #charposz
     gosub ScriptIdletime
     gosub TamingCheckSkill
     menu get autotame
@@ -628,13 +632,28 @@ sub TameAnimal
     if #result = success
     {
 
-    menu get kill
-    if #menures = 1 || #menures = 2
-    {
-      gosub TamingKill
-      gosub TamingIgnore perm %tameid
-      return
+        menu get kill
+        if #menures = 1 || #menures = 2
+        {
+          gosub TamingKill
+          gosub TamingIgnore perm %tameid
+          return
+        }
     }
+    if #result = kill
+    {
+        menu get killparagon
+        if #menures
+        {
+          gosub TamingKill
+          gosub TamingIgnore perm %tameid
+          return
+        }
+        else
+        {
+          gosub TamingIgnore perm %tameid
+          return
+        }
     }
     if #result = retry
     {
@@ -698,7 +717,7 @@ sub TamingMonitor
         if tame_already in #journal
             return ignore
         if cannot_be_tamed in #journal
-            return ignore
+            return kill
         if can't_tame_that in #journal
             return ignore
         if no_chance in #journal
@@ -730,21 +749,22 @@ sub TamingKill
     finditem %tameid
     if #findkind = -1
         return
-
-    event pathfind #findx #findy #findz
-    wait 1s
+    if #finddist > 3
+    {
+        event pathfind #findx #findy #findz
+        wait 1s
+    }
 
     set #ltargetid %tameid
     set #ltargetkind 1
     menu get kill
-    
     chooseskill eval
-    if #skill >= 500 && #menures = 2
+    if #menures = 2
     {
         ;event macro 15 50 ; flame strike
         ;event macro 15 41 ; energy bolt
-        ;event macro 15 36 ; mind blast
-        event macro 15 29 ; lightning
+        event macro 15 36 ; mind blast
+        ;event macro 15 29 ; lightning
     }
 
     if #menures = 1
