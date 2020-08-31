@@ -1,0 +1,1010 @@
+;=====================================================================
+; Script Name:   Ultra Stealth Trainer
+; Author: by Einstein
+; Version: 2.03
+; Client Tested with: 7.0.75.6
+; EUO version tested with: 1.6.0333
+; Shard OSI
+; Initial Release Date: 4/10/2013
+; Revision Date: 3/30/2019
+; Purpose: Train Stealth By Hiding and Insta Stealth.
+; Inside owned or co-owner house, or outside.
+; It will also train Hiding as a side skill.
+; Activating Stealth also lowers the time before Hiding (or Stealth)
+; can be used again.
+;======================================================================
+; http://www.easyuo.com/forum/posting.php?mode=edit&f=3&p=411169
+;======================================================================
+; Directions:
+;----------------------------------------------------------------------
+; Buy 40.0 Stealt Skill in New Haven - do the quest to get fast 50.0
+; Or if you red, buy from Thief Guild Master. Sige have to start from 0.
+; Wear correct armor corresponding to the skill guide.
+; Stay safe inside house and hit play.
+; Remember to change armor corresponding to the skill guide.
+; A good helper is ball of knowledge. Let skill be optiomal or easy.
+; It now supports ball of knowledge, - it will auto find iand activate it.
+; By default it halts script if it is too easy or too challanging. Can be changed.
+;======================================================================
+; Skillguide:
+;----------------------------------------------------------------------
+; 0-40 	 Purchase training from a Stealth Trainer in New Haven
+; 40-50  Do new player quest from Stealth Trainer in New Haven
+; 0-30   Buy from Thief Guild Master. Then start with only cloths.
+; 0-30   Siege - start with only cloths.
+; 30-65  Stealth while wearing leather (add a piece at a time as it
+;        gets higher.) Don't use a helmet.
+; 65-95  Stealth while wearing studded leather (add a piece at a time
+;        as it gets higher.) Don't use a helmet.
+; 95-120 Stealth while wearing ringmail armor and a Close Helmet.
+;======================================================================
+set #LPC 200
+set %contact #false                          ; If you want to wait training if new players arrive (also counts npc's)
+set %halt_on_too_easy #false   ;#false      ; Halt if targets are too easy - if you got a ball of knowledge with you.
+set %eatfood #false                                                    ; Auto eat food evey 5 mins
+set %food_wait 600
+set %trainit stlt
+chooseskill %trainit real
+set %skillcap 1200                          ; Adjust your skillcap in stealthing if not it trains to cap!
+set %trainname Stealth
+if %skillcap > #skillcap
+   {
+   set %skillcap #skillcap
+   }
+set %trainit2 hidi
+chooseskill %trainint2 real
+set %skillcap2 1000
+set %trainname2 Hiding
+if %skillcap2 > #skillcap
+   {
+   set %skillcap2 #skillcap
+   }
+
+Set %wait 10                                  ;Wait time for loop
+set %waithide 11                             ;Wait time for try to rehide
+Set %people HS_IS_NAB_OAB_QAB_PAB_MAB_RAB_SAB_LAB_XU_AV
+;================================================================================================================
+;No need for edit below here
+;================================================================================================================
+menu hideEUO
+menu hide
+gosub CBKnowledge                             ;Check for ball of knowledge and activating it
+set %subtrainskill #true                       ;For menu if it is a subskill to main training skill
+;Siege setup
+chooseskill %trainit real
+set %rot_skill #skill
+If #Shard = Siege , #Spc , Perilous         ;will set up siege training
+   {
+   set %HideWhileWorking #true
+   set %bluetrain #false
+   Display yesno Will you do alacrity or logout training on siege?
+   if #dispRes = yes
+      {
+      set %bluetrain #true     ; will log out and in when time is due good for blue training on siege. Remember to fill in password
+      gosub pwmenu
+      }
+   else
+   set %bluetrain #false
+   if %bluetrain = #true
+      {
+      set %HideWhileWorking #false
+      }
+   }
+set %scriptname Stealth , #spc , Ultra , #spc , Trainer , #spc , v2.02
+gosub showEUOMenu1
+set %combo 0
+gosub requirements
+gosub initial_skills
+if %eatfood = #true
+   {
+   gosub eat_food
+   }
+set %Time_out #SCNT + 200
+if %contact = #true
+   {
+    ignoreitem reset
+    Find_again:
+    finditem %people G_18
+    if #findcnt > 0
+       {
+       ignoreitem #findid
+       goto Find_again
+       wait 5
+       }
+    }
+;==========================================================
+Main:
+Repeat
+{
+ finditem %people G_18
+ if #findcnt > 0 && %contact = #true
+    {
+    menu set status Player discovered..waiting..
+    If H notin #CharStatus
+       {
+       gosub hide
+       }
+    gosub update
+    wait 10
+    goto main
+    }
+ Set %PositionY #CHARPOSY
+ Set %PositionX #CHARPOSX
+ Set %PlaceHolderX #CharPosX
+ Set %PlaceHolderY #CharPosY
+ Set %PlaceHolderX2 %PlaceHolderX
+ Set %PlaceHolderY2 %PlaceHolderY - 1
+ Event Macro 13 21
+ wait 5
+ If H notin #CharStatus
+   {
+   set %waiting #SCNT + %waithide
+   while %waiting > #scnt
+         {
+         menu set status Waiting to Hide again..
+         gosub update
+         wait 10
+         }
+   gosub hide                                 ;Have to hide for to reset stealth movement
+   }
+ menu set status Training...
+ if %CBK = #true                             ;Start jornalscan for difficulty on training
+   {
+   set %jStart #jIndex
+   }
+ wait 5
+ move %PlaceHolderX2 %PlaceHolderY2 0 10
+ wait 5
+ menu set status Waiting...
+ if %CBK = #true                               ;Display difficulty on training
+   {
+   set %jEnd #jIndex
+   for %i %jStart %jEnd
+     {
+     scanjournal %i
+     gosub CBK_menu
+     }
+   }
+ Gosub skills
+ chooseskill %trainit real
+ if #skill > %rot_skill
+    {
+    If #Shard = Siege , #Spc , Perilous && #skill > 699            ; Checking for ROT Timer trigger on Siege
+       {
+       Gosub ROT_Timer
+       }
+    {
+ set %waiting #SCNT + %wait
+ while %waiting > #scnt
+    {
+    gosub update
+    wait 10
+    }
+ Event Macro 13 21
+ wait 5
+ If H notin #CharStatus
+   {
+   set %waiting #SCNT + %waithide
+   while %waiting > #scnt
+         {
+         menu set status Waiting to Hide again..
+         gosub update
+         wait 10
+         }
+   gosub hide                                 ;Have to hide for to reset stealth movement
+   }
+ menu set status Training...
+ if %CBK = #true                             ;Start jornalscan for difficulty on training
+   {
+   set %jStart #jIndex
+   }
+ wait 5
+ Move %PlaceHolderX %PlaceHolderY 0 10
+ wait 5
+ menu set status Waiting...
+if %CBK = #true                             ;Display difficulty on training
+   {
+   set %jEnd #jIndex
+   for %i %jStart %jEnd
+     {
+     scanjournal %i
+     gosub CBK_menu
+     }
+   }
+ Gosub skills
+ if #skill > %rot_skill
+    {
+    If #Shard = Siege , #Spc , Perilous && #skill > 699            ; Checking for ROT Timer trigger on Siege
+       {
+       Gosub ROT_Timer
+       }
+    }
+ set %waiting #SCNT + %wait
+ while %waiting > #scnt
+    {
+    gosub update
+    if %eatfood = #true && #SCNT > %foodtime
+       {
+       gosub eat_food
+       }
+    wait 10
+    }
+}
+Until #charghost = yes
+menu set status You are dead...Halting!
+Display ok You are dead! Halting!
+halt
+;======================================================               Update Sub
+sub update
+ gosub runtime
+ if #menubutton = Pause
+    {
+    gosub pause
+    }
+ if #menuButton = Quit
+    {
+    gosub stop_it
+    }
+  if #menubutton = CLOSED
+     {
+     display Menu closed. Halting.
+     halt
+     }
+ if %Time_out < #SCNT
+   {
+   gosub reset_timeout
+   set %Time_out #SCNT + 200
+   }
+ return
+;======================================================               Eat Food Sub
+sub eat_food
+Eat_again:
+finditem %foodtypes C_ , #BACKPACKID
+if #findCnt < 1
+   {
+   set status Out of Food!!!!
+   set %foodtime #SCNT + 60
+   return
+   }
+set %jStart #jIndex
+menu set status Eating food
+set #LOBJECTID #FINDID
+event macro 17 0
+wait 10
+set %jEnd #jIndex
+for %i %jStart %jEnd
+    {
+    scanjournal %i
+    if too_full_to_eat in #journal
+       {
+       set %foodtime #SCNT + %food_wait
+       return
+       }
+    }
+Goto Eat_again
+;================================================================================================================
+sub pwmenu
+menu clear
+menu Window Title Auto Log Out and In
+menu Window Size 274 115
+menu Font BgColor Black
+menu Font Color White
+menu text PasswordLabel 10 9 Password
+menu button OKButton 178 55 86 30 Ok
+menu Font BgColor Black
+menu Font Color White
+menu edit password 100 9 160
+menu show
+menu hideEUO
+pwloop:
+wait 1
+If #MenuButton <> OKButton ;<-- Check to see if OK button has been pressed.
+   {
+	 Goto pwloop
+	 }
+menu get password
+set %password #menures
+Set %character 1
+menu hide
+menu delete
+return
+;======================================================================
+sub initial_skills
+set %starttime #scnt
+chooseskill %trainit real
+  set %start #skill
+  set %current #skill
+  str len %start
+  str ins %start #dot #strRes
+menu set start #strRes
+  str len %current
+  str ins %current #dot #strRes
+menu set current #strRes
+if %subtrainskill = #true
+   {
+   chooseskill %trainit2 real
+   set %current2 #skill
+   str len %current2
+   str ins %current2 #dot #strRes
+   menu set subskill #strRes
+   }
+return
+======================================================================
+sub skills
+gosub runtime
+chooseskill %trainit real
+if %current < #skill
+   {
+   gosub timegain
+   set %current #skill
+   str len %current
+   str ins %current #dot #strRes
+   menu set current #strRes
+   set %change %current - %start
+   str len %change
+   str ins %change #dot #strRes
+   menu set change + #strRes
+   menu set timegain %time
+   If #Skill = %skillcap
+      {
+      exevent skillLock %trainit locked
+      menu set status Skillcap Reached!!!
+      display You Have Reached Your %trainname Skill Cap!$ Remember to rate it on EasyUO.com Good-Bye!
+      halt
+      }
+   gosub requirements
+   }
+if %subtrainskill = #true
+   {
+   chooseskill %trainit2 real
+   if %current2 < #skill
+      {
+      set %current2 #skill
+      str len %current2
+      str ins %current2 #dot #strRes
+      menu set subskill #strRes
+      If #Skill = %skillcap2
+          {
+          exevent skillLock %trainit2 locked
+          }
+      }
+   }
+return
+======================================================================
+
+sub stop_it
+menu set status Script Stopped...
+Display I hope you enjoyed my Ultra Stealth Trainer!$ Remember to rate it on EasyUO.com Good-Bye!
+halt
+return
+
+;======================================================================
+sub pause
+menu set status Script Paused
+menu delete pause
+menu Font Color yellow
+menu Button resume 204 8 75 21 Resume
+set #menubutton n/a
+repeat
+ {
+ if %Time_out < #SCNT
+   {
+   gosub reset_timeout
+   set %Time_out #SCNT + 200
+   }
+ gosub update
+ wait 10
+ }
+until #menubutton <> N/A
+menu delete resume
+menu Font Color lime
+menu Button pause 204 8 75 21 Pause
+menu set status Resuming...
+Wait 5
+return
+;================================================================================================================
+Sub CBK_menu
+     if challenging in #journal
+        {
+        menu delete difficulty
+        menu Font Color yellow
+        menu Text difficulty 68 92 ..Challenging..
+        }
+     if too_challenging in #journal
+        {
+        menu delete difficulty
+        menu Font Color $5959FB
+        menu Text difficulty 68 92  Too Challenging
+        menu delete status
+        menu Font Color red
+        menu Text status 152 92 Too Challanging...Halting!
+        display ok Stealthing are too Challenging, wear less armor - halting!
+        halt
+        }
+     if optimal in #journal
+        {
+        menu delete difficulty
+        menu Font Color green
+        menu Text difficulty 68 92 ....Optimal....
+        }
+     if easy in #journal
+        {
+        menu delete difficulty
+        menu Font Color yellow
+        menu Text difficulty 68 92 .....Easy......
+        }
+     if very_easy in #journal
+        {
+        menu delete difficulty
+        menu Font Color yellow
+        menu Text difficulty 68 92 ...Very Easy..
+        }
+     if too_easy in #journal
+        {
+        menu delete difficulty
+        menu Font Color $5959FB
+        menu Text difficulty 68 92 ...Too Easy....
+        if %halt_on_too_east = #true
+           {
+           menu delete status
+           menu Font Color red
+           menu Text status 152 92 Too easy...Halting!
+           display ok Stealthing are too easy - halting!$ Remember to vote on script on Easyuo.com!
+           halt
+           }
+        }
+return
+;================================================================================================================
+Sub CBKnowledge
+Search:
+finditem GMF C_ , #backpackid
+if #findcnt < 1
+    {
+    set %CBK #false
+    return
+    }
+wait 10
+event property #FindID
+if knowledge in #property
+   {
+   set %crystalball #FindID
+   wait 10
+   if turned , #spc , on in #property
+      {
+      set %CBK #true
+      return
+      }
+   goto activate
+   }
+ignoreitem #FindID
+goto search
+activate:
+event property %crystalball
+if turned , #spc , off in #property
+   {
+   set #lobjectid %crystalball
+   event macro 17 0
+   gosub WaitForSysVars CONTSIZE = 300_150 CONTNAME = generic_gump
+   set %x #contposx + 50
+   set %y #contposy + 60
+   click %x %y
+   wait 1s
+   goto activate
+   }
+set %CBK #true
+return
+;================================================================================================================
+sub waitForSysVars
+  set !cnt %0 / 3
+  set !timeOut #scnt + 5
+  if ( %0 % 3 = 1 )
+    set !timeOut #scnt + % . %0
+  for !i 1 !cnt
+  {
+    set !offset 3 * !i - 2
+    set !evaluation !offset + 1
+    set !value !offset + 2
+    if ! ( # . % . !offset % . !evaluation % . !value )
+      set !i 0
+    if #scnt > !timeout
+      return #false
+  }
+return #true
+;======================================================               Runtime sub
+sub runtime
+  set %currenttime #scnt
+  set %_rtime %currenttime - %starttime
+  set %hours %_rtime / 3600
+  set %rest1 %_rtime % 3600
+  set %minutes %rest1 / 60
+  if %hours < 10
+    set %hh 0 , %hours
+  else
+    set %hh %hours
+  if %minutes < 10
+    set %mm 0 , %minutes
+  else
+    set %mm %minutes
+  set %seconds %rest1 % 60
+  if %seconds < 10
+    set %ss 0 , %seconds
+  else
+    set %ss %seconds
+  set %runtime %hh , : , %mm , : , %ss
+  menu set runtime %runtime
+  return
+;======================================================               Time sub
+sub time
+;set %AMPM AM                                                          ;Disable AM/PM
+set %d1 %1 / 1 % 10
+set %d2 %1 / 10 % 10
+set %d3 %1 / 100 % 10
+set %d4 %1 / 1000 % 10
+set %d5 %1 / 10000 % 10
+set %d6 %1 / 100000 % 10
+set %temptime %d6 , %d5
+;if %tempampm > 12 && %2 = 12                                          ;Disable AM/PM
+;  {                                                                   ;Disable AM/PM
+;  set %AMPM PM                                                        ;Disable AM/PM
+;  set %tempampm %tempampm - 12                                        ;Disable AM/PM
+;  }                                                                   ;Disable AM/PM
+;if %2 = 12                                                            ;Disable AM/PM
+;  return %tempampm , : , %d4 , %d3 , : , %d2 , %d1 ;, #SPC , %AMPM    ;Disable AM/PM
+return %temptime , : , %d4 , %d3 , : , %d2 , %d1
+return
+;======================================================               Time Convert sub
+; %1 = ConvertDate  changes date to MM/DD/YY format
+sub ConvertDate
+  str Mid %1 3 2
+  set %tempstr #STRRES , /
+  str Mid %1 5 2
+  set %tempstr %tempstr , #STRRES , /
+  str Mid %1 1 2
+  set %tempstr %tempstr , #STRRES
+return %tempstr
+;======================================================               Timegain sub
+sub timegain
+gosub time #time 12
+set %time #RESULT
+gosub ConvertDate #DATE
+set %date #RESULT
+return
+;======================================================               Hiding sub
+sub hide
+If H notin #CharStatus
+   {
+   repeat
+     {
+     menu set status Hiding...
+     Event Macro 13 21       ; Hide
+     wait 5
+     if H in #charstatus
+        {
+        goto continue
+        }
+     set %waiting #SCNT + %waithide
+     menu set status Waiting to Hide again..
+     while %waiting > #scnt
+        {
+        gosub update
+        wait 10
+        }
+     }
+   until H in #charstatus
+   }
+continue:
+if %rotwaithide = #true
+   {
+   menu set status Waiting for RoT...
+   }
+return
+;======================================================               Reset Timeout Sub
+sub reset_timeout
+set %MageBooks MPF_XXM_SPN_ECR_RJR
+finditem %MageBooks C_ , #CharID
+If #FindCNT > 0
+   {
+   event macro 8 5                   ; Open spellbook
+   wait 10
+   event macro 9 5                   ; Close spellbook
+   wait 10
+   return
+   }
+finditem %MageBooks C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 5                   ; Open spellbook
+   wait 10
+   event macro 9 5                   ; Close spellbook
+   wait 10
+   return
+   }
+finditem XXM C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 12                   ; Open Necrobook
+   wait 10
+   event macro 9 12                   ; Close Necrobook
+   wait 10
+   return
+   }
+finditem YXM C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 13                   ; Open Paladine Book
+   wait 10
+   event macro 9 13                   ; Close Paladine Book
+   wait 10
+   return
+   }
+finditem QON C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 15                   ; Open Paladine Book
+   wait 10
+   event macro 9 15                   ; Close Paladine Book
+   wait 10
+   return
+   }
+finditem QON C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 15                   ; Open Bushido Book
+   wait 10
+   event macro 9 15                   ; Close Bushido Book
+   wait 10
+   return
+   }
+finditem SPN C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 16                   ; Open Ninjitsu Book
+   wait 10
+   event macro 9 16                   ; Close Ninjitsu Book
+   wait 10
+   return
+   }
+finditem ECR C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 18                   ; Open Spellewaving Book
+   wait 10
+   event macro 9 18                   ; Close Spellweaving Book
+   wait 10
+   return
+   }
+event macro 8 7
+wait 10
+return
+;======================================================               Requirements Sub
+sub requirements
+chooseskill %trainit
+if #skill < 333
+   {
+   if %combo = 1
+      {
+      return
+      }
+   menu delete box
+   menu font color gray
+   menu List Create Box 290 8 100 102
+   menu List Add Box Skillguide:
+   menu List Add Box -----------
+   menu List Add Box Purchase from NPC
+   menu List Add Box in New Haven,
+   menu List Add Box or thief guildmaster
+   menu List Add Box
+   menu List Add Box Or just wear cloths.
+   set %combo 1
+   return
+   }
+if #skill < 500
+   {
+   if %combo = 2
+      {
+      return
+      }
+   menu delete box
+   menu font color gray
+   menu List Create Box 290 8 100 102
+   menu List Add Box Skillguide:
+   menu List Add Box -----------
+   menu List Add Box Do Player Quest
+   menu List Add Box in New Haven,
+   menu List Add Box
+   menu List Add Box Or just wear cloths.
+   set %combo 2
+   return
+   }
+if #skill < 650
+   {
+   if %combo = 3
+      {
+      return
+      }
+   menu delete box
+   menu font color gray
+   menu List Create Box 290 8 100 102
+   menu List Add Box Skillguide:
+   menu List Add Box -----------
+   menu List Add Box Leather
+   menu List Add Box - add a piece at a
+   menu List Add Box time when it raise
+   menu List Add Box
+   menu List Add Box - do not use helmet
+   set %combo 3
+   return
+   }
+if #skill < 950
+   {
+   if %combo = 4
+      {
+      return
+      }
+   menu delete box
+   menu font color gray
+   menu List Create Box 290 8 100 102
+   menu List Add Box Skillguide:
+   menu List Add Box -----------
+   menu List Add Box Studded Leather
+   menu List Add Box - add a piece at a
+   menu List Add Box time when it raise
+   menu List Add Box
+   menu List Add Box - do not use helmet
+   set %combo 4
+   return
+   }
+if #skill < 1200
+   {
+   if %combo = 5
+      {
+      return
+      }
+   menu delete box
+   menu font color gray
+   menu List Create Box 290 8 100 102
+   menu List Add Box Skillguide:
+   menu List Add Box -----------
+   menu List Add Box Ringmail Armor
+   menu List Add Box - add a piece at a
+   menu List Add Box time when it raise
+   menu List Add Box
+   menu List Add Box - use Close Helmet
+   set %combo 5
+   return
+   }
+return
+;======================================================================
+sub showEUOMenu1
+	menu Clear
+	menu Font Color black
+	menu Window Title %scriptname
+	menu Window Color black
+	menu Window Size 400 120
+	menu Font Name MS Sans Serif
+	menu Font Size 8
+	menu Font Align Left
+	menu Font Color gray
+	menu Font BGColor black
+	menu Text EUOLabel1 8 8 Starting %trainname Skill :
+	menu Text Start 152 8
+	menu Font Color silver
+	menu Text EUOLabel2 8 24 Current %trainname Skill :
+	menu Text current 152 24
+  if %subtrainskill = #true
+     {
+	   menu Font Color gray
+     menu Text trainit2 8 40 Current %trainname2 Skill :
+	   menu Text subskill 152 40 000
+	   }
+	menu Text runlabel 8 56 Time Running :
+	menu Text runtime 204 56 %runtime
+	menu Font Color silver
+	menu Text EUOLabel3 8 72 Total Gains This Session :
+	menu Text change 152 72
+	menu Text timegain 204 72
+	menu Font Color lime
+	menu Button Pause 204 8 75 21 Pause
+	menu Font color red
+	menu Button Quit 204 32 75 21 Quit
+	menu Text StatusLabel 8 92 Status:
+	menu Text status 152 92 Initialating
+  if %CBK = #true
+     {
+	   menu Font Color silver
+	   menu Text difficulty 68 92 Updating..
+	   }
+menu Show 421 270
+menu HideEUO
+return
+;================================================================================================================
+Sub RoT_Timer       ; Sets the RoT timer
+menu set status Waiting for RoT...
+gosub skills
+Chooseskill %trainit Real
+Set %rot_skill #skill
+set %rotwaithide #true
+If #Skill < 800                        ; 5 Minute Interval
+   {
+   Set %ROTSkillTimerT #SCNT + 300
+   }
+If #Skill >= 800 && #Skill < 900       ; 8 Minute Interval
+   {
+   Set %ROTSkillTimerT #SCNT + 480
+   {
+If #Skill >= 900 && #Skill < 1000      ; 12 Minute Interval
+   {
+   Set %ROTSkillTimerT #SCNT + 720
+   }
+If #Skill >= 1000 && #Skill < 1200     ; 15 Minute Interval
+   {
+   Set %ROTSkillTimerT #SCNT + 900
+   }
+if %bluetrain = #false
+   {
+   set %OldTime #Time
+   }
+If %HideWhileWorking = #True
+   {
+   gosub hide
+   }
+if %bluetrain = #true
+   {
+   gosub logout
+   }
+Repeat
+
+If %ROTSkillTimerT - #SCNT > 120
+   {
+   IF %HideWhileWorking = #True
+      {
+      If H notin #CharStatus
+         {
+         if %bluetrain = #false
+            {
+            gosub hide       ; Hide
+            }
+         }
+      }
+   if %bluetrain = #false
+      {
+      if %Time_out < #SCNT
+         {
+         gosub reset_timeout
+         set %Time_out #SCNT + 200
+         }
+      }
+   Wait 50
+   }
+Until #SCNT >= %ROTSkillTimerT
+if %bluetrain = #true
+      {
+      gosub loginagain
+      wait 3s
+      even macro 8 7
+      wait 1s
+      }
+Until #SCNT >= %ROTSkillTimerT
+set %rotwaithide #false
+return
+;================================================================================================================
+sub logout
+menu set status Logging out
+namespace push
+namespace local logout
+logout:
+set !timeOut #scnt + 5
+event macro 8 1
+wait 20
+waitpaperdoll:
+if #scnt > !timeOut
+   {
+	 goto logout
+	 }
+if #contname <> paperdoll_gump
+   {
+	 goto waitpaperdoll
+	 }
+contpos #clixres 0
+wait 20
+_waitConfirm:
+set !timeOut #scnt + 3
+set !paperDollX #clixres + 210
+click !paperDollX 110
+waitlogout:
+if #scnt > !timeOut
+   {
+	 goto _waitConfirm
+   }
+if #contname <> YesNo_gump
+   {
+	 goto waitlogout
+	 }
+set !x #contposx + 120
+set !y #contposy + 90
+_quit:
+click !x !y
+set !timeOut #scnt + 20
+_waitlogout:
+if #scnt > !timeout
+   {
+	 goto _quit
+   }
+if #contname <> MainMenu_gump
+   {
+	 goto _waitlogout
+	 }
+namespace pop
+menu set status Waiting for RoT
+return
+;================================================================================================================
+sub loginagain
+if #contName = mainmenu_gump && #contKind = KRDD
+   {
+   _Login:
+   gosub EnterPassword
+   gosub PressNextButton
+   gosub WaitForGump normal_gump CHCD 60
+   if #contName = waiting_gump && #contKind = SRHB
+      {
+      click 320 350 f dmc
+      gosub WaitForGump normal_gump UYLB
+      goto _Login
+      }
+    gosub PressNextButton
+    gosub WaitForGump normal_gump UYLB 30
+    gosub SelectChar
+    gosub PressNextButton
+    gosub WaitForLogin
+    }
+return
+;================================================================================================================
+sub PressNextButton
+click 615 445 f dmc ; Next Button
+return
+;================================================================================================================
+sub EnterPassword
+click 510 400 f dmc ; Password
+gosub ClearPlace
+msg %password
+return
+;================================================================================================================
+sub ClearPlace
+for %i 1 16
+    {
+    key BACK
+    }
+return
+;================================================================================================================
+sub SelectChar
+set %cx_ 360
+set %cy_ 100 + ( %Character * 40 )
+click %cx_ %cy_ f dmc
+gosub WaitForGump login_gump AAWB 10
+return
+;================================================================================================================
+sub WaitForGump
+set %contName %1
+set %contKind %2
+set %timeCheck #false
+set %timeOut #scnt
+if %0 = 3
+   {
+   set %timeCheck #true
+   set %timeOut #scnt + %3
+   }
+while #contName <> %contName || #contKind <> %contKind
+    {
+    if %timeCheck && #scnt > %timeOut
+    break
+    }
+return
+;================================================================================================================
+sub WaitForLogin
+set %timeOut #scnt + 60
+while #CliLogged = 0 && #scnt < %timeOut
+wait
+return
+;================================================================================================================
+
+

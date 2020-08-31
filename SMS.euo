@@ -1,0 +1,34 @@
+;==================================
+; Script Name: SMS (Slow Motion Stealth)
+; Author: Scriptors on the forums
+; Coauthor(s): llbean
+; Version: Final
+; Client Tested with: 7.0.75.35
+; EUO version tested with: 1.6.0.333
+; Shard OSI / FS: OSI/FS
+; Revision Date: May 3, 2019
+; Public Release: May 3, 2019
+; Global Variables Used: None
+; Purpose: Train Stealth and Hiding
+; Inspired by snicker's Non moving Magery
+; Can start from 0
+;==================================
+
+chooseskill stlt real
+while #skill < #Skillcap
+{
+wait 11s
+ if H in #charstatus
+   {
+   event macro 13 47
+   }
+ else
+   {
+   event macro 13 21
+   }
+}
+
+Display Thank you for using script :)
+halt
+
+
