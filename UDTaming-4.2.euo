@@ -758,12 +758,21 @@ sub TamingKill
     set #ltargetid %tameid
     set #ltargetkind 1
     menu get kill
-    chooseskill eval
+    
     if #menures = 2
     {
-        ;event macro 15 50 ; flame strike
+
+        set %halfhits #maxhits / 2
+        if #hits < %halfhits
+        {
+          event macro 15 28 ;greater heal
+          target 5s
+          event macro 23 0 ;target self
+          wait 2s
+        }
+        event macro 15 50 ; flame strike
         ;event macro 15 41 ; energy bolt
-        event macro 15 36 ; mind blast
+        ;event macro 15 36 ; mind blast
         ;event macro 15 29 ; lightning
     }
 
