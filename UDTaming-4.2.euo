@@ -631,7 +631,7 @@ sub TameAnimal
     gosub TamingMonitor
     if #result = success
     {
-
+        event macro 1 0 all follow me
         menu get kill
         if #menures = 1 || #menures = 2
         {
