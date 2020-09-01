@@ -779,6 +779,14 @@ sub TamingKill
     if #menures = 1
     {
        event macro 27 0  ;attack target with weapon
+        set %halfhits #maxhits / 2
+        if #hits < %halfhits
+        {
+          event macro 15 202 ;cure wounds
+          target 5s
+          event macro 23 0 ;target self
+          wait 2s
+        }
     }
 
 
