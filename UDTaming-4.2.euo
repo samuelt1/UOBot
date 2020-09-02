@@ -195,6 +195,10 @@ sub InitMenu
     menu font style n
     menu edit waypointstext 10 190 300
     menu edit currentlocation 10 210 300
+    menu font style b
+    menu text passwordTitle 10 230 Password:
+    menu font style n
+    menu edit passwordtext 10 250 300
     menu shape bgstatus 0 283 320 17 3 7 1 $999999 7 $E0E0E0
     menu font color $666666
     menu text lblstatus 5 285 Status:
@@ -354,6 +358,7 @@ return
 sub Dispatch
     menu set status Idle
     menu set currentlocation #charposx , #spc , #charposy , #spc , #charposz
+    checkConnect    
     gosub ScriptIdletime
     gosub TamingCheckSkill
     menu get autotame
@@ -597,6 +602,7 @@ return
 sub TameAnimal
     menu set status Starting To Tame
     TamingLoop:
+    gosub checkConnect
     finditem %tameid G_16
 
     if #findkind = -1
@@ -688,6 +694,7 @@ sub TamingMonitor
     set %movetimer 0
     set %tametimer #systime + 15000
     TamingMonitorLoop:
+    gosub checkConnect
     if #jindex >= %tamejournal
     {
         scanjournal %tamejournal
@@ -746,6 +753,7 @@ return
 sub TamingKill
     menu set status Killing Animal
     TamingKillLoop:
+    gosub checkConnect
     finditem %tameid
     if #findkind = -1
         return
@@ -906,6 +914,7 @@ sub GetTargetId
     set #ltargetid N/A
     set #targcurs 1
     GetTargetIdLoop:
+    gosub checkConnect
     if #targcurs = 1
         goto GetTargetIdLoop
 return
@@ -933,6 +942,7 @@ sub PathfindWait
             set %movey #charposy
             set %movetimer #systime + 500
             PathfindWaitLoop:
+            gosub checkConnect
             if #systime < %movetimer
                 goto PathfindWaitLoop
             if %movex = %1 && %movey = %2
@@ -974,10 +984,47 @@ sub GetContainerPos
         set %contdropx #findx + 21
         set %contdropy #findy + 10
         return #true
-    if #findtype = LKF 5 ; pouch                                                      se
+    if #findtype = LKF 5 ; pouch
         set %contposx #findx + 22
         set %contposy #findy + 13
         set %contdropx #findx + 25
         set %contdropy #findy + 7
         return #true
 return #false
+
+sub checkConnect
+    if #CONTNAME = waiting_gump
+       gosub login
+return
+
+sub login
+    sleep 2000
+    key ENTER
+    startLogin:
+    if #CONTNAME = MainMenu_gump
+    {
+       menu Get passwordtext
+       msg #menuRes
+       key ENTER
+       gosub waitForPageLoad
+       key ENTER
+       gosub waitForPageLoad
+       key ENTER
+       sleep 10000
+       return
+    }
+    else
+    {
+        sleep 1000
+        goto startLogin
+    }
+return #false
+
+sub waitForPageLoad
+    waitForShardPage:
+    if #CONTNAME <> normal_gump
+    {
+        sleep 100
+        goto waitForShardPage
+    }
+return
