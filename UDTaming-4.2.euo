@@ -1004,6 +1004,7 @@ sub login
     sleep 2000
     key ENTER
     startLogin:
+    set #LSHARD 0
     if #CONTNAME = MainMenu_gump
     {
        menu Get passwordtext
@@ -1011,6 +1012,13 @@ sub login
        key ENTER
        gosub waitForPageLoad
        key ENTER
+       if #shard <> Atlantic
+       {
+          click 600 450 dmc
+          gosub waitForPageLoad
+          click 600 450 dmc
+          goto startLogin
+       }
        gosub waitForPageLoad
        key ENTER
        sleep 10000
