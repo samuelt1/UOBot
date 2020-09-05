@@ -1,0 +1,49 @@
+while #true
+{    
+    finditem PRF C_ , #BACKPACKID
+    Set #LOBJECTID #FINDID
+    event macro 17   ;set last object
+    event macro 13 9  ;peacemaking
+    target 1s
+    event macro 23 0  ;target self
+    wait 9s
+    gosub checkConnect
+}
+sub checkConnect
+    if #CONTNAME = waiting_gump
+       gosub login
+return
+
+sub login
+    wait 2s
+    key ENTER
+    startLogin:
+    set #LSHARD 0
+    if #CONTNAME = MainMenu_gump
+    {
+        wait 900s
+        menu Get passwordtext
+        msg #menuRes
+        key ENTER
+        gosub waitForPageLoad
+        key ENTER
+        gosub waitForPageLoad
+        key ENTER
+        wait 10s
+        return
+    }
+    else
+    {
+        wait 1s
+        goto startLogin
+    }
+return #false
+
+sub waitForPageLoad
+    waitForShardPage:
+    if #CONTNAME <> normal_gump
+    {
+        wait 100
+        goto waitForShardPage
+    }
+return

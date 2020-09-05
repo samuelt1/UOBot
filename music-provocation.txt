@@ -1,0 +1,77 @@
+set %animals HG_RD_NF_BE_NF_GO_WC_RF_AG_KB_WG_WG_IG_NG_ZF_JF_TF_PF_TC_BB_TG_VE_PG_CO_CG_JG_ZGB_XF_SF_MG_SG_OF_BO_WN_EG_QC_BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC_TE_HH_HH_YJ
+
+gosub FindClosestTwoAnimals
+ 
+;event macro 13 9 ;peace
+event macro 13 22 ;provoke
+;event macro 13 15 ;discord
+
+event ExMsg %findid  3 0 ME ME ME
+event ExMsg %findid2 3 0 ME ME ME
+set #ltargetid %findid
+set #ltargetkind 1
+target 2s
+event macro 22 0 ; last target
+
+set #ltargetid %findid2
+set #ltargetkind 1
+target 2s
+event macro 22 0 ; last target
+
+sleep 5000
+
+;gosub FindClosestItem
+
+
+sub FindClosestAnimal
+    finditem %animals G_16
+    set %findid #findid
+    set %findtype #findtype
+    set %finddist #finddist
+    if #findcnt > 1
+    {
+        for %i 1 #findcnt
+        {
+            finditem %animals %i G_16
+            if #findkind <> -1 && #finddist < %finddist
+            {
+                set %findid #findid
+                set %findtype #findtype
+                set %finddist #finddist
+            }
+        }
+    }
+return
+
+sub FindClosestTwoAnimals
+    gosub FindClosestAnimal
+
+    set %findid2 n/a
+
+    if #findcnt > 1
+    {
+        for %i 1 #findcnt
+        {            
+            finditem %animals %i G_16
+            if %findid2 = n/a && #findid <> %findid
+            {
+                set %findid2 #findid
+                set %findtype2 #findtype
+                set %finddist2 #finddist 
+                continue
+            } 
+            if #findkind <> -1 && #finddist < %finddist2 && #findid <> %findid
+            {
+                set %findid2 #findid
+                set %findtype2 #findtype
+                set %finddist2 #finddist
+            }
+        }
+    }
+return
+
+sub distance
+    set %x %1 - %3
+    set %y %2 - %4
+    set %output ABS %x * %x + %y * %y
+return %output

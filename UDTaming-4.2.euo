@@ -1015,9 +1015,9 @@ sub login
        key ENTER
        if #shard <> Atlantic
        {
-          click 600 450 dmc
+          click 590 410 dmc
           gosub waitForPageLoad
-          click 600 450 dmc
+          click 590 410 dmc
           goto startLogin
        }
        gosub waitForPageLoad

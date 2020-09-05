@@ -1,4 +1,0 @@
-finditem KRF C_ , #BACKPACKID
-Set #LOBJECTID #FINDID
-event macro 17
-wait 100
