@@ -1,25 +1,4 @@
-while #true
-{
-;    finditem LQF C_ , #BACKPACKID
-    finditem PRF C
-    Set #LOBJECTID #FINDID
-    event macro 17   ;set last object
-    event macro 13 9  ;peacemaking
-    target 1s
-    event macro 23 0  ;target self
-    wait 9s
-    gosub checkConnect
-}
-sub checkConnect
-    if #CONTNAME = waiting_gump
-    {
-    key ENTER
-      gosub login
-      }
-return
-
-sub login
-wait 2s
+sleep 2000
 startLogin:
 set #LSHARD 0
 if #CONTNAME = MainMenu_gump
@@ -39,7 +18,8 @@ if #CONTNAME = MainMenu_gump
         gosub waitForPageLoad
         wait 2s
         click 595 444 dmc
-        wait 600s
+        wait 2s
+        wait 60s
         goto startLogin
     }
     gosub waitForPageLoad
@@ -62,4 +42,3 @@ sub waitForPageLoad
         goto waitForShardPage
     }
 return
-

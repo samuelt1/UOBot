@@ -91,7 +91,7 @@ Sub checkSalvageBag
 Sub RestockCloth
 {
    finditem %cloth C_ , %salvageBag
-   if #FINDCNT = 0 || #FINDSTACK < 40
+   if #FINDCNT = 0 || #FINDSTACK < 100
    {
      finditem %cloth C
      if #FINDBAGID = %salvageBag
