@@ -50,6 +50,12 @@ Sub sew
     set %itemy %itemLocationY + #CONTPOSY
     click %catx %caty dmc
     wait 15
+    if %oil
+    {
+     set %nextx 385 + #CONTPOSX
+     set %nexty 270 + #CONTPOSY
+     click %nextx %nexty dmc
+    }
     click %itemx %itemy dmc
     wait 15
     set %maxx 152 + #CONTPOSX
@@ -70,11 +76,11 @@ Sub checkSalvageBag
       Exevent Drag #FINDID #FINDSTACK
       wait 10
       Exevent Dropc #backpackid
-      wait 1s
+      wait 10
       exevent Popup %salvageBag
       wait 10
       click 50 55 dmc
-      wait 2s
+      wait 1s
 
 
       finditem %cloth C_ , #backpackid
@@ -90,6 +96,14 @@ Sub checkSalvageBag
 ;==================================
 Sub RestockCloth
 {
+   finditem %cloth C_ , #backpackid
+   if #FINDCNT > 0
+   {
+     Exevent Drag #FINDID #FINDSTACK
+	   wait 10
+	   Exevent Dropc %salvageBag
+	   wait 10
+   }
    finditem %cloth C_ , %salvageBag
    if #FINDCNT = 0 || #FINDSTACK < 100
    {
@@ -146,7 +160,7 @@ Sub selectItem
     ;110 - 115.0: Elven Shirt (Brown) (10 Cloth)
     ;115.0 - 120.0: Studded Hiro Sode (8 Leather)
     chooseskill Tail
-    if #skill = 100
+    if #skill = #SKILLCAP
     {
         display done
         halts
@@ -158,6 +172,7 @@ Sub selectItem
         set %categoryLocationY 171
         set %itemLocationX 494
         set %itemLocationY 94
+        set %oil #false
         return
     }
     if #skill < 670
@@ -166,22 +181,25 @@ Sub selectItem
         set %categoryLocationY 129
         set %itemLocationX 491
         set %itemLocationY 231
-        return
-    }
-    if #skill < 720
-    {
-        set %categoryLocationX 26
-        set %categoryLocationY 247
-        set %itemLocationX 494
-        set %itemLocationY 258
+        set %oil #false
         return
     }
     if #skill < 780
     {
-        set %categoryLocationX 444
-        set %categoryLocationY 444
-        set %itemLocationX 555
-        set %itemLocationY 555
+        set %categoryLocationX 26
+        set %categoryLocationY 210
+        set %itemLocationX 494
+        set %itemLocationY 232
+        set %oil #false
+        return
+    }
+    if #skill < 1100
+    {
+        set %categoryLocationX 26
+        set %categoryLocationY 150
+        set %itemLocationX 494
+        set %itemLocationY 110
+        set %oil #true
         return
     }
     if #skill < 1100
@@ -190,6 +208,7 @@ Sub selectItem
         set %categoryLocationY 444
         set %itemLocationX 555
         set %itemLocationY 555
+        set %oil #false
         return
     }
     if #skill < 1150
@@ -198,6 +217,7 @@ Sub selectItem
         set %categoryLocationY 444
         set %itemLocationX 555
         set %itemLocationY 555
+        set %oil #false
         return
     }
     if #skill < 1200
@@ -206,6 +226,7 @@ Sub selectItem
         set %categoryLocationY 444
         set %itemLocationX 555
         set %itemLocationY 555
+        set %oil #false
         return
     }
 return
