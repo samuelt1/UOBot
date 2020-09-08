@@ -70,16 +70,11 @@ Sub checkSalvageBag
       Exevent Drag #FINDID #FINDSTACK
       wait 10
       Exevent Dropc #backpackid
-      wait 10
+      wait 1s
       exevent Popup %salvageBag
       wait 10
-      
-      
-      
-      
-      
-      50 55 mc
-      wait 1s
+      click 50 55 dmc
+      wait 2s
 
 
       finditem %cloth C_ , #backpackid
@@ -87,7 +82,7 @@ Sub checkSalvageBag
       Exevent Drag #FINDID #FINDSTACK
       wait 10
       Exevent Dropc %salvageBag
-      wait 10
+      wait 1s
       set %startSewing #true
     }
     return
