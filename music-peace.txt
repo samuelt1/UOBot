@@ -1,9 +1,13 @@
+Set #LOBJECTID #BACKPACKID
+event macro 17
+set %password SETPASSWORD HERER
 while #true
 {
-;    finditem LQF C_ , #BACKPACKID
+    ;finditem LQF C_ , #BACKPACKID
     finditem PRF C
+    ;finditem LQF C
     Set #LOBJECTID #FINDID
-    event macro 17   ;set last object
+    event macro 17   ;use last object
     event macro 13 9  ;peacemaking
     target 1s
     event macro 23 0  ;target self
@@ -24,7 +28,7 @@ startLogin:
 set #LSHARD 0
 if #CONTNAME = MainMenu_gump
 {
-    msg samman
+    msg %password
     key ENTER
     gosub waitForPageLoad
         wait 2s
@@ -45,6 +49,7 @@ if #CONTNAME = MainMenu_gump
     gosub waitForPageLoad
     key ENTER
     wait 60s
+    exit
     return
 }
 else
