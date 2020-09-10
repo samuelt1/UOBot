@@ -1,0 +1,85 @@
+set %enchantbag CFHMSUD
+ignoreItem enchantbag
+gosub openBags
+for %loop 1 2
+{
+    findItem * c
+    for %i #FINDCNT 1
+    {
+        findItem * %i c
+        if #FINDTYPE in ZJF_LKF_RXJC_CKF
+        {
+            Set #LOBJECTID #findID
+            event macro 17
+            wait 1s
+            ignoreItem #FINDID
+            continue
+        }
+        event Property #findID
+        set %temp Minor Magic Item
+        if %temp in #property
+        {
+            set %returnbag #FINDBAGID
+            Exevent Drag #FINDID #FINDSTACK
+            wait 10
+            Exevent Dropc %enchantbag
+            wait 1s
+            event macro 13 56
+            wait 10
+            set %x 26 + #CONTPOSX
+            set %y 190  + #CONTPOSY
+            click %x %y dmc
+            target 1s
+            set #lTargetID #FINDID
+            wait 10
+            event Macro 22 0
+            wait 10
+            if #CONTKIND = AYQ
+            {
+               set %x #CONTPOSX + 25
+               set %y #CONTPOSY + 195
+               click %x %y dmc
+               wait 10
+            }
+            findItem #FINDID c
+            if #FINDCNT > 0
+            {
+                wait 1s
+                Exevent Drag #FINDID #FINDSTACK
+                wait 10
+                Exevent Dropc %returnbag
+                wait 10
+                ignoreItem #FINDID
+                wait 1s
+            }
+        }
+    }
+}
+halt
+
+sub openBags
+    Set #LOBJECTID #backpackid
+    event macro 17
+    wait 1s
+    Set #LOBJECTID STMTMUD
+    event macro 17
+    wait 1s
+    Set #LOBJECTID QFKYFVD
+    event macro 17
+    wait 1s
+    Set #LOBJECTID OIDSFUD
+    event macro 17
+    wait 1s
+    Set #LOBJECTID ANQHHVD
+    event macro 17
+    wait 1s
+    Set #LOBJECTID MRKTMUD
+    event macro 17
+    wait 1s
+    Set #LOBJECTID VNFQNPD
+    event macro 17
+    wait 1s
+    Set #LOBJECTID %enchantbag
+    event macro 17
+    wait 1s
+return
