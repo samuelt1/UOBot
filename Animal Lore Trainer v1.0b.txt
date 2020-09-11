@@ -1,0 +1,294 @@
+;==========================================================
+; Script Name: Animal Lore Trainer
+; Author: Einstein
+; Version: 1.0b
+; Client Tested with: 7.0.83.27
+; EUO version tested with: 1.6.0.334
+; Shard OSI
+; Revision Date:  2020/01/17
+; Public Release: 2020/01/17
+; Purpose: Train Animal Lore, - Lore animals on screen. 0 - 120
+;==========================================================
+; http://www.easyuo.com/forum/viewtopic.php?f=3&t=54112
+;==========================================================
+; If you want to stop before your skillcap - enter desired level below.
+;----------------------------------------------------------
+; Start script and be close to animals of any kind - most should be in the list, except for some new Eodon pets.
+; Do NOT have pets follow you - new lore on own pets stops from using skill if Pet Training is available on pet.
+;==========================================================
+set %skillcap XXX                                          ; Choose skillcap - if none are choosen, it will go to skill cap!
+set %ground G_8                                            ; Adjust here up to G_12 to raise distance
+set %userlist                                              ; Add new animal types here
+;==============================< No need to modify below here >=======
+set %trainit Anil
+chooseskill %trainit real
+if %skillcap = XXX
+   {
+   set %skillcap #skillcap
+   }
+set %trainname Animal , #spc , Lore
+set %scriptname #charname , #spc , Animal , #spc , Lore , #spc , Trainer
+set %delay 2
+set %Time_out #SCNT + 200
+set %lore #SCNT
+set %list_a HG_RD_NF_BE_NF_GO_WC_RF_AG_KB_WG_WG_IG_NG_ZF_JF_TF_PF_TC_LAC_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC_TE_HH_HH_GO_WC_RF_AG_KB_WG_WG_IG_NG_ZF_JF_TF_PF_TC_BB_TG_VE_PG_
+set %list_b WC_RF_AG_KB_WG_WG_IG_NG_ZF_JF_TF_PF_TC_BB_TG_VE_PG_CO_CG_JG_ZGB_XF_SF_MG_SG_OF_BO_WN_EG_QC_RF_AG_KB_WG_WG_IG_NG_ZF_JF_TF_PF_TC_BB_TG_VE_PG_CO_CG_JG_ZGB_XF_SF_MG_SG_OF_BO_WN_EG_QC_BG_EG_VF_DG_
+set %list_c IG_NG_ZF_JF_TF_PF_TC_BB_TG_VE_PG_CO_CG_JG_ZGB_XF_SF_MG_SG_OF_BO_WN_EG_QC_BG_EG_VF_DG_ZI_ZE_IH_UF_UE_TC_BB_TG_VE_CO_CG_JG_ZGB_XF_SF_MG_SG_OF_BO_WN_EG_QC_BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_LM_
+set %list_d BB_TG_VE_CO_CG_JG_ZGB_XF_SF_MG_SG_OF_BO_WN_EG_QC_BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_CO_CG_JG_ZGB_XF_SF_MG_SG_OF_BO_WN_EG_QC_BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_
+set %list_e BG_EG_VF_DG_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_ZI_ZE_IH_UF_UE_VD_YF_L_M_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_SD_AH_WF_QE_GE_ZD_OH_YG_XG_RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_
+set %list_f RF_KD_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_SH_KG_CB_EH_QF_LD_W_WJ_YE_XE_UB_NC_CD_DF_JJ_CH_MHB_SH_TJ_SC_TE_HH_HH_LAC_FN_SZ_JJ
+set %animals %list_a , _ , %list_b , _ , %list_c , _ , %list_d , _ , %list_e , _ , %list_f , _ , %userlist
+gosub LoreMenu
+gosub initial_skills
+;=====================================================
+Mainloop:
+while #menubutton <> CLOSED
+   {
+   gosub update
+   menu get holdit
+   while #menures = #true
+      {
+      gosub update
+      wait 10
+      }
+   while #charghost = yes
+      {
+      gosub update
+      wait 1s
+      }
+   if %lore < #scnt
+      {
+      finditem %animals %ground
+      if #findcnt > 0
+         {
+         set #ltargetid #findid
+         event macro 13 2
+         target 3s
+         event macro 22 0
+         set %lore #scnt + %delay
+         }
+      gosub skill
+      }
+   }
+halt
+;======================================================================
+sub update
+gosub runtime
+if %Time_out < #SCNT
+   {
+   gosub reset_timeout
+   set %Time_out #SCNT + 200
+   }
+return
+;======================================================================
+sub initial_skills
+set %starttime #scnt
+chooseskill %trainit real
+  set %start #skill
+  set %current #skill
+  str len %start
+  str ins %start #dot #strRes
+menu set start #strRes
+  str len %current
+  str ins %current #dot #strRes
+menu set current #strRes
+  str len %skillcap
+  str ins %skillcap #dot #strRes
+menu set skillcap #strRes
+gosub runtime
+return
+======================================================================
+sub skills
+gosub runtime
+chooseskill %trainit real
+if %current < #skill || #skill => %skillcap
+   {
+   gosub timegain
+   set %current #skill
+   str len %current
+   str ins %current #dot #strRes
+   menu set current #strRes
+   set %change %current - %start
+   str len %change
+   str ins %change #dot #strRes
+   menu set change + #strRes
+   menu set timegain %time
+   chooseskill %trainit real
+   If #Skill => %skillcap
+      {
+      exevent skillLock %trainit locked
+      menu set status Skillcap Reached!!!
+      display You Have Reached Your %trainname Skill Cap!$ Remember to rate it on EasyUO.com Good-Bye!
+      halt
+      }
+   }
+return
+;=====================================================
+  sub runtime
+  set %currenttime #scnt
+  set %_rtime %currenttime - %starttime
+  set %hours %_rtime / 3600
+  set %rest1 %_rtime % 3600
+  set %minutes %rest1 / 60
+  if %hours < 10
+    set %hh 0 , %hours
+  else
+    set %hh %hours
+  if %minutes < 10
+    set %mm 0 , %minutes
+  else
+    set %mm %minutes
+  set %seconds %rest1 % 60
+  if %seconds < 10
+    set %ss 0 , %seconds
+  else
+    set %ss %seconds
+  set %runtime %hh , : , %mm , : , %ss
+  menu set runtime %runtime
+  return
+;======================================================               Time sub
+sub time
+;set %AMPM AM                                                          ;Disable AM/PM
+set %d1 %1 / 1 % 10
+set %d2 %1 / 10 % 10
+set %d3 %1 / 100 % 10
+set %d4 %1 / 1000 % 10
+set %d5 %1 / 10000 % 10
+set %d6 %1 / 100000 % 10
+set %temptime %d6 , %d5
+;if %tempampm > 12 && %2 = 12                                          ;Disable AM/PM
+;  {                                                                   ;Disable AM/PM
+;  set %AMPM PM                                                        ;Disable AM/PM
+;  set %tempampm %tempampm - 12                                        ;Disable AM/PM
+;  }                                                                   ;Disable AM/PM
+;if %2 = 12                                                            ;Disable AM/PM
+;  return %tempampm , : , %d4 , %d3 , : , %d2 , %d1 ;, #SPC , %AMPM    ;Disable AM/PM
+return %temptime , : , %d4 , %d3 , : , %d2 , %d1
+return
+;======================================================               Time Convert sub
+; %1 = ConvertDate  changes date to MM/DD/YY format
+sub ConvertDate
+  str Mid %1 3 2
+  set %tempstr #STRRES , /
+  str Mid %1 5 2
+  set %tempstr %tempstr , #STRRES , /
+  str Mid %1 1 2
+  set %tempstr %tempstr , #STRRES
+return %tempstr
+;======================================================               Timegain sub
+sub timegain
+gosub time #time 12
+set %time #RESULT
+gosub ConvertDate #DATE
+set %date #RESULT
+return
+;=====================================================
+sub reset_timeout
+set %MageBooks MPF_XXM_SPN_ECR_RJR
+finditem %MageBooks C_ , #CharID
+If #FindCNT > 0
+   {
+   event macro 8 5                   ; Open spellbook
+   wait 10
+   event macro 9 5                   ; Close spellbook
+   wait 10
+   goto Timeoutset
+   }
+finditem %MageBooks C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 5                   ; Open spellbook
+   wait 10
+   event macro 9 5                   ; Close spellbook
+   wait 10
+   goto Timeoutset
+   }
+finditem XXM C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 12                   ; Open Necrobook
+   wait 10
+   event macro 9 12                   ; Close Necrobook
+   wait 10
+   goto Timeoutset
+   }
+finditem YXM C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 13                   ; Open Paladine Book
+   wait 10
+   event macro 9 13                   ; Close Paladine Book
+   wait 10
+   goto Timeoutset
+   }
+finditem QON C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 15                   ; Open Paladine Book
+   wait 10
+   event macro 9 15                   ; Close Paladine Book
+   wait 10
+   goto Timeoutset
+   }
+finditem QON C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 15                   ; Open Bushido Book
+   wait 10
+   event macro 9 15                   ; Close Bushido Book
+   wait 10
+   goto Timeoutset
+   }
+finditem SPN C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 16                   ; Open Ninjitsu Book
+   wait 10
+   event macro 9 16                   ; Close Ninjitsu Book
+   wait 10
+   goto Timeoutset
+   }
+finditem ECR C_ , #Backpackid
+If #FindCNT > 0
+   {
+   event macro 8 18                   ; Open Spellewaving Book
+   wait 10
+   event macro 9 18                   ; Close Spellweaving Book
+   wait 10
+   goto Timeoutset
+   }
+event macro 8 7
+wait 10
+Timeoutset:
+return
+;======================================================================
+sub LoreMenu
+	menu Clear
+	menu Font Color black
+	menu Window Title %scriptname
+	menu Window Color black
+	menu Window Size 300 80
+	menu Font Name MS Sans Serif
+	menu Font Size 8
+	menu Font Align Left
+	menu Font Color gray
+	menu Font BGColor black
+	menu Text EUOLabel1 8 8 Starting %trainname Skill :
+	menu Text Start 152 8
+	menu Font Color silver
+	menu Text EUOLabel2 8 24 Current %trainname Skill :
+	menu Text current 152 24
+  menu Font Color gray
+  menu text skillcap 224 24
+  menu Text runlabel 8 40 Time Running :
+	menu Text runtime 224 40 %runtime
+	;menu Font Color silver
+	menu Text EUOLabel3 8 56 Total Gains This Session :
+	menu Text change 152 56
+	menu Text timegain 224 56
+  menu Font Color gray
+  menu check holdit 224 6 60 17 #false Hold It
+menu Show
+menu HideEUO
+return
+
