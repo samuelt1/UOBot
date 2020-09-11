@@ -32,10 +32,31 @@ GoSub RestockThread
 GoSub RestockCloth
 GOSub selectItem
 GoSub checkSalvageBag
+gosub findJunk
 if %startSewing
    GoSub sew
 }
 
+sub findJunk
+{
+   finditem RTI C_ , #backpackid
+   if #FINDCNT > 0
+   {
+     Exevent Drag #FINDID #FINDSTACK
+	   wait 10
+	   Exevent Dropc %salvageBag
+	   wait 10
+   }
+   finditem ZLF C_ , #backpackid
+   if #FINDCNT > 0
+   {
+     Exevent Drag #FINDID #FINDSTACK
+	   wait 10
+	   Exevent Dropc OIDSFUD
+	   wait 10
+   }
+return
+}
 ;==================================
 Sub sew
 {
@@ -193,7 +214,7 @@ Sub selectItem
         set %oil #false
         return
     }
-    if #skill < 1100
+    if #skill < 996
     {
         set %categoryLocationX 26
         set %categoryLocationY 150
@@ -206,8 +227,8 @@ Sub selectItem
     {
         set %categoryLocationX 444
         set %categoryLocationY 444
-        set %itemLocationX 555
-        set %itemLocationY 555
+        set %itemLocationX 494
+        set %itemLocationY 211
         set %oil #false
         return
     }
@@ -229,31 +250,4 @@ Sub selectItem
         set %oil #false
         return
     }
-return
-
-sub openBags
-Set #LOBJECTID #backpackid
-event macro 17
-wait 1s
-Set #LOBJECTID %salvageBag
-event macro 17
-wait 1s
-Set #LOBJECTID STMTMUD
-event macro 17
-wait 1s
-Set #LOBJECTID QFKYFVD
-event macro 17
-wait 1s
-Set #LOBJECTID OIDSFUD
-event macro 17
-wait 1s
-Set #LOBJECTID ANQHHVD
-event macro 17
-wait 1s
-Set #LOBJECTID MRKTMUD
-event macro 17
-wait 1s
-Set #LOBJECTID VNFQNPD
-event macro 17
-wait 1s
 return
