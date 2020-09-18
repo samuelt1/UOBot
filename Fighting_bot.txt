@@ -1,0 +1,140 @@
+;==============================================================
+; Script Name: Thor's ABC Archer
+; Author: thor
+; Version: 1
+; Client Tested with: 4.0.3b
+; EUO version tested with: 1.42.008a
+; Shard OSI / FS: OSI
+; Revision Date: 06.22.2021
+; Public Release: 01.20.2021
+; Purpose: Don't let me die
+;==============================================================
+
+;                  -3 FC -2 FC -1 FC 0 FC 1 FC 2 FC 3 FC 4 FC 5 FC 6 FC
+;Dispel Evil.......1.25  1.00  0.75  0.50 0.50 0.50 0.50 0.50 0.50 0.50
+;Consecrate Weapon 1.50  1.25  1.00  0.75 0.50 0.50 0.50 0.50 0.50 0.50
+;Enemy of One......1.50  1.25  1.00  0.75 0.50 0.50 0.50 0.50 0.50 0.50
+;Holy Light........1.75  1.50  1.25  1.00 0.75 0.50 0.50 0.50 0.50 0.50
+;Divine Fury ......2.00  1.75  1.50  1.25 1.00 0.75 0.50 0.50 0.50 0.50
+;Cleanse By Fire...2.00  1.75  1.50  1.25 1.00 0.75 0.50 0.50 0.50 0.50
+;Noble Sacrifice...2.50  2.25  2.00  1.75 1.50 1.25 1.00 0.75 0.50 0.50
+;Close Wounds......2.50  2.25  2.00  1.75 1.50 1.25 1.00 0.75 0.50 0.50
+;Remove Curse......2.50  2.25  2.00  1.75 1.50 1.25 1.00 0.75 0.50 0.50
+;Sacred Journey....2.50  2.25  2.00  1.75 1.50 1.25 1.00 0.75 0.50 0.50
+
+;Also, a table of the recovery delays: Note, this assumes no minimum recovery delay
+;               0 FCR 1 FCR 2 FCR 3 FCR 4 FCR 5 FCR 6 FCR 7 FCR
+;Recovery Delay 1.75  1.50  1.25  1.00  0.75  0.50  0.25  0.00
+
+;or, if you just want to keep it simple with the info it already has,
+;you could get rid of the menu, and put it all in the ultima titlebar so its not in the way at all.
+;Buffs:
+;Enemy of one                        event Macro 15 206
+;Divine fury                         event Macro 15 205
+;Consecrate weapon                   event Macro 15 203
+;Lightning Strike                    event Macro 15 149
+;Honor (once per mob before fight)   event Macro 49 1
+;
+;Heals:
+;confidence
+;close wounds
+;remove curse
+;cleans by fire
+
+;Call ScanBuffBar   ; Leaves the bar in Current position.
+
+;event Macro 49 1
+;#lTargetID
+;halt
+;wait 25 ; 1 FC, spellcasting time
+;wait 35 ; 0 FCR, Cast Recovery
+
+;event Macro 15 206
+;wait 10
+;event SysMessage #charstatus
+;event SysMessage %BuffBarIconsFound
+;event SysMessage %BuffBarIconNames
+;halt
+
+set %jrnl #jindex
+set %confidencetimer #scnt + 4
+
+Repeat
+
+  Call ScanBuffBar  ; Presumes file is in same location as euo
+  setuotitle %BuffBarCalls - BAR: %BuffbarDirection - Icons: %BuffBarIconsFound - %BuffBarIconNames - #lTargetID
+  Wait 5
+    
+  while #jindex > %jrnl
+  {
+    set %jrnl %jrnl + 1
+    scanjournal %jrnl
+    if you_started_honorable_combat in #journal
+    {
+       event macro 27 0  ; attack last target
+    }
+  }
+  
+  if ( ( #hits * 10 ) / #maxhits ) < 9 && %confidencetimer < #scnt
+  {
+      set %confidencetimer #scnt + 4
+      event Macro 15 146 ; confidence
+      wait 25 ; 1 FC, spellcasting time
+      wait 35 ; 0 FCR, Cast Recovery
+  }
+
+  if ( ( #hits * 10 ) / #maxhits ) < 6
+  {
+      set %confidencetimer #scnt + 4
+      event Macro 15 202 ; close wounds
+      target 30
+      event macro 23 0 ;target self
+      wait 35 ; 0 FCR, Cast Recovery
+  }
+  
+  ;if poisoned cure it
+  if C in #charstatus
+  {
+      event Macro 15 201 ; cleanse by fire
+      target 30
+      event macro 23 0 ;target self
+      wait 35 ; 0 FCR, Cast Recovery
+  }
+  
+  if G in #charstatus
+  {
+
+    if EnemyOfOne notIn %BuffBarIconNames
+    {
+      event Macro 15 206
+      wait 25 ; 1 FC, spellcasting time
+      wait 35 ; 0 FCR, Cast Recovery
+    }
+    
+    if DivineFury notIn %BuffBarIconNames
+    {
+      event Macro 15 205
+      wait 25 ; 1 FC, spellcasting time
+      wait 35 ; 0 FCR, Cast Recovery
+    }
+
+    if ConsecrateWeapon notIn %BuffBarIconNames
+    {
+      event Macro 15 203
+      wait 25 ; 1 FC, spellcasting time
+      wait 35 ; 0 FCR, Cast Recovery
+    }
+
+    if LightningStrike notIn %BuffBarIconNames
+    {
+      event Macro 15 149
+      wait 25 ; 1 FC, spellcasting time
+      wait 35 ; 0 FCR, Cast Recovery
+    }
+
+  }
+Until #CharGhost = YES || #CliLogged = 0
+halt
+
+
+

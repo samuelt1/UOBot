@@ -1,0 +1,560 @@
+;========================================================================================
+; Script Name: ENs BuffBarScanner Subs Module
+; Author: JosephAJ, AKA Endless Night AKA EN
+; Version: V1.5  / V45
+; Client Tested with: ...
+; EUO version tested with: 1.5 (TV...)
+; Revision Date: 3/14
+; Public Release: 10-06, 09,10-08, 07,9-09, 9,11,12-10, 3,4,8/9/10-11, 12/12, 3/14, 10/15, 8/16, 2/17, 2/20
+; Purpose: Data and Additional Code needed to Scan and Manipulate The Buff/Debuff Bar
+;========================================================================================
+; (C) 2006-2016 All Rights Reserved JosephAJ
+;========================================================================================
+;========================================================================================
+; Disclaimer:  By downloading, copying, running or otherwise using this script, you
+; accept the contents of this limited personal use licence agreement. This limited
+; personal use license agreement can be changed at any time for any reason; without any
+; notice.
+; This script is only authorized to be distributed on www.Scriptuo.com and/or
+; www.EasyUo.com . If you purchase this script, or acquire it from any other source, it
+; is not considered an authorized copy and should be deleted immediately. Endless Night
+; AKA JosephAJ(Author) provides no warranty for use, function, or safe interaction with
+; any software or hardware. User downloads and runs this script at his-her own risk.
+; User shall hold Author and the distribution sites www.scriptuo.com and or
+; www.easyuo.com harmless for any loss of items, accounts, money, virtual currency or
+; items associated with the use of this script. User shall hold the author harmless for
+; any consequences that may result from the use of this script as intended. Furthermore,
+; you promise not to distribute or sell this script to anyone without the express
+; written permission of the author, Endless Night AKA JosephAJ. You further promise NOT
+; to modify and repost, post on other websites, post as part of a script or work you
+; yourself have created, email or transfer to another person by any method, or
+; otherwise distribute without written permision from the author. This Applies to the
+; script as a whole and any given part of the script.
+;
+; Commercial usage of any kind requires written permission from the author.
+;
+; Violation of this agreement will result in one or more of the following: litigation,
+; www.scriptuo.com account termination, bad karma for your next life, and most
+; definitely causing a black mark placed on your soul.
+;
+; This Script will never become by any definition of the words "Abandon ware",
+; this script will always remain the property of the author unless rights are
+; transfered by auther in writing (not email Writing).
+;
+; I worked very hard to bring this script to you, so please use it responisibily and
+; respectfully.  If you have any questions, please reach me at Joseph@Technobods.com
+;
+; (c) 2007-2010 JosephAJ, All Rights Reserved
+; Please respect my property rights.. :)
+;========================================================================================
+; If in doubt dont do it contact the author.
+;========================================================================================
+; NOTE: My scripts or any derivative of them are *not* for use in other players script!
+;========================================================================================
+Set %BuffBarOLDLPC #LPC
+Set #LPC  20000
+set %BuffBarSubsCalls %BuffBarSubsCalls + 1
+namespace push
+namespace local ENs_BuffBarSubs . #charid
+  if %0 = N/A
+    display ok ERROR: BuffBarSubs - You may not run this script directly.
+  If %0 = 0
+    display ok ERROR: BuffBarSubs - No Function/Sub Called
+  If %1 in _OpenBuffBar_ImageDrawing_DebugMode_
+   gosub %1 %2 %3 %4 %5
+namespace pop
+Set #LPC %BuffBarOLDLPC
+exit
+Halt
+
+;============================================
+; Sub Routines BELOW
+;============================================
+Sub OpenBuffBar
+  if %1 > 0
+    {
+    If %1 >= 2 && %2 <> !BuffBarX && %3 <> !BuffBarY 4
+      set !BuffBarOpened #false
+      set %BuffBarOpenMoveGump #true
+      set %BuffBarOpenMoveTox %2
+      set %BuffBarOpenMovetoy %3
+    If %1 = 3 && %4 <> !BuffBarDirection  2
+      set !BuffBarOpened #false
+      Set %BuffBarOpenMoveDirection %4
+    If %1 = 1 && %2 <> !BuffBarDirection 2
+      set !BuffBarOpened #false
+      Set %BuffBarOpenMoveDirection %2
+    }
+  If !BuffBarSetup = N/A
+    Gosub BuffBarInitialize
+  set !BuffBarOpened #False
+  if #Clilogged = 0
+    return
+
+  set %Attempts 5
+  While #Contname <> BuffIcons_Gump && #Clilogged <> 0 && %Attempts > 0
+      {
+      set %Attempts %Attempts - 1
+      event macro 57
+      set !t #systime + 15
+      repeat
+      until  #Systime > !t || #Contname = BuffIcons_Gump
+      if #contname = Bufficons_gump 2
+        repeat
+        until  #Systime > !t + 15
+      }
+  if #Contname <> BuffIcons_Gump || #Clilogged = 0
+    return
+  set !BuffBarButtonClickAdj 31
+  If #Contsize = 120_60 || #Contsize = 60_120
+    Set !BuffBarButtonClickAdj 11
+  set !BuffBarX #Contposx
+  set !BuffBarY #Contposy
+  set !BuffBarSizeX #ContsizeX
+  set !BuffBarSizeY #ContsizeY
+  set !OldBuffBarDirection !BuffBarDirection
+  set !BuffBarDirection RIGHT
+  If !BuffBarSizeX <= !BuffBarSizeY
+    set !BuffBarDirection DOWN
+  set %Attempts 2
+  Repeat
+    set %Attempts %Attempts - 1
+    set !BuffBarButtonPosX1 %BuffBarButtonX . !BuffBarDirection + !BuffBarX + ( %BuffBarAdjX . !BuffBarDirection * ( !BuffBarSizeX - !BuffBarButtonClickAdj ) ) - 3
+    set !BuffBarButtonPosX2 !BuffBarButtonPosX1 + 6
+    set !BuffBarButtonPosY1 %BuffBarButtonY . !BuffBarDirection + !BuffBarY + ( %BuffBarAdjY . !BuffBarDirection * ( !BuffBarSizeY - !BuffBarButtonClickAdj ) ) - 3
+    set !BuffBarButtonPosY2 !BuffBarButtonPosY1 + 6
+    savePix  !BuffBarButtonPosX1 !BuffBarButtonPosY1 %BuffBarPixelLoc
+    set !BuffBarKnownButtonCol1 #pixcol
+    savePix  !BuffBarButtonPosX2 !BuffBarButtonPosY2 %BuffBarPixelLoc
+    set !BuffBarKnownButtonCol2 #pixcol
+    set !BuffBarOpened !BuffBarKnownButtonCol1 >= %BuffBarButtonColor1Low . !BuffBarDirection && !BuffBarKnownButtonCol1 <= %BuffBarButtonColor1High . !BuffBarDirection && #pixcol >= %BuffBarButtonColor2Low . !BuffBarDirection && #pixcol <= %BuffBarButtonColor2High . !BuffBarDirection
+    If !BuffBarOpened = #False && !BuffBarDirection = DOWN
+      set !BuffBarOpened  ( !BuffBarKnownButtonCol1 >= %BuffBarButtonDownLow && !BuffBarKnownButtonCol1 <= %BuffBarButtonDownHigh && #pixcol >= %BuffBarButtonColor2Low . !BuffBarDirection && #pixcol <= %BuffBarButtonColor2High . !BuffBarDirection )
+    If !BuffBarOpened = #False
+      set !BuffBarDirection %BuffBarDirectionReverse . !BuffBarDirection
+  until !BuffBarOpened || %Attempts < 1 || #Clilogged = 0
+
+  set !buffBarForceReopen ! !buffbarOpened
+  if !BuffBarOpened = #false
+    return
+  if !BuffBarDirection <> %BuffBarOpenMoveDirection && %BuffBarOpenMoveDirection <> N/A && !BuffBarOpened = #true
+    gosub RotateBar
+  if %BuffBarOpenMoveGump && %BuffBarOpenMoveTox <> #ContposX && %BuffBarOpenMovetoy <> #ContposY 4
+    contpos %BuffBarOpenMoveTox %BuffBarOpenMoveToy
+    gosub WaitMS 40
+    set !BuffBarX #Contposx
+    set !BuffBarY #Contposy
+  set %BuffBarDirection !BuffBarDirection
+  Set !BuffBarScanX1 %BuffBarScanX . !BuffBarDirection  + !BuffBarX + %BuffBarPixel1X - 1
+  set !BuffBarScanY1 %BuffBarScanY . !BuffBarDirection  + !BuffBarY + %BuffBarPixel1Y - 1
+  Set !BuffBarScanX2 %BuffBarScanX . !BuffBarDirection  + !BuffBarX + %BuffBarPixel2X - 1
+  set !BuffBarScanY2 %BuffBarScanY . !BuffBarDirection  + !BuffBarY + %BuffBarPixel2Y - 1
+  set %BuffBarOpenMoveDirection N/A
+  set %BuffBarOpenMoveGump #false
+  set !BuffBarTolerance 1
+  if  !BuffBarDirection in _LEFT_UP_
+    set !BuffBarTolerance 3
+  For !xx 1 %BuffBarIconsCount
+   {
+   set !c !xx + 1
+   ;- 1
+   Set !x1 . !c !BuffBarScanX1 + ( %BuffBarScanAdjx . !BuffBarDirection * !xx ) - %BuffBarScanAdjx . !BuffBarDirection
+   set !y1 . !c !BuffBarScanY1 + ( %BuffBarScanAdjy . !BuffBarDirection * !xx ) - %BuffBarScanAdjy . !BuffBarDirection
+   Set !x2 . !c !BuffBarScanX2 + ( %BuffBarScanAdjx . !BuffBarDirection * !xx ) - %BuffBarScanAdjx . !BuffBarDirection
+   set !y2 . !c !BuffBarScanY2 + ( %BuffBarScanAdjY . !BuffBarDirection * !xx ) - %BuffBarScanAdjy . !BuffBarDirection
+   set !ButtonX1 . !xx !BuffBarButtonPosX1
+   set !ButtonY1 . !xx !BuffBarButtonPosY1
+   set !ButtonX2 . !xx !BuffBarButtonPosX2
+   set !ButtonY2 . !xx !BuffBarButtonPosY2
+   if  !BuffBarDirection = LEFT && !xx < 4 4
+      set !ButtonX1 . !xx  !BuffBarButtonPosX1 + ( 31 * 3 )
+      set !ButtonY1 . !xx  !BuffBarButtonPosY1
+      set !ButtonX2 . !xx  !BuffBarButtonPosX2 + ( 31 * 3 )
+      set !ButtonY2 . !xx  !BuffBarButtonPosY2
+   if  !BuffBarDirection = LEFT && !xx > 3 4
+      set !ButtonX1 . !xx  !BuffBarButtonPosX1 + ( 31 * !xx )
+      set !ButtonY1 . !xx  !BuffBarButtonPosY1
+      set !ButtonX2 . !xx  !BuffBarButtonPosX2 + ( 31 * !xx )
+      set !ButtonY2 . !xx  !BuffBarButtonPosY2
+   if  !BuffBarDirection = UP && !xx < 4 4
+      set !ButtonX1 . !xx  !BuffBarButtonPosX1
+      set !ButtonY1 . !xx  !BuffBarButtonPosY1 + ( 31 * 3 )
+      set !ButtonX2 . !xx  !BuffBarButtonPosX2
+      set !ButtonY2 . !xx  !BuffBarButtonPosY2 + ( 31 * 3 )
+   if !BuffBarDirection = UP && !xx > 3 4
+      set !ButtonX1 . !xx  !BuffBarButtonPosX1
+      set !ButtonY1 . !xx  !BuffBarButtonPosY1 + ( 31 * !xx )
+      set !ButtonX2 . !xx  !BuffBarButtonPosX2
+      set !ButtonY2 . !xx  !BuffBarButtonPosY2 + ( 31 * !xx )
+   }
+return
+
+sub waitms
+  set !EndTime #systime + %1
+  repeat
+  until #Systime > !EndTime
+return
+
+sub RotateBar
+  set !ExitCount 3
+  set !OldContSize !BuffBarSize
+  Repeat
+    Set !ExitCount !ExitCount - 1
+    set !BuffBarButtonPosX         %BuffBarButtonX . !BuffBarDirection + !BuffBarX + ( %BuffBarAdjX . !BuffBarDirection * ( !BuffBarSizeX - !BuffBarButtonClickAdj ) )
+    set !BuffBarButtonPosY         %BuffBarButtonY . !BuffBarDirection + !BuffBarY + ( %BuffBarAdjY . !BuffBarDirection * ( !BuffBarSizeY - !BuffBarButtonClickAdj ) )
+    click !BuffBarButtonPosX !BuffBarButtonPosY f
+    gosub WaitMS 40 ;wait 1
+    IF #Contsize <> !OldContsize && #Contname = BuffIcons_Gump
+       {
+       set !ExitCount 0
+       Set !BuffBarDirection  %BuffBarButtonNewDirection . !BuffBarDirection
+       set !OldContsize #Contsize
+       gosub WaitMS 40 ;wait 1
+       }
+  Until !ExitCount <= 0  || #Clilogged = 0
+  set !BuffBarX #Contposx
+  set !BuffBarY #Contposy
+  set !BuffBarButtonPosX1 %BuffBarButtonX . !BuffBarDirection + !BuffBarX + ( %BuffBarAdjX . !BuffBarDirection * ( !BuffBarSizeX - !BuffBarButtonClickAdj ) ) - 3
+  set !BuffBarButtonPosX2 !BuffBarButtonPosX1 + 6
+  set !BuffBarButtonPosY1 %BuffBarButtonY . !BuffBarDirection + !BuffBarY + ( %BuffBarAdjY . !BuffBarDirection * ( !BuffBarSizeY - !BuffBarButtonClickAdj ) ) - 3
+  set !BuffBarButtonPosY2 !BuffBarButtonPosY1 + 6
+  savePix  !BuffBarButtonPosX1 !BuffBarButtonPosY1 %BuffBarPixelLoc
+  set !BuffBarKnownButtonCol1 #pixcol
+return
+
+; ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+; BuffBar Initialize Data
+; ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Sub BuffBarInitialize
+  set !BuffBarTolerance 1
+  IF %BuffBarColorRange = N/A
+    set %BuffBarColorRange 1024
+  if %BuffBarPixelScanMemoryLocation = N/A
+    set %BuffBarPixelScanMemoryLocation 916
+  set %BuffBarCalls 1
+  set %BuffBarSubsCalls 1
+  set %BuffBar2ndScan 1
+  set !BuffBarSetup 1234
+  set %BuffBarColorDeviation  %BuffBarColorRange
+  gosub AddBuffBarDirectionData RIGHT LEFT  10 47 20  7  31   0 0 0 LEFT  16777215 15707532
+  gosub AddBuffBarDirectionData LEFT  RIGHT  0 47 10  7  31   0 1 0 UP    16250871 15172674
+  gosub AddBuffBarDirectionData UP    DOWN  47  0  7 10   0  31 0 1 DOWN  15722429 15705434
+  gosub AddBuffBarDirectionData DOWN  UP    10 10 25 25   0  31 0 0 RIGHT 8680258  8088410 ; 9208922 8088410
+  set %BuffBarButtonDownLow   9208922 - %BuffBarColorDeviation     ; speacil case
+  set %BuffBarButtonDownHigh  9208922 + %BuffBarColorDeviation
+  Set %BuffBarPixel1X 7    ; Scan Pixel Pairs 7:5 24:19
+  set %BuffBarPixel1Y 5
+  Set %BuffBarPixel2X 24
+  set %BuffBarPixel2Y 19
+  set %BuffBarIconWidth 28
+  set %buffBarIconHeight 28
+  gosub AddIcon MageIcon_Lvl1         #True   Reactive_Armor.gif                12445638 9217420   ReactiveArmour
+  gosub AddIcon MageIcon_Lvl1         #True   Night_Sight.gif                   13553374 3270424   NightSight
+  gosub AddIcon MageIcon_Lvl1         #True   Clumsy.gif                          528400 2179641   Clumsy
+  gosub AddIcon MageIcon_Lvl1         #True   Feeble_Minded.gif                  1052911 9747918   Feeblemind
+  gosub AddIcon MageIcon_Lvl1         #True   Weaken.gif                         1052853 3750366   Weaken
+  gosub AddIcon MageIcon_Lvl2         #True   Protection.gif                     7069266 7071562   Protection
+  gosub AddIcon MageIcon_Lvl2         #True   Agility.gif                        8710011 10270133  Agility
+  gosub AddIcon MageIcon_Lvl2         #True   Cunning.gif                        7065187 2056      Cunning
+  gosub AddIcon MageIcon_Lvl2         #True   Strength.gif                       4337977 7574693   Strength
+  gosub AddIcon MageIcon_Lvl2         #True   Bless.gif                          7065096 6540841   Bless
+  gosub AddIcon MageIcon_Lvl3         #True   Poison.gif                          526534 1052903   Poison
+  gosub AddIcon MageIcon_Lvl4         #True   Curse.gif                          1052911 1579255   Curse
+  gosub AddIcon MageIcon_Lvl5         #True   Paralyze.gif                      10855935 4868855   Paralyze
+  gosub AddIcon MageIcon_Lvl5         #True   Magic_Reflection.gif               2748217 1632041   MagicReflection
+  gosub AddIcon MageIcon_Lvl5         #True   Incognito.gif                     16751632 5392986   Incognito
+  gosub AddIcon MageIcon_Lvl6         #True   Invisibility.gif                   3792441 3792441   Invisibility
+  gosub AddICon	MageIcon_Lvl6         #True   Mass_Curse.gif                     1052911 7576749   MassCurseDebuff
+  gosub AddIcon MageIcon_Lvl7         #True   Polymorph.gif                     10853532 7048365   Polymorph
+  gosub AddIcon SpeacilMoves          #True   Bleed.gif                          1579230 526575    BleedAttack
+  gosub AddIcon SpeacilMoves          #True   TalonStrike.gif                     526468 526468    TalonStrike
+  gosub AddIcon SpeacilMoves          #True   Mortal_Strike.gif                  9211111 1052886   MortalStrike
+  gosub AddIcon SpeacilMoves          #True   Hit_LowerAttack.gif                1579032 11908533  HitLowerAttack
+  gosub AddIcon SpeacilMoves          #True   Hit_LowerDefense.gif               4344394 526476    HitLowerDefense
+  gosub AddIcon SpeacilMoves          #True   Block.gif                           558088 558088    Block
+  gosub AddIcon SpeacilMoves          #True   Feint.gif                           560144 2188114   Feint
+  gosub AddIcon SpeacilMoves          #True   DefenseMastery.gif                 1608728 1092880   DefenseMastery
+  gosub AddIcon SpeacilMoves          #True   PsychicAttack.gif                   528606 8101037   PsychicAttack
+  gosub AddIcon SpeacilMoves          #True   Disarm.gif                         8092663 1052919   Disarm
+  gosub AddIcon SpeacilMoves          #True   Hit_DualWieldInEffect.gif           562184 1052696   DualWield
+  gosub AddIcon SpeacilMoves          #True   ForceArrow.gif                     2693252 5388676   ForceArrow
+  gosub AddIcon SpeacilMoves          #True   Dismount.gif                       4342511 1579255   Dismount
+  gosub AddIcon Gargoyle              #True   Gargoyle_fly.gif                  11902100 5395026   Flying
+  gosub AddIcon Gargoyle              #True   Gargoyle_Berserk.gif               8107470 5963602   Berserk
+  gosub AddIcon SpellWeaving          #True   Gift_Of_Renewal.gif                1625616 2741784   GiftOfRenewal
+  gosub AddIcon SpellWeaving          #True   Attune_Weapon.gif                 13035387 5929868   Attunement
+  gosub AddIcon SpellWeaving          #True   Gift_Of_Life.gif                  16777215 15204327  GiftOfLife
+  gosub AddIcon SpellWeaving          #True   Arcane_Empowerment.gif             3257600 2724897   ArcaneEmpowerment_AcceleratedSkillGain
+ ;gosub AddIcon SpellWeaving          #True   Arcane_Empowerment.gif             3257600 2724897   AcceleratedSkillGain                     ; dupliacte icon for different thing.
+  gosub AddIcon SpellWeaving          #True   Thunderstorm.gif                  11388630 13555406  Thunderstorm
+  gosub AddIcon SpellWeaving          #True   Essence_of_Wind.gif                9211135 10274526  EssenseOfWind
+  gosub AddIcon SpellWeaving          #True   Ethereal_Voyage.gif               10870346 7578962   EtherealVoyage
+  gosub AddICon SpellWeaving          #True   Immolating_Weapon.gif              1606689 49        ImmolatingWeapon
+  gosub AddICon SpellWeaving          #True   Reaper_Form.gif                    4891978 6542947   ReaperForm
+  gosub AddIcon Chivalry              #True   Divine_Fury.gif                    5950984 5951009   DivineFury
+  gosub AddIcon Chivalry              #True   Enemy_Of_One.gif                   9217445 1096960   EnemyOfOne
+  gosub AddIcon Chivalry              #True   Consecrate.gif                      558088 560144    ConsecrateWeapon
+  gosub AddICon	Chivalry              #True   Enemy_Of_OneDB.gif                11910614 3217655   EOODebuff
+  gosub AddIcon Ninjitsu              #True   Animal_Form.gif                   13546999 8         AnimalForm
+  gosub AddIcon Mysticism             #True   Sleep.gif                          1050747 2173217   Sleep
+  gosub AddIcon Mysticism             #True   Stone_Form.gif                    10272206 1579041   StoneForm
+  gosub AddIcon Mysticism             #True   Spell_Plague.gif                  13035503 5407900   SpellPlague
+  gosub AddICon	Mysticism     	      #True   Enchant.gif                        8701440 3794770   EnchantBuff
+  gosub AddIcon Necromancy            #True   Corpse_Skin.gif                    1059327 1579263   CorpseSkin
+  gosub AddIcon Necromancy            #True   Evil_Omen.gif                      2171375 11908607  EvilOmen
+  gosub AddIcon Necromancy            #True   Mindrot.gif                        7046267 16775143  MindRot
+  gosub AddIcon Necromancy            #True   Pain_Spike.gif                     1052870 7566319   PainSpike
+  gosub AddIcon Necromancy            #True   Strangle.gif                      12434943 11392743  Strangle
+  gosub AddIcon Necromancy            #True   Blood_Oath_caster.gif              2741776 2217472   CasterBloodOath
+  gosub AddIcon Necromancy            #True   Blood_Oath_curse.gif               2171342 1579230   CurseBloodOath
+  gosub AddICon Necromancy            #True   Lich_Form.gif                       560136 3763026   LichForm
+  gosub AddICon Necromancy            #True   Vampric_Embrace.gif                2198561 4382282   VampiricEmbrace
+  gosub AddICon Necromancy            #True   Poison_Immunity_Resistance.gif     5951066 2215465   PoisonImmunityResistance                 ; vampiric empbrace gives this
+  gosub AddICon Necromancy            #True   Wraith_Form.gif                    2701617 566552    WaithForm
+  gosub AddICon Necromancy            #True   Horrific_Beast.gif                 2221857 1094928   HorrificBeast
+  gosub AddICon Necromancy            #True   Curse_Weapon.gif                   1088561 14592     CurseWeapon
+  gosub AddIcon Item                  #True   none.gif                             50754 3754586   FishPie
+  gosub AddIcon Item                  #True   SpellFocusing.gif                    50721 52777     SpellFocusing
+  gosub AddIcon Item                  #True   none.gif                              6276 12799     FocusingWeapons
+  gosub AddIcon Item                  #True   Warding.gif                       14589035 14060626  ProtectiveWard                           ; Spell and Weapon types
+  gosub AddICon Item                  #True   Orange_Petals.gif                 11375789 3261993   OrangePetals
+  gosub AddICon Item                  #True   RoseOfTrinsic_Petals.gif           1080080 1621272   RoseOfTrinsic
+  gosub AddICon Item                  #true   Grapes_Of_Wrath.gif                2712361 3232355   GrapesOfWrath
+  gosub AddICon Item                  #True   Splintering_Effect.gif             1050747 1577133   SplinteringEffect_HolyFistDebuff         ; debuff
+; gosub AddICon	Mastery-Chivalry      #False  Splintering_Effect.gif             1050747 1577133   HolyFistDebuff                           ; same icon as splintering effect
+  gosub AddICon Item                  #True   Mana_Phase.gif                    14081643 16252705  ManaPhase                                
+  gosub AddICon	Item                  #false  none.gif                          14589547 14061138  WeaponWard
+  gosub AddIcon Item                  #True   Heal.gif                           1088520 9229956   Healing
+  gosub AddICon	Item                  #True   Disguised.gif                     16777215 2703946   Disguised
+  gosub AddICon	Item                  #False  none.gif                             39993 44288     JukariBurnPoultice                       ; Eodon Potions
+  gosub AddICon	Item                  #False  none.gif                            553926 1071772   KurakAmbushersEssense                    ; Eodon Potions
+  gosub AddICon	Item                  #False  none.gif                            560136 10249026  SakkhraProphylaxisPotion                 ; Eodon Potions
+  gosub AddICon	Item                  #False  none.gif                            558088 2056      BarrabHemolymphConcentrate               ; Eodon Potions   - 1 part Same Code As cunning
+  gosub AddICon	Item                  #False  none.gif                             42240 1080097   BarakoDraftOfMight                       ; Eodon Potions
+  gosub AddICon	Item                  #False  none.gif                            555784 1061186   UraliTranceTonic                         ; Eodon Potions
+  gosub AddICon Bushido               #True   Honorable_Execution.gif            5426787 8472      HonorableExecution
+  gosub AddICon Bushido               #True   Confidence.gif                     1084432 1617176   Confidence
+  gosub AddICon Bushido               #True   Evasion.gif                         549648 2716440   Evasion
+  gosub AddICon Bushido               #True   Counter_Attack.gif                 4371761 12544     CounterAttack
+  gosub AddICon Bushido               #True   Lightning_Strike.gif                 48516 1627771   LightningStrike
+  gosub AddICon Bushido               #True   Momentum_Strike.gif               10274312 2733336   MomentumStrike
+  gosub AddICon Bushido               #True   Honored.gif                        4889674 1621272   Honored
+  gosub AddICon Bushido               #True   Achieve_Perfection.gif             1082376 1096984   Perfection
+  gosub AddIcon MiscSkill             #True   Stealth.gif                       16764597 2703946   Hidden/Stealthing
+  gosub AddIcon MiscSkill             #True   Active_Meditation.gif             15157793 16777215  Meditation
+  gosub AddICon MiscSkill             #True   Veterinary.gif                     1084440 13551310  Veterinary
+  gosub AddICon	Misc                  #True   TownBuff2.jpg                      1073928 541192    CityTradeDeal
+  gosub AddICon PVP                   #True   Criminal_Status.gif                 526492 2171160   CriminalStatus                    ; Debuff
+  gosub AddICon PVP                   #True   Heat_Of_Battle_Status.gif          1050747 61439     HeatOfBattleStatus                ; debuff
+  gosub AddICon	PVP                   #false  Faction_Stat_Loss.gif              3230455 1052804   StatLoss
+  gosub AddICon	SpecialAttack         #false  Rage.gif                            528474 1583467   RageDebuff
+  gosub AddICon	SpecialAttack  	      #false  Medusa_Stone.gif                   1052820 2173382   MedusaStone
+  gosub AddICon	SpecialAttack         #false  Aure_Of_Nausea.gif                 1577149 16937     AureofNausea
+  gosub AddICon	SpecialAttack         #false  Webbing.gif                        7566245 1579131   WebDebuff
+  gosub AddICon	SpecialAttack         #false  Rune_Beetle_Corruption.gif            6350 1050764   CorruptionDebuff
+  gosub AddICon	SpecialAttack         #false  Rotworm_Blood_Disease.gif          1583459 115       DiseaseDebuff
+  gosub AddICon	SpecialAttack         #false  Dragon_Slasher_Fear.gif            1572930 1577092   FearDebuff
+  gosub AddICon	SpecialAttack         #false  Fandancer_Fan_Fire.gif             2748415 2226175   FireDebuff
+  gosub AddICon	SpecialAttack         #false  Gaze_Despair.gif                    528491 1581171   GazeOfDespair
+  gosub AddICon	SpecialAttack         #false  Hiryu_Physical_Resistance.gif          255 1054852   HiryuDebuff
+  gosub AddICon	SpecialAttack         #false  Bloodworm_Anemia.gif               2171259 181       AnemiaDebuff
+  gosub AddICon	SpecialAttack         #false  Howl_Of_Cacophony.gif              4881333 12447727  HowlOfCacophony
+ ;gosub AddICon	SpecialAttack         #false  fallingwalls.gif
+  gosub AddIcon Bard_Peacemaking      #True   Resilience.gif                     8103291 9234316   Resilience
+  gosub AddIcon Bard_Peacemaking      #True   Perseverance.gif                  12447677 11885138  Preservance
+  gosub AddIcon Bard_Provocation      #True   Inspire.gif                        2177346 3259681   Inspire
+  gosub AddIcon Bard_Provocation      #True   Invigorate.gif                     8714116 11919029  Invigorate
+  gosub AddIcon Bard_Discordance      #True   Tribulation.gif                    1052820 1052820   Tribulation
+  gosub AddIcon Bard_Discordance      #True   TribulationBardAbility.gif            2056 528400    TribulationCaster
+  gosub AddIcon Bard_Discordance      #True   Despair.gif                        3223890 1052837   Despair
+  gosub AddIcon Bard_Discordance      #True   DespairBardAbility.gif            14056291 9189656   DespairCaster
+  gosub AddICon Mastery-Magery        #True   none.gif                           4872778 10257548  DeathRayBuff
+ ;gosub AddICon	Mastery-Mysticism     #false  none.gif                                             ManaRipDebuff            ; from Netherblast spell  - (icon not defined yet black square - UO ERROR)
+  gosub AddICon	Mastery-Mysticism     #True   none.gif                           3221793 7039760   MysticWeapon
+  gosub AddICon	Mastery-Necromancy    #True   none.gif                           8092548 8092539   Conduit
+  gosub AddICon Mastery-SpellWeaving  #True   none.gif                          16242275 4858112   ManaShield
+  gosub AddICon Mastery-Passive       #True   none.gif                           8678201 10859908  EnchantedSummoning       ; Magery, Mystisism
+  gosub AddICon	Mastery-Bushido       #True   none.gif                          11919004 7559754   AnticipateHit
+  gosub AddICon	Mastery-Bushido       #True   WarCry.jpg                         5384489 16777215  Warcry
+  gosub AddICon	Mastery-Passive       #True   none.gif                           8373792 7564048   Intuition                ; Chivarly Bushido Ninjitsu
+  gosub AddICon	Mastery-Ninjitsu      #True   Shadow.jpg                         1052696 2697513   Shadow
+  gosub AddICon	Mastery-Ninjitsu      #True   none.gif                          14603982 10855845  WhiteTigerForm
+  gosub AddICon	Mastery-Archery       #True   none.gif                            526468 8684667   PlayingTheOdds
+  gosub AddICon	Mastery-Fencing       #True   none.gif                           8699235 10845010  Thrust
+; gosub AddICon Mastery-Passive       #True   none.gif                            562184 5401459   SavingThrow              ; weapon masteries    - retired pub 96
+  gosub AddICon	Mastery-Parrying      #True   none.gif                             57079 4344402   ShieldBash
+  gosub AddICon	Mastery-Parrying      #True   none.gif                           3786289 3746081   Bodyguard
+  gosub AddICon	Mastery-Parrying      #True   none.gif                           1608728 1602320   HeightenSenses
+  gosub AddICon	Mastery-Wrestling     #True   none.gif                               181 568584    Rampage
+  gosub AddICon	Mastery-Wrestling     #True   none.gif                           3259730 13557487  FistsOfFury
+  gosub AddICon	Mastery-Wrestling     #True   none.gif                           1067660 3782135   Knockout
+  gosub AddICon	Mastery-Swordsmanship #True   none.gif                           8096941 1581345   FocusedEye
+  gosub AddICon	Mastery-Mace          #True   none.gif                           2200691 15726591  Toughness
+  gosub AddICon	Mastery-Throwing      #True   none.gif                            324275 2722816   ElementalFury
+  gosub AddICon	Mastery-Throwing      #True   none.gif                           5395034 2171169   CalledShot
+  gosub AddICon	Mastery-Taming        #True   none.gif                           4344402 6522029   Boarding
+  gosub AddICon	Mastery-Taming        #True   none.gif                           2198569 7597972   Whispering
+  gosub AddICon	Mastery-Taming        #True   none.gif                           3779914 1589793   CombatTraining
+  gosub AddICon	Mastery-Poisoning     #True   none.gif                           1057255 37904     Tolerance
+  gosub AddICon	Mastery-Poisoning     #True   none.gif                           2714541 15198183  InjectedStrike
+; gosub AddICon	Mastery-Poisoning     #false  none.gif                                             PoisonResistanceDebuff   ;  From being attacked by InjectedStrikeDebuff  (icon not defined yet black square UO ERROR)
+  gosub AddICon	Mastery-Poisoning     #True   none.gif                           1610826 2188056   Potency
+  gosub AddICon	Mastery-Passive       #True   none.gif                           3754553  574984   WarriorsGift             ;  Level 3 combat mastery. for Fencing Mace Fighting Swords, throwing archery
+
+
+
+  ; 146 icons -  (2 are duplicates but different returns both, 2 are black not set by UO,  Missing 2 - Total = 142.)
+  set %BuffBarPixelLoc        %BuffBarPixelScanMemoryLocation
+  set %UnknownBuffBarIconsCount %BuffBarIconsCount
+  set %KnownContents  |
+  set %KnownIcons 0
+return
+
+sub AddBuffBarDirectionData
+  set %BuffBarButtonDirection    . %1 %1
+  set %BuffBarDirectionReverse   . %1 %2
+  set %BuffBarButtonX            . %1 %3
+  set %BuffBarButtonY            . %1 %4
+  set %BuffBarScanX              . %1 %5
+  set %BuffBarScanY              . %1 %6
+  set %BuffBarScanAdjX           . %1 %7
+  set %BuffBarScanAdjY           . %1 %8
+  set %BuffBarAdjX               . %1 %9
+  set %BuffBarAdjY               . %1 %10
+  set %BuffBarButtonNewDirection . %1 %11
+  set %BuffBarButtonColor1       . %1 %12
+  set %BuffBarButtonColor2       . %1 %13
+  set %BuffBarButtonColor1Low    . %1 %12 - %BuffBarColorDeviation
+  set %BuffBarButtonColor1High   . %1 %12 + %BuffBarColorDeviation
+  set %BuffBarButtonColor2Low    . %1 %13 - %BuffBarColorDeviation
+  set %BuffBarButtonColor2High   . %1 %13 + %BuffBarColorDeviation
+return
+
+Sub AddIcon
+  if %BuffBarIconsCount = N/A
+    set %BuffBarIconsCount 0
+  set %BuffBarIconsCount  %BuffBarIconsCount + 1
+  set %BuffBarIconCol1_     . %BuffBarIconsCount %4
+  set %BuffBarIconCol1Low_  . %BuffBarIconsCount %4 - %BuffBarColorDeviation
+  set %BuffBarIconCol1High_ . %BuffBarIconsCount %4 + %BuffBarColorDeviation
+  set %BuffBarIconCol2_     . %BuffBarIconsCount %5
+  set %BuffBarIconCol2Low_  . %BuffBarIconsCount %5 - %BuffBarColorDeviation
+  set %BuffBarIconCol2High_ . %BuffBarIconsCount %5 + %BuffBarColorDeviation
+  set %BuffBarIconCol_      . %BuffBarIconsCount %4  , ~ , %5
+  set %BuffBarIconType_     . %BuffBarIconsCount %1
+  set %BuffBarIconFullScan_ . %BuffBarIconsCount %2
+  set %BuffBarIconfile_     . %BuffBarIconsCount %3
+  set %BuffBarIconName_     . %BuffBarIconsCount %6
+  set %BuffBarIconSkip_     . %BuffBarIconsCount #False
+  set !t %5 , _ , %4
+  set ! . !t %6    ; long definition
+  set ! . %5 %6
+  set !RecNum_ . %5 %BuffBarIconsCount
+  set !RecNum_ . !t %BuffBarIconsCount
+
+   set !tt !Cnt . %5
+   if !tt = N/A
+     set !tt 0
+   set !tt !tt + 1
+;   If !tt > 1
+   ;   set ! . %5 %6
+   set !Cnt . %5 !tt
+return
+
+; ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+; -- Buff Bar Action Subs --
+; ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+sub ENs_Buffbar-Meditate
+  While #mana < #MaxMana
+    {
+    event macro 13 46
+    Repeat
+      Call ScanBuffBar
+      wait 1
+    Until  _Meditation_ notin %BuffBarIconNames || #Mana = #MaxMana
+    }
+return
+
+sub ENs_Buffbar-Meditate1
+  set !MedTimer #Scnt - 12
+  While #mana < #MaxMana
+    {
+   ; while !MedTimer > #scnt
+   ;   wait 1
+    event macro 13 46
+    set !MedTimer #Scnt + 12
+    Repeat
+      Call ScanBuffBar
+      wait 1
+    Until  _Meditation_ notin %BuffBarIconNames || #Mana = #MaxMana
+    }
+return
+
+
+; ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+; -- Buff Bar: Icons response actions ---
+; ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+sub Sub ENs_BuffBar-CurseBloodOath
+ if %EN_Character_Armed = N/A
+    set %EN_Character_Armed #true ; first pass presume armed
+ set !oathed _CurseBloodOath_ in %BuffBarIconNames
+  If  ( !oathed && %EN_Character_Armed ) || ( ( ! !oathed ) && ( ! %EN_Character_Armed ) )
+     {
+     event macro 24 2  ; dis/Arm right change to 24 1 for left
+     set %EN_Character_Armed ! %EN_Character_Armed
+     }
+     
+  ; g in #charstatus - status of warmode, macro 6 - toglle war mode to kill bloodoath instead of arm disarm ?
+return
+
+Sub ENs_BuffBar-CurseWeapon
+   if  _CurseWeapon_ notin %BuffBarIconNames
+       {
+        event macro 15 104
+        ; below waits are to give time for spell to finish casting and buff to load so dont repeat try to caste.
+        wait 5
+        While #charstatus = A && #CliLogged = 1   ; casting spell  and logged in.
+          wait 1
+        wait 2 ; time needed for buff to be added
+       }
+return
+
+Sub ENs_BuffBar-EatApple       ; credits: cider
+  if %EN_Character_AppleTimer = N/A
+    set %EN_Character_AppleTimer  #Scnt - 11
+
+  set !NeedToEatApple                  _MortalStrike_ in %BuffBarIconNames || _CurseBloodOath_ in %BuffBarIconNames
+  set !NeedToEatApple !NeedToEatApple || _CorpseSkin_ in %BuffBarIconNames || _EvilOmen_  in %BuffBarIconNames
+  set !NeedToEatApple !NeedToEatApple || _MindRot_    in %BuffBarIconNames || _PainSpike_ in %BuffBarIconNames
+  set !NeedToEatApple !NeedToEatApple || _Strangle_   in %BuffBarIconNames || _Sleep_ in %BuffBarIconNames
+  set !NeedToEatApple !NeedToEatApple ||  _SpellPlague_ in %BuffBarIconNames
+  set #Result #true
+  If  ( !NeedToEatApple && #scnt >= %EN_Character_AppleTimer )
+     {
+     finditem cbs C_ , #backpackid
+     set #Result #false
+     if #findcnt >=1
+       {
+       set #Result #true
+       set #lobjectid #findid
+       event macro 17 0
+       set %EN_Character_AppleTimer  #Scnt + 11
+       }
+     }
+return  #result    ; True means needed to eat apple and did or didnt need to eat
+
+sub ENs_BuffBar-BardProvocation     ; Credits: johncw
+    if _Inspire_ notin %BuffBarIconNames
+       {
+       event macro 15 701
+       wait 5s
+       }
+    if _Invigorate_ notin %BuffBarIconNames
+       {
+       event macro 15 702
+       wait 5s
+       }
+return
+
+
+

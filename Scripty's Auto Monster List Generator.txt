@@ -1,0 +1,1488 @@
+;======================================================
+; Script Name: Scripty's Auto Type List Generator
+; Author: Scripty
+; Version: Working... I think...
+; Shard OSI / FS: TESTED OSI ONLY
+; Revision Date: 7/27/10
+; Purpose: To build monster lists quickly and organize them easily.
+; Credits: TM for the amazing list and tab subs.
+;======================================================
+
+gosub showEUOMenu1
+gosub TM_CreateList List Newlist1 0 36 217 320 White WindowText %font_arial 10
+set %allIds
+set %index 0
+set %GC G
+repeat
+  menu get newlist1
+  set %menuRes #menures
+  menu set editFindType %foundtype . %menures
+  menu set editFindRep %findRep . %menures
+  menu set editFindCol %findCol . %menures
+  menu set editFindX %findx . %menures
+  menu set editFindY %findy . %menures
+  menu set editFindZ %findz . %menures
+  if #menuButton = buttonRemove
+    gosub removeFromList
+  if #menuButton = buttonMoveUp
+    gosub moveUpList
+  if #menuButton = buttonMoveDown
+    gosub moveDownList
+  if #menuButton = buttonClear
+    gosub clearList
+  menu get checkContainers
+  if #menures = #true
+    set %GC C
+  else
+    set %GC G
+
+  finditem * %GC
+  {
+    menu get comboSelect
+    if #menures = 2
+    {
+    for #findindex 1 #findcnt
+    {
+      if #findrep > 2 && #findrep < 7
+      {
+        if #findtype notin %allIds
+        {
+          ;gosub getProperty #findid
+          event property #findid
+          wait 5
+          if #property = $
+            continue
+          set %property #property
+          str pos #PROPERTY $
+          set #STRRES #STRRES - 1
+          str left #PROPERTY #STRRES
+          set %NameID #findtype , #spc , #strres
+          if #strres = n/a
+            continue
+          if door in #property || standard in #property || weight in #property || codex in #property || icicles in #property || goza in #property || metal in #property || Nodraw in #property || cornucopia in #property || dyes in #property || studded in #property || ginseng in #property || bookcase in #property || decorative in #property
+          {
+            ignoreitem #findid
+            continue
+          }
+          set %index %index + 1
+          event sysmessage %index
+          set %foundType . %index #findtype , _
+          set %findRep . %index #findrep
+          set %findCol . %index #findcol
+          set %findX . %index #findx
+          set %findY . %index #findy
+          set %findz . %index #findz
+          set %allIds %allIds , %foundType . %index
+          gosub TM_AddToList Newlist1 %NameID #findtype
+          ;set %allIds %allIds , #findtype , _
+          menu set EUOEdit1 %allIds
+        }
+        else
+          ignoreitem #findid
+      }
+      else
+        ignoreitem #findid
+    }
+    }
+    
+    menu get comboSelect
+    if #menures = 1
+    {
+    for #findindex 1 #findcnt
+    {
+      if ( #findrep <= 2 || #findrep = 7 ) && #findrep <> 0
+      {
+        if #findtype notin %allIds
+        {
+          event property #findid
+          ;while #property = $
+            wait 5
+          set %property #property
+          str pos #PROPERTY $
+          set #STRRES #STRRES - 1
+          str left #PROPERTY #STRRES
+          set %NameID #findtype , #spc , #strres
+          ;if door in #property || standard in #property || weight in #property || codex in #property || icicles in #property || goza in #property || metal in #property || Nodraw in #property || cornucopia in #property || dyes in #property || studded in #property || ginseng in #property || bookcase in #property || decorative in #property
+          ;{
+          ;  ignoreitem #findid
+          ;  continue
+          ;}
+          set %index %index + 1
+          event exmsg #charid 3 0 %index
+          set %foundType . %index #findtype , _
+          
+          gosub TM_AddToList Newlist1 %NameID #findtype
+          set %allIds %allIds , %foundType . %index
+          ;set %allIds %allIds , #findtype , _
+          menu set EUOEdit1 %allIds
+        }
+        else
+          ignoreitem #findid
+      }
+      else
+        ignoreitem #findid
+    }
+    }
+
+    menu get comboSelect
+    if #menures = 3
+    {
+    for #findindex 1 #findcnt
+    {
+      if #findstack > 0
+      {
+        if #findtype notin %allIds
+        {
+          event property #findid
+          while #property = $ || #property =
+            wait 1
+          set %property #property
+          str pos #PROPERTY $
+          set #STRRES #STRRES - 1
+          str left #PROPERTY #STRRES
+          set %NameID #findtype , #spc , #strres
+          ;if door in #property || standard in #property || weight in #property || codex in #property || icicles in #property || goza in #property || metal in #property || Nodraw in #property || cornucopia in #property || dyes in #property || studded in #property || ginseng in #property || bookcase in #property || decorative in #property
+          ;{
+          ;  ignoreitem #findid
+          ;  continue
+          ;}
+          set %index %index + 1
+          event exmsg #charid 3 0 %index
+          set %foundType . %index #findtype , _
+          gosub TM_AddToList Newlist1 %NameID #findtype
+          set %allIds %allIds , %foundType . %index
+          ;set %all
+          ;set %allIds %allIds , #findtype , _
+          menu set EUOEdit1 %allIds
+        }
+        else
+          ignoreitem #findid
+      }
+      else
+        ignoreitem #findid
+    }
+    }
+  }
+until #false
+
+sub clearList
+  set #menuButton n/a
+  set %allIds
+  menu set EUOEdit1 %allIds
+  gosub TM_DeleteAllItemsInList NewList1 #TRUE
+  set %index 0
+  ignoreitem reset
+return
+
+sub moveDownList
+  set #menuButton n/a
+  if %index < 2
+    return
+  menu get NewList1
+  set %listPointer #menures
+  if %listPointer = %index
+    return
+  set %allIds
+  for %i 1 %index
+  {
+    if %i = %listPointer
+    {
+      set %swap1 %foundType . %i
+      set %plus 0
+      set %plus %i + 1
+      set %swap2 %foundType . %plus
+      set %foundType . %i %swap2
+      set %foundType . %plus %swap1
+      
+      set %swap1 %findRep . %i
+      set %swap2 %findRep . %plus
+      set %findRep . %i %swap2
+      set %findRep . %plus %swap1
+      
+      set %swap1 %findCol . %i
+      set %swap2 %findCol . %plus
+      set %findCol . %i %swap2
+      set %findCol . %plus %swap1
+      
+      set %swap1 %findx . %i
+      set %swap2 %findx . %plus
+      set %findx . %i %swap2
+      set %findx . %plus %swap1
+      
+      set %swap1 %findy . %i
+      set %swap2 %findy . %plus
+      set %findy . %i %swap2
+      set %findy . %plus %swap1
+      
+      set %swap1 %findz . %i
+      set %swap2 %findz . %plus
+      set %findz . %i %swap2
+      set %findz . %plus %swap1
+    }
+  }
+  for %p 1 %index
+  {
+    if %index > 1
+      set %allIds %allIds , %foundType . %p
+  }
+  gosub TM_MoveSelectedItemDown NewList1 #true #true
+  menu set EUOEdit1 %allIds
+return
+
+sub moveUpList
+  set #menubutton N/A
+  if %index < 2
+    return
+  menu get NewList1
+  set %listPointer #menures
+  if %listpointer = 1
+    return
+  set %allIds
+  for %i 1 %index
+  {
+    if %i = %listPointer
+    {
+      set %swap1 %foundType . %i
+      set %plus 0
+      set %plus %i - 1
+      set %swap2 %foundType . %plus
+      set %foundType . %i %swap2
+      set %foundType . %plus %swap1
+      
+      set %swap1 %findRep . %i
+      set %swap2 %findRep . %plus
+      set %findRep . %i %swap2
+      set %findRep . %plus %swap1
+
+      set %swap1 %findCol . %i
+      set %swap2 %findCol . %plus
+      set %findCol . %i %swap2
+      set %findCol . %plus %swap1
+      
+      set %swap1 %findx . %i
+      set %swap2 %findx . %plus
+      set %findx . %i %swap2
+      set %findx . %plus %swap1
+
+      set %swap1 %findy . %i
+      set %swap2 %findy . %plus
+      set %findy . %i %swap2
+      set %findy . %plus %swap1
+
+      set %swap1 %findz . %i
+      set %swap2 %findz . %plus
+      set %findz . %i %swap2
+      set %findz . %plus %swap1
+    }
+  }
+  for %p 1 %index
+  {
+    if %index > 1
+      set %allIds %allIds , %foundType . %p
+  }
+  gosub TM_MoveSelectedItemUp NewList1 #true #true
+  menu set EUOEdit1 %allIds
+return
+
+sub removeFromList
+  set #menuButton n/a
+  menu get newlist1
+  set %listPointer #menures
+  for %i %listPointer %index
+  {
+    set %plus 0
+    set %plus %i + 1
+    if %i = %index
+      break
+    set %foundType . %i %foundType . %plus
+    set %findRep . %i %findRep . %plus
+    set %findCol . %i %findCol . %plus
+    set %findx . %i %findx . %plus
+    set %findy . %i %findy . %plus
+    set %findz . %i %findz . %plus
+  }
+  set %index %index - 1
+  set %allIds
+  for %p 1 %index
+  {
+    if %index = 0
+      break
+    if %index = 1
+    {
+      set %allIds %foundType . %p
+      break
+    }
+    if %index > 1
+      set %allIds %allIds , %foundType . %p
+  }
+  gosub TM_GetSelectedTag NewList1
+  set %findtype #result
+  finditem %findtype %GC
+  if #findcnt > 0
+    ignoreitem #findid
+  gosub TM_GetSelectedItem NewList1
+  set %windowResultItem #result
+  gosub TM_DeleteExactItemsInList NewList1 %windowResultItem #true #true
+  menu set EUOEdit1 %allIds
+  menu List Select NewList1 %listPointer
+return
+
+sub showEUOMenu1
+	menu Clear
+	menu Window Title Scripty's Auto Monster List Generator
+	menu Window Color BtnFace
+	menu Window Size 298 357
+	menu Font Transparent #true
+	menu Font Align Right
+	menu Font Name MS Sans Serif
+	menu Font Size 12
+	menu Font Style b
+	menu Font Color WindowText
+	menu Font Transparent #false
+	menu Font Align Left
+	menu Text EUOLabel1 8 8 Status:
+	menu Font Size 8
+	menu Font Style
+	menu Text EUOLabel2 232 160 FINDTYPE
+	menu Text EUOLabel3 236 192 FINDREP
+	menu Text EUOLabel4 236 224 FINDCOL
+	menu Text EUOLabel5 232 260 FIND X
+	menu Text EUOLabel6 236 292 FIND Y
+	menu Text EUOLabel7 236 324 FIND Z
+	menu Font BGColor Window
+	menu Edit EUOEdit1 68 8 149 Types , #spc , go , #spc , here.
+	menu Font BGColor BtnFace
+	menu Button buttonRemove 220 44 75 25 Remove Item
+	menu Button buttonMoveUp 220 72 75 25 Move Up
+	menu Button buttonClear 220 128 75 25 Clear All
+	menu Button buttonMoveDown 220 100 75 25 Move Down
+	menu Font BGColor Window
+	menu Combo Create comboSelect 220 8 75
+	menu Font BGColor BtnFace
+	menu Check checkContainers 220 28 75 17 #false Containers
+	menu Font BGColor Window
+	menu Edit editFindType 220 172 75 n/a
+	menu Edit editFindRep 220 204 75 n/a
+	menu Edit editFindCol 220 236 75 n/a
+	menu Edit editFindX 220 272 75 n/a
+	menu Edit editFindY 220 304 75 n/a
+	menu Edit editFindZ 220 336 75 n/a
+	menu Show 421 270
+	
+	menu Combo Add comboSelect People
+	menu Combo Add comboSelect Monsters
+	menu Combo Add comboSelect Items
+	menu Combo Select comboSelect 2
+return
+
+;=================================================================
+; Script Name: TrailMyx's List Handling Subs
+; Author: TrailMyx
+; Version: 0.27
+; Shard OSI / FS: OSI / FS OK
+; Revision Date: 3/12/2008
+; Purpose: Take the pain out of managing lists
+;
+; Subroutines included:
+;   TM_CreateList - Creates the list
+;   TM_DrawList
+;   TM_HideList
+;   TM_ReDrawList
+;   TM_AddToList
+;   TM_DeleteAllItemsInList
+;   TM_CopyAllItemsInList
+;   TM_DeleteIndexedItemInList
+;   TM_DeleteExactItemsInList
+;   TM_DeleteExactTagsInList
+;   TM_DeleteItemsInList
+;   TM_DeleteTagsInList
+;   TM_SearchForExactItemInList
+;   TM_SearchForExactTagInList
+;   TM_SearchForItemInList
+;   TM_SearchForTagInList
+;   TM_CountExactItemsInList
+;   TM_CountExactTagsInList
+;   TM_CountItemsInList
+;   TM_CountTagsInList
+;   TM_AlphabetizeList
+;   TM_GetSelectedItem
+;   TM_GetSelectedTag
+;   TM_GetIndexedItem
+;   TM_GetIndexedTag
+;   TM_GetListSize
+;   TM_MoveSelectedItemDown
+;   TM_MoveSelectedItemUp
+;
+; Requirements:
+;
+; Locals/Globals:
+;   TM_window_list_ , %2 (local)
+;
+; Special Thanks:
+;
+;=================================================================
+; --- Test and sample code:
+;set %font_arial MS , #SPC , Ariel
+;gosub showEUOMenu1
+;pause
+;gosub TM_CreateList List Newlist1 10 10 100 100 White WindowText %font_arial 8
+;gosub TM_LoadListFromFile c:\testlist.txt ; load a list from file
+;gosub TM_ReDrawList Newlist1 ; redraw list
+;gosub TM_CreateList List Newlist2 110 10 100 100 White WindowText %font_arial 8
+;gosub TM_AddToList Newlist1 alpha TAG
+;gosub TM_AddToList Newlist1 gamma TAG
+;gosub TM_AddToList Newlist1 beta TAG
+;gosub TM_AddToList Newlist1 monkey TAG
+;gosub TM_AlphabetizeList Newlist1 >
+;gosub TM_ReDrawList Newlist1 ; redraw list
+;gosub TM_AddToList Newlist2 monkey TAG
+;gosub TM_DeleteItemsInList Newlist1 1 #TRUE #TRUE
+;gosub TM_CopyAllItemsInList Newlist1 Newlist2 #FALSE #TRUE
+;gosub TM_SaveListToFile Newlist1 c:\testlist.txt
+;stop
+set %font_arial MS , #SPC , Ariel
+gosub showEUOMenu1
+gosub TM_CreateList List Newlist1 4 4 345 289 White WindowText %font_arial 8
+set #LPC 100
+set #MENUBUTTON N/A
+repeat
+  finditem * G_18
+  if #FINDKIND <> -1
+  {
+    event property #FINDID
+    str pos #PROPERTY $
+    set #STRRES #STRRES - 1
+    str left #PROPERTY #STRRES
+    gosub TM_AddToList Newlist1 #STRRES #FINDID
+    ignoreitem #FINDID
+  }
+  if #MENUBUTTON = EUOButtonUp
+  {
+    set #MENUBUTTON N/A
+    gosub TM_MoveSelectedItemUP Newlist1 #TRUE #TRUE
+  }
+  if #MENUBUTTON = EUOButtonDown
+  {
+    set #MENUBUTTON N/A
+    gosub TM_MoveSelectedItemDown Newlist1 #TRUE #TRUE
+  }
+until #FALSE
+
+;stop
+;;-----------------------------------------------------------------
+sub TM_LoadListFromFile
+  namespace push
+  namespace local LLFF
+  set !filename %1
+  gosub TM_FileSystem_LoadFile !filename
+  namespace pop
+return
+;-----------------------------------------------------------------
+sub TM_SaveListToFile
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !listname %1
+  set !filename %2
+  gosub TM_FileSystem_CreateFileHandle save_handle
+	gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle listtype
+	gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle listname
+	gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle x1
+	gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle y1
+	gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle x2
+	gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle y2
+	gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle bgcolor
+	gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle txtcolor
+	gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle font
+	gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle fontsize
+	gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle fontstyle
+	gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle draw
+	gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle list_ptr
+
+	for !j 0 !list_ptr
+	{
+	  gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle list , !j
+	  gosub TM_FileSystem_SaveVariable local TM_window_list_ , !listname save_handle tag , !j
+	}
+	gosub TM_FileSystem_SaveFile save_handle !filename
+	set #RESULT !listname
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_CreateList
+  namespace push
+  namespace local TM_window_list_ , %2
+  namespace clear
+  set !listtype %1
+  set !listname %2
+  set !x1 %3
+  set !y1 %4
+  set !x2 %5
+  set !y2 %6
+  set !bgcolor %7
+  set !txtcolor %8
+  set !font %9
+  set !fontsize %10
+  if %0 >= 11
+    set !fontstyle %11
+  else
+    set !fontstyle N/A
+  set !draw #TRUE
+
+  if NODRAW in !listtype
+    set !draw #FALSE
+
+  if List in !listtype
+    set !listtype List
+
+  if Combo in !listtype
+    set !listtype Combo
+
+  if !draw = #TRUE
+    gosub TM_DrawList !listname
+  set !list_ptr 0
+  namespace pop
+return
+;-----------------------------------------------------------------
+sub TM_DrawList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp2_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  menu Font BGColor !bgcolor
+  menu Font Color !txtcolor
+  menu Font Size !fontsize
+  menu Font Name !font
+  if !fontstyle = N/A
+    menu Font Style
+  else
+    menu Font Style !fontstyle
+  menu !listtype create !listname !x1 !y1 !x2 !y2
+  set !end !list_ptr - 1
+  if !end >= 0
+  {
+    for !i 0 !end
+      menu !listtype add !listname !i !list . !i  ;Add !i between !listname and !list
+  }
+  set #LPC !temp2_LPC
+  namespace pop
+return
+;-----------------------------------------------------------------
+sub TM_HideList
+  namespace push
+  namespace local TM_window_list_ , %1
+  menu delete %1
+  namespace pop
+return
+;-----------------------------------------------------------------
+sub TM_ReDrawList
+  namespace push
+  namespace local TM_window_list_ , %1
+  menu delete %1
+  gosub TM_DrawList %1
+  namespace pop
+return
+;-----------------------------------------------------------------
+sub TM_AddToList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !listname %1
+  set !item %2
+  set !tag %3
+  set !list . !list_ptr !item
+  set !tag . !list_ptr !tag
+  set !list_ptr !list_ptr + 1
+  set #RESULT !list_ptr
+  if %addBreakNum = #true
+    goto _skipAddBreak_:
+  set %newNum !list_ptr - 1
+  menu !listtype add !listname %newNum !item ; Add %newNum between !listname and !item
+  goto _skipAddBreak1_
+  _skipAddBreak_:
+  menu !listType add !listname !item
+  _skipAddBreak1_:
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_GetListSize
+  namespace push
+  namespace local TM_window_list_ , %1
+  set #RESULT !list_ptr
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_DeleteAllItemsInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !redraw %2
+  if !list_ptr >= 0
+  {
+    for !i 0 !list_ptr
+    {
+      set !list . !i N/A
+      set !tag . !i N/A
+    }
+    set !list_ptr 0
+    if !redraw = #TRUE
+      gosub TM_ReDrawList !listname
+  }
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_CopyAllItemsInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname1 %1
+  set !listname2 %2
+  set !append %3
+  set !redraw %4
+  if !append <> #TRUE
+    gosub TM_DeleteAllItemsInList !listname2
+  if !list_ptr > 0
+  {
+    set !end !list_ptr - 1
+    for !i 0 !end
+      gosub TM_AddToList !listname2 !list . !i !tag . !i
+    if !redraw = #TRUE
+      gosub TM_ReDrawList !listname2
+  }
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_DeleteIndexedItemInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !index %2 - 1
+  set !redraw %3
+  if !index >= 0 && !index <= !list_ptr
+  {
+    menu set EUOEditBBC !list . !index
+    for !i !index !list_ptr
+    {
+      set !next !i + 1
+      set !list . !i !list . !next
+      set !tag . !i !tag . !next
+    }
+    set !list . !next N/A
+    set !tag . !next N/A
+    set !list_ptr !list_ptr - 1
+    if !redraw = #TRUE
+      gosub TM_ReDrawList !listname
+  }
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_DeleteExactItemsInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !item %2
+  set !deleteall %3
+  set !redraw %4
+  set !count 0
+  for !j 0 !list_ptr
+  {
+    if !list . !j = !item
+    {
+      set !count !count + 1
+      for !i !j !list_ptr
+      {
+        set !next !i + 1
+        set !list . !i !list . !next
+        set !tag . !i !tag . !next
+      }
+      set !j !j - 1
+      set !list_ptr !list_ptr - 1
+      if !deleteall = #FALSE
+        break
+    }
+  }
+  if !redraw = #TRUE
+    gosub TM_ReDrawList !listname
+  set #RESULT !count
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_DeleteExactTagInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !tag %2
+  set !deleteall %3
+  set !redraw %4
+  set !count 0
+  for !j 0 !list_ptr
+  {
+    if !tag . !j = !tag
+    {
+      set !count !count + 1
+      for !i !j !list_ptr
+      {
+        set !next !i + 1
+        set !list . !i !list . !next
+        set !tag . !i !tag . !next
+      }
+      set !j !j - 1
+      set !list_ptr !list_ptr - 1
+      if !deleteall = #FALSE
+        break
+    }
+  }
+  if !redraw = #TRUE
+    gosub TM_ReDrawList !listname
+  set #RESULT !count
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_DeleteItemsInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !item %2
+  set !deleteall %3
+  set !redraw %4
+  set !count 0
+  for !j 0 !list_ptr
+  {
+    if !item in !list . !j
+    {
+      set !count !count + 1
+      for !i !j !list_ptr
+      {
+        set !next !i + 1
+        set !list . !i !list . !next
+        set !tag . !i !tag . !next
+      }
+      set !j !j - 1
+      set !list_ptr !list_ptr - 1
+      if !deleteall = #FALSE
+        break
+    }
+  }
+  if !redraw = #TRUE
+    gosub TM_ReDrawList !listname
+  set #RESULT !count
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_DeleteTagsInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !tag %2
+  set !deleteall %3
+  set !redraw %4
+  set !count 0
+  for !j 0 !list_ptr
+  {
+    if !tag in !tag . !j
+    {
+      set !count !count + 1
+      for !i !j !list_ptr
+      {
+        set !next !i + 1
+        set !list . !i !list . !next
+        set !tag . !i !tag . !next
+      }
+      set !j !j - 1
+      set !list_ptr !list_ptr - 1
+      if !deleteall = #FALSE
+        break
+    }
+  }
+  if !redraw = #TRUE
+    gosub TM_ReDrawList !listname
+  set #RESULT !count
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_SearchForExactItemInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !item %2
+  set !highlight %3
+  for !i 0 !list_ptr
+  {
+    if !list . !i = !item
+    {
+      set #RESULT !i + 1
+      if !highlight = #TRUE
+        menu !listtype select !listname #RESULT
+      namespace pop
+      return #RESULT
+    }
+  }
+  set #LPC !temp_LPC
+  namespace pop
+return #FALSE
+;-----------------------------------------------------------------
+sub TM_SearchForExactTagInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !tag %2
+  set !highlight %3
+  for !i 0 !list_ptr
+  {
+    if !tag . !i = !tag
+    {
+      set #RESULT !i + 1
+      if !highlight = #TRUE
+        menu !listtype select !listname #RESULT
+      namespace pop
+      return #RESULT
+    }
+  }
+  set #LPC !temp_LPC
+  namespace pop
+return #FALSE
+;-----------------------------------------------------------------
+sub TM_SearchForItemInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !item %2
+  set !highlight %3
+  for !i 0 !list_ptr
+  {
+    if !item in !list . !i
+    {
+      set #RESULT !i + 1
+      if !highlight = #TRUE
+        menu !listtype select !listname #RESULT
+      namespace pop
+      return #RESULT
+    }
+  }
+  set #LPC !temp_LPC
+  namespace pop
+return #FALSE
+;-----------------------------------------------------------------
+sub TM_SearchForTagInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !tag %2
+  set !highlight %3
+  for !i 0 !list_ptr
+  {
+    if !tag in !tag . !i
+    {
+      set #RESULT !i + 1
+      if !highlight = #TRUE
+        menu !listtype select !listname #RESULT
+      set #LPC !temp_LPC
+      namespace pop
+      return #RESULT
+    }
+  }
+  set #LPC !temp_LPC
+  namespace pop
+return #FALSE
+;-----------------------------------------------------------------
+sub TM_CountExactItemsInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !item %2
+  set !count 0
+  for !i 0 !list_ptr
+  {
+    if !list . !i = !item
+      set !count !count + 1
+  }
+  set #RESULT !count
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_CountExactTagsInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !tag %2
+  set !count 0
+  for !i 0 !list_ptr
+  {
+    if !tag . !i = !tag
+      set !count !count + 1
+  }
+  set #RESULT !count
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_CountItemsInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !item %2
+  set !count 0
+  for !i 0 !list_ptr
+  {
+    if !item in !list . !i
+      set !count !count + 1
+  }
+  set #RESULT !count
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_CountTagsInList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !tag %2
+  set !count 0
+  for !i 0 !list_ptr
+  {
+    if !tag in !tag . !i
+      set !count !count + 1
+  }
+  set #RESULT !count
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_GetIndexedItem
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !index %2
+  gosub TM_GetListSize
+  if !index >= 0 && !index < #RESULT
+    set #RESULT !list . !index
+  else
+    set #RESULT #TRUE
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_GetIndexedTag
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !index %2
+  gosub TM_GetListSize
+  if !index >= 0 && !index < #RESULT
+    set #RESULT !tag . !index
+  else
+    set #RESULT #TRUE
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_MoveSelectedItemUP
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !redraw %2
+  set !highlight %3
+  menu get !listname
+  if #MENURES > 1
+  {
+    set !prev_index #MENURES - 2
+    set !curr_index #MENURES - 1
+    set !temp_list !list . !prev_index
+    set !temp_tag !tag . !prev_index
+    set !list . !prev_index !list . !curr_index
+    set !tag . !prev_index !tag . !curr_index
+    set !list . !curr_index !temp_list
+    set !tag . !curr_index !temp_tag
+    if !redraw = #TRUE
+      gosub TM_ReDrawList !listname
+    if !highlight = #TRUE
+      menu !listtype select !listname !curr_index \
+  }
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_MoveSelectedItemDown
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  set !redraw %2
+  set !highlight %3
+  menu get !listname
+  if #MENURES < !list_ptr
+  {
+    set !prev_index #MENURES
+    set !curr_index #MENURES - 1
+    set !temp_list !list . !prev_index
+    set !temp_tag !tag . !prev_index
+    set !list . !prev_index !list . !curr_index
+    set !tag . !prev_index !tag . !curr_index
+    set !list . !curr_index !temp_list
+    set !tag . !curr_index !temp_tag
+    set !prev_index !prev_index + 1
+    if !redraw = #TRUE
+      gosub TM_ReDrawList !listname
+    if !highlight = #TRUE
+      menu !listtype select !listname !prev_index
+  }
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_GetSelectedItem
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  menu get !listname
+  if #MENURES <> 0
+  {
+    set #MENURES #MENURES - 1
+    set #RESULT !list . #MENURES
+  }
+  else
+  {
+    set #RESULT #TRUE
+  }
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_GetSelectedTag
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set #LPC 1000
+  set !listname %1
+  menu get !listname
+  if #MENURES <> 0
+  {
+    set #MENURES #MENURES - 1
+    set #RESULT !tag . #MENURES
+  }
+  else
+  {
+    set #RESULT #TRUE
+  }
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_AlphabetizeList
+  namespace push
+  namespace local TM_window_list_ , %1
+  set !temp_LPC #LPC
+  set !eval %2
+  set #LPC 1000
+  set !listname %1
+  if !list_ptr < 2
+    goto AlphabetizeList_skip
+  set !end !list_ptr - 1
+  for !i 0 !end
+  {
+    set !next !i + 1
+    if !i = !end
+      break
+    for !j !next !end
+    {
+      set !iptr 0
+      str len !list . !i
+      set !ilen #STRRES
+      set !jptr 0
+      str len !list . !j
+      set !jlen #STRRES
+      set !len !ilen
+      if !ilen > !jlen
+         set !len !jlen
+      for !p 1 !len
+      {
+        str mid !list . !i !p 1
+        gosub TM_EvaluateCharacter #STRRES
+        set !c1 #RESULT
+        str mid !list . !j !p 1
+        gosub TM_EvaluateCharacter #STRRES
+        set !c2 #RESULT
+        if !c1 = !c2
+          continue
+        if !c1 !eval !c2
+        {
+          set !temp !list . !i
+          set !list . !i !list . !j
+          set !list . !j !temp
+          set !temp !tag . !i
+          set !tag . !i !tag . !j
+          set !tag . !j !temp
+        }
+        break
+      }
+    }
+  }
+
+AlphabetizeList_skip:
+  set #LPC !temp_LPC
+  namespace pop
+return #RESULT
+;-----------------------------------------------------------------
+sub TM_EvaluateCharacter
+  namespace push
+  namespace local EVAL
+  set !char %1
+  set !string ! , "#$%&'()*+,- , #DOT , /0123456789: , #SMC , <=>?@[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+  str pos !string !char
+  namespace pop
+return #STRRES
+;-------------------------------------------------------------------------------
+;================================ File System ==================================
+;-------------------------------------------------------------------------------
+; %1 - Name of file handle name to create
+sub TM_FileSystem_CreateFileHandle
+  namespace push
+  namespace local TM_FileSystem
+  set !ptr %1 , _ptr ; {userhandle}_ptr
+  set ! . !ptr 0 ; !{userhandle}_ptr (actual pointer)
+  set !handle ! . !ptr
+  set !handle %1 , !handle
+  set ! . !handle ; assume new variable
+  namespace pop
+  set !TM_Function_found #TRUE
+return
+;-------------------------------------------------------------------------------
+; %1 = namespace location (local, global)
+; %2 = namespace name
+; %3 = file handle name
+; %4 = variable name
+sub TM_FileSystem_SaveVariable
+  namespace push
+  namespace local TM_FileSystem
+  set !ns_loc %1
+  set !ns_name %2
+  set !handle %3
+  set !var %4
+  set !sep 
+  set !temp_LPC #LPC
+  set #LPC 1000
+  if !handle = handle
+    set !handle __ , handle
+  set !ptr !handle , _ptr ; {userhandle}_ptr
+  set !handle_copy !handle
+  if ! . !ptr = N/A
+  {
+    set ! . !ptr 0 ; !{userhandle}_ptr (actual pointer)
+    set !handle_copy ! . !ptr
+    set !handle_copy !handle , !handle_copy
+    set ! . !handle_copy ; assume new variable
+  }
+  set !handle_copy ! . !ptr
+  set !handle_copy !handle , !handle_copy
+  if !ns_loc = local && !ns_name = std
+    set !value % . !var
+  else
+  {
+    namespace copy !var from !ns_loc !ns_name
+    set !value ! . !var
+  }
+  gosub AddUnderscore !value ; must not have spaces in stored variables!!!
+  set ! . !handle_copy ! . !handle_copy , !ns_loc , !sep , !ns_name , !sep , !var , !sep , #RESULT , !sep
+  str len ! . !handle_copy
+  if #STRRES > 2000
+  {
+    set !len #STRRES
+    str left ! . !handle_copy 2000
+    set !temp #STRRES
+    str del ! . !handle_copy 1 2000
+    set ! . !handle_copy !temp
+    set ! . !ptr ! . !ptr + 1
+    set !handle_copy ! . !ptr
+    set !handle_copy !handle , !handle_copy
+    set ! . !handle_copy #STRRES
+  }
+  set !value
+  set !temp
+  set #LPC !temp_LPC
+  namespace pop
+  set !TM_Function_found #TRUE
+return
+;-------------------------------------------------------------------------------
+; %1 = namespace location (local, global)
+; %2 = namespace name
+; %3 = file handle name
+; %4 = array name
+; %5 = starting index
+; %6 = ending index
+sub TM_FileSystem_SaveArray
+  namespace push
+  namespace local TM_FileSystem
+  set !temp_LPC #LPC
+  set #LPC 10000
+  set !ns_loc %1
+  set !ns_name %2
+  set !handle %3
+  set !var %4
+  set !start_index %5
+  set !end_index %6
+  set !sep 
+  if !handle = handle
+    set !handle __ , handle
+  set !ptr !handle , _ptr ; {userhandle}_ptr
+  set !handle_copy !handle
+  if ! . !ptr = N/A
+  {
+    set ! . !ptr 0 ; !{userhandle}_ptr (actual pointer)
+    set !handle_copy ! . !ptr
+    set !handle_copy !handle , !handle_copy
+    set ! . !handle_copy ; assume new variable
+  }
+  set !handle_copy ! . !ptr
+  set !handle_copy !handle , !handle_copy
+  for !i !start_index !end_index
+  {
+    if !ns_loc = local && !ns_name = std
+    {
+      set !newvar !var , !i
+      set !value % . !newvar
+    }
+    else
+    {
+      set !newvar !var , !i
+      namespace copy !newvar from !ns_loc !ns_name
+      set !value ! . !newvar
+    }
+    gosub AddUnderscore !value ; must not have spaces in stored variables!!!
+    set ! . !handle_copy ! . !handle_copy , !ns_loc , !sep , !ns_name , !sep , !newvar , !sep , #RESULT , !sep
+    str len ! . !handle_copy
+    if #STRRES > 2000
+    {
+      set !len #STRRES
+      str left ! . !handle_copy 2000
+      set !temp #STRRES
+      str del ! . !handle_copy 1 2000
+      set ! . !handle_copy !temp
+      set ! . !ptr ! . !ptr + 1
+      set !handle_copy ! . !ptr
+      set !handle_copy !handle , !handle_copy
+      set ! . !handle_copy #STRRES
+    }
+  }
+  set !value
+  set !temp
+  set #LPC !temp_LPC
+  namespace pop
+  set !TM_Function_found #TRUE
+return
+;-------------------------------------------------------------------------------
+; %1 = file handle name
+; %2 = file name
+sub TM_FileSystem_SaveFile
+  namespace push
+  namespace local TM_FileSystem
+  set !temp_LPC #LPC
+  set #LPC 10000
+  set !LINE_LENGTH 2000 ; near DOS maximum
+  set !handle %1
+  set !filename %2
+  if !handle = handle
+    set !handle __ , handle
+  set !ptr !handle , _ptr ; {userhandle}_ptr
+  for !i 0 ! . !ptr
+  {
+    set !handle_copy !handle , !i
+    set !str ! . !handle_copy
+    if !i = 0
+      execute cmd.exe /c echo set , #spc , ! , fileout , !i ,  #spc , !str > !filename
+    else
+      execute cmd.exe /c echo set , #spc , ! , fileout , !i , #spc , !str >> !filename
+  }
+  set #LPC !temp_LPC
+  namespace pop
+  set !TM_Function_found #TRUE
+return
+;-------------------------------------------------------------------------------
+; %1 - file line variable
+sub TM_ReadVariables
+  set !temp %1
+  set !fileoutindex 0
+  set !fileout !fileout0
+  TM_ReadVariables_loop1:
+    gosub ReadItem ns_loc
+    if #RESULT = #TRUE
+      goto TM_ReadVariables_skip1
+    gosub ReadItem ns_name
+    if #RESULT = #TRUE
+      goto TM_ReadVariables_skip1
+    gosub ReadItem var
+    if #RESULT = #TRUE
+      goto TM_ReadVariables_skip1
+    gosub ReadItem value
+    if #RESULT = #TRUE
+      goto TM_ReadVariables_skip1
+
+    gosub AddSpace !value
+    set !value #result
+
+    if !ns_loc in local_LOCAL && !ns_name in std_STD
+      set % . !var !value
+    else
+    {
+      set ! . !var !value
+      namespace copy !var to !ns_loc !ns_name
+    }
+    goto TM_ReadVariables_loop1
+
+  TM_ReadVariables_skip1:
+return
+;-------------------------------------------------------------------------------
+; Passes %fileout(n) as local, #RESULT
+sub ReadItem
+  str pos !fileout 
+  if #STRRES = 0
+  {
+    set !fileoutindex !fileoutindex + 1
+    if !fileout . !fileoutindex <> N/A
+    {
+      set !fileout !fileout , !fileout . !fileoutindex
+      str pos !fileout 
+    }
+    else
+    {
+      return #TRUE
+    }
+  }
+  set !len #STRRES - 1
+  str left !fileout !len
+  set ! . %1 #STRRES
+  set !len !len + 1
+  str del !fileout 1 !len
+  set !fileout #STRRES
+return #FALSE
+;-------------------------------------------------------------------------------
+; %2 - file name
+sub TM_FileSystem_LoadFile
+  namespace push
+  namespace local TM_FileSystem
+  set !lpc #LPC
+  set #LPC 10000
+  set !filename %1
+
+  for !i 0 1000
+    set !fileout . !i N/A
+
+  call !filename
+  if !fileout0 = N/A
+  {
+    set #LPC !lpc
+    namespace pop
+    set !TM_Function_found #TRUE
+    return #TRUE ; error
+  }
+
+  set !index 0
+  gosub TM_ReadVariables ; assumes namespace TM_FileSystem
+
+  set #LPC !lpc
+  namespace pop
+  set !TM_Function_found #TRUE
+return #FALSE
+;-------------------------------------------------------------------------------
+; %1 - string to mung
+sub AddUnderscore
+  namespace push
+  namespace local AU
+  set !tempstring %1
+  AddUnderscore_loop1:
+    str pos !tempstring #SPC
+    if #STRRES <> 0
+    {
+      set !val #STRRES - 1
+      str left !tempstring !val
+      set !left #STRRES
+      set !val !val + 1
+      str del !tempstring 1 !val
+      set !tempstring !left , _ , #STRRES
+      goto AddUnderscore_loop1
+    }
+  set #RESULT !tempstring
+  namespace pop
+return #RESULT
+; For test code:
+; %1 - String to Mung
+sub AddSpace
+  namespace push
+  namespace local AU
+  set !tempstring %1
+  AddUnderscore_loop:
+    str pos !tempstring _
+    if #STRRES <> 0
+    {
+      set !val #STRRES - 1
+      str left !tempstring !val
+      set !left #STRRES
+      set !val !val + 1
+      str del !tempstring 1 !val
+      set !tempstring !left , #SPC , #STRRES
+      goto AddUnderscore_loop
+    }
+  set #RESULT !tempstring
+  namespace pop
+return #RESULT
+
+;GetProperty======================
+;%1 is the itemID to get the property of
+;================================
+SUB GetProperty
+  SET %prop_timeout #SYSTIME + 5000
+  EVENT PROPERTY %1
+  WHILE #PROPERTY = $ || No , #SPC , Data IN #PROPERTY
+  {
+    IF #property = $
+      event property %1
+    IF No , #SPC , Data IN #PROPERTY
+      EVENT PROPERTY %1
+    IF #SYSTIME > %prop_timeout
+      RETURN #FALSE
+  }
+RETURN #TRUE

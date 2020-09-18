@@ -1,23 +1,49 @@
-gosub readyUp
+set %checkTime 0
+set %waiting #false
+set %jrnl #jindex
+set %hidingtimer 0
 
-loop:
-if You_attack_with_lightning in #SYSMSG
-   {
-     sleep 700
-     event Macro 15 149
-     sleep 1500
-    }
-   }
-if %checkTime < #TIME
+while #true
 {
- gosub readyUp
-}
-   sleep 300
-goto loop
+  if %hidingtimer < #sCnt
+  {
+     ;try hiding
+     event Macro 13 21
+     set %hidingtimer #sCnt + 11
+  }
 
-sub readyUp
-     event Macro 15 147
-     sleep 1000
-     event Macro 15 149
-     set %checkTime #TIME + 24
-return
+  if ( ! %waiting ) || %checkTime < #sCnt
+  {
+    event Macro 15 147   ;evasion
+    wait 2s
+    set %waiting #false
+  }
+  
+  ;scan journal to see if we succeeded
+  while #true
+  {
+    if #jindex > %jrnl
+    {
+      set %jrnl %jrnl + 1
+      scanjournal %jrnl
+      if you_might_be_able in #journal
+      {
+        set %checkTime #sCnt + 24
+        set %waiting #true
+      }
+    }
+    else
+    {
+        break
+    }
+  }
+}
+
+
+while #true
+{
+     ;event Macro 15 146
+     event Macro 15 205
+     wait 5s
+}
+
