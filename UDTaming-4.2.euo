@@ -1,7 +1,7 @@
 ;=========================================
 ; Script Name: TFC Tamer
 ; Author: TFC with some of Uncle Dave
-; Version: 4.2
+; Version: 4.3
 ; Client Tested with: 4.0.9b
 ; EUO version tested with: 1.42.00A3
 ; Shard OSI / FS: OSI Tested Only
@@ -155,12 +155,19 @@ sub InitMenu
     menu font style b
     menu text lblmovement 10 5 Features
     menu font style n
-    menu check autotame 10 20 130 15 #false Auto Tame Creatures
-    menu check killparagon 10 40 130 15 #false Kill paragons
+    menu check autotame 10 20 130 15 #false Auto Tame
     menu font style b
-    menu text lblrelease 10 55 Release Option
+    menu text lbltamer 10 35 Tame Options
     menu font style n
-    menu Combo Create kill 10 70 130 15
+    menu Combo Create tamer 10 50 130 15
+    menu Combo Add tamer Auto Tame Creatures
+    menu Combo Add tamer Kill Creatures
+    menu Combo Select tamer 1
+    menu Get tamer
+    menu font style b
+    menu text lblrelease 10 75 Release Option
+    menu font style n
+    menu Combo Create kill 10 90 130 15
     menu Combo Add kill Weapon Attack
     menu Combo Add kill Mage/Necro Kill
     menu Combo Select kill 1
@@ -489,7 +496,11 @@ sub Taming
         event exmsg %tameid 3 30 Pick me!
     set %tamecount 0
     gosub MenuUpdateStats
-    gosub TameAnimal
+    menu get tamer
+    if #menures = 1
+        gosub TameAnimal
+    else
+        gosub TamingKill
     set %tameid N/A
 return
 
