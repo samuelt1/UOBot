@@ -1,0 +1,4829 @@
+;========================================
+; Script Name: Scripty's Loot Master
+; Author: Scripty
+; Version: 1.19
+; Client Tested with: Latest
+; EUO version tested with: 1.5 (build 189)
+; Shard OSI / FS:  OSI
+; Revision Date: 1.2.16
+; Public Release: 10.16.11
+; Credits: TrailMyx, Cheffe.
+; Purpose: To loot.
+;========================================
+;       _____   _    __ _____
+;      |  _  \ | \ /  /|  _  \
+;      | |_|  ||     / | |_|  |
+;      |    _/ |     \ |    _/
+;  www.|___|   |__|\__\|___| alace.com
+;
+;========================================
+; This script REQUIRES s_makeList.txt
+; library to be in the same directory as
+; this one is, in the EUO directory. It is
+; called from this script a number of times.
+
+; FEATURES:
+; 1. Create rules while script is paused or during execution.
+; 2. Looting rules are created on the fly as they are added AND
+;    deleted from the active rule tabs.
+; 3. Previewing a rule is as easy as clicking it in the Rules or
+;    Active tabs, and clicking the appropriate Preview tab.
+; 4. The first rule in each rule is ALWAYS an "and" rule. No reason. ;)
+; 5. Easy save/load of looting rules to registry from menu using TM_NGFS.
+; 6. You can overwrite saved rules using the same name.
+; 7. Ability to organize rule windows with buttons.
+; 8. Ability to COMPLETELY ignore items and types from menu.
+;    These items are also saved with your looting rules. This makes
+;    looting faster as ignored items don't show up in corpse searches.
+; 9. Button to sell gems to gem vendors in game, other items added like boards/arrows/bolts.
+; 10. External looting interface to easily incorporate looting into your
+;     own scripts, compatible with TrailMyx's Claw Looter, but also
+;     using an external interface for easier looting for scripters with a few more options,
+;     including the ability to sell items to vendors afk.  ;)
+; 11. Auto artifact looting when scanning corpses or ground.  This functionality
+;     is turned OFF when selectively evaluating containers, and artifacts
+;     are evaluated as normal, it's turned ON for corpses/ground only at this time.
+; 12. "NO SPAWN" option that pauses looting while monsters are near.
+; 13. Smart Bag of Sending use, picks largest stack of gold and uses multiple bags.
+; 14. Extensive work was done to ensure you are never overweight. Script will
+;     continue to loot a corpse up to your #maxweight + 2 stones.
+; 15. Extensive work was done to ensure you never miss looting a corpse. Even if
+;     you are behind a tree, if the script can't "see" a corpse because it's too high
+;     or too low, the script will briefly ignore the corpse, and try to reloot at a
+;     set amount of time.  Also, if you skip items on a corpse because of weight issues
+;     the script will reloot that corpse after you come back from banking or send gold.
+; 16. The script has the ability to evaluate loot based STRICTLY on imbuing maximums
+;     from the menu, or based on total imbuing weight with the click of a checkbox.
+; 17. Ability to create rules based on accurate imbuing weights.
+; 18. Complete item preview with (hopefully) 100% accurate breakdown of items properties.
+; 19. Ability to loot items based solely on their imbuing weight with a click of a button.
+; 20. You can select any bag to hold loot, even bags on the ground, this gives you the
+;     ability to use the script for organizing containers in your home. Just load it up,
+;     select a container on the ground, set a rule, and search a container with matching items.
+; 21. The script will ALWAYS put gold in your main pack, because you can't send gold
+;     to bank with a bag of sending otherwise, but you can set another bag in your pack
+;     to put loot in to, and another one for relic frag level items.  ;)
+; 22. Ability to quickly save and load your configurations to the registry.
+; 23. A lot of work went in to the overall speed of this script, but 99% of my work
+;     focused on making a looter that was fast, stable, AND never missed an item or corpse.
+;     there are some caveats to this. Using the looting interface is not as good as I'd like,
+;     and the looting that way definately needs some work. It works GREAT, but there are a few
+;     small issues.  Including that there isn't a great way at the moment to reloot a corpse
+;     if there's an error while using it in a called fashion. So the potential to miss a loot
+;     or two is there when using it as a called looter, but it rarely happens. What it does is
+;     loots a corpse, errors in some way, and returns function back to the calling script, thus
+;     skipping that corpse or only partially looting it. I put that functionality in because
+;     it works amazingly well when using it attended, but afk, when you return function to the
+;     calling script, usually means you continue on. The only option is to make sure you use
+;     the thrown errors to keep your calling script from skipping those corpses. But I'll have
+;     to add a way for users to do that.
+
+; TODO:
+; 1. Turn off auto loot on detection of external loot interface.
+; 2. Turned on full time evaluation of max intensity items finaly. FIXED
+; 3. Add some features to interface that I wrote. SELL and such. FIXED
+; 4. Work on looting relic frags.  It's 50/50 now I'd like it 80/20 at least.
+; 5. Add name and item weight/count based looting for truly configurable auto looting.
+; 6. Fix informational timers. They're just for fun and only scripters care. ;) SEMI FIXED
+; 7. Add automated buy support.
+; 8. Add antique and any other new positivie/negative mods to index.
+
+
+set %ingotsOre dwj_enk
+set %weightOffset 20  ; Weight offset for sending gold.
+set %goldCnt 0
+set %timerSet 1000
+set %relicLootBag N/A
+set %lootItem #false
+set %lootWaitShort 1
+set %lootWaitLong 20
+set %corpseType yfm   ;   RAMJXMD
+set %lootAll #false
+set %imbueMaxIEval #false
+ignoreitem #charid 98
+  namespace push
+  namespace global scripty_Loot . #charid
+  set !s_init #true
+  namespace pop
+gosub showEUOMenu1
+gosub setupAttribs
+repeat
+  gosub externalSetup
+  wait 1
+  namespace copy TM_eval_request from global TM_loot
+  if !TM_eval_request = #TRUE 2
+    set %containerRequest #true
+    gosub okEUOButton102
+  if %corpseUnignore < #sysTime 2
+    set %corpseUnignore #sysTime + 2000
+    gosub pseudoIgnore %listname n/a n/a n/a
+  if #menuButton <> N/A && euoButtonLoot notin #menuButton && closed notin #menuButton && minMax notin #menuButton && math notin #menuButton && ok notin #menuButton && arrows notin #menuButton 4
+    gosub setButtonState
+    call s_makeList.txt s_handleTabs #menuButton
+    if #result <> N/A
+      gosub #result
+  if ( minMax in #menuButton || euoButtonLoot in #menuButton || math in #menuButton || closed in #menuButton || arrows in #menuButton || ok in #menuButton ) && ( stabs notin #menuButton && #menuButton <> N/A )
+    gosub buttons
+  namespace copy s_looting from global scripty_Loot . #charid
+  if ( %autoLoot = #true && %activeRuleList <> #false ) || ( %autoLoot = #false && !s_looting = #true )
+      gosub findCorpses
+  if %checkCheckBoxes <= #sysTime
+    gosub checkCheckBoxes
+until #false
+halt
+
+sub okArtifactUpEUOButton
+
+  set #menuButton N/A
+return
+sub okArtifactDownEUOButton
+
+  set #menuButton N/A
+return
+
+sub okLootEuoButton22
+  if #menuButton = okLootEUOButton22
+  {
+    set #targCurs 1
+    while #targcurs = 1
+      wait 1
+    set %lootContainerDrop #ltargetId
+    menu delete okLootEUOButton22 ;255 220 49 21 Set Loot
+    menu Font Size 8
+    menu Font Style b
+    menu Font Color WindowText
+    menu Font BGColor Red
+    menu Button okLootEUOButton22B 255 220 49 21 Unset
+  }
+  if #menuButton = okLootEUOButton22B
+  {
+    menu delete okLootEUOButton22B ;255 220 49 21 Set Loot
+    set %lootContainerDrop N/A
+    menu Font Size 8
+    menu Font Style
+    menu Font Color WindowText
+    menu Font BGColor btnFace
+    menu Button okLootEUOButton22 255 220 49 21 Set Loot
+  }
+  set #menuButton N/A
+return
+
+sub okEUOButton104
+  if #menuButton = okEUOButton104
+  {
+    menu delete okEUOButton104
+    menu Font Size 8
+    menu Font Style
+    menu Font Color WindowText
+    menu Font BGColor Red
+    menu Button okEUOButton104a 232 684 71 25 More Options
+    menu Window Size 459 746
+    for %loopsta 460 559
+      menu window size %loopsta 760
+  }
+  if #menuButton = okEUOButton104a
+  {
+    menu delete okEUOButton104a
+    menu Font Size 8
+    menu Font Style
+    menu Font Color WindowText
+    menu Font BGColor btnFace
+    menu Button okEUOButton104 232 684 71 25 More Options
+    menu Window Size 410 746
+    for %loopsta 409 309
+      menu Window Size %loopsta 760
+  }
+  set #menuButton N/A
+return
+
+sub okEUOButton102
+  if %containerRequest <> #true 4
+    set #targcurs 1
+    while #targcurs = 1
+      wait 1
+    gosub findContainer #ltargetid
+  else 6
+    namespace copy TM_eval_source from global TM_loot
+    gosub findContainer !TM_eval_source
+    set !TM_eval_request #FALSE
+    set !TM_loot_in_progress #false
+    namespace copy TM_eval_request to global TM_loot
+    namespace copy TM_loot_in_progress to global TM_loot
+  set %containerRequest #false
+  set #menuButton N/A
+return
+
+sub HandleExternalInterface
+  namespace copy TM_mode from global TM_loot
+  if !TM_MODE <> N/A
+    gosub ExternalSetup
+  namespace copy TM_ping from global TM_loot
+  if !TM_ping = PING
+  {
+    set !TM_ping PONG
+    namespace copy TM_ping to global TM_loot
+  }
+return
+
+sub ExternalSetup
+  ;set *s_options . #charid MINMAX_PREVIEW
+  namespace copy TM_ping from global TM_loot
+  if !TM_ping = PING 2
+    set !TM_ping PONG
+    namespace copy TM_ping to global TM_loot
+  if !TM_ping = POING 2
+    set !TM_ping BOING
+    namespace copy TM_ping to global TM_loot
+  namespace copy TM_mode from global TM_loot
+  if !TM_MODE <> N/A || !s_options . #charid <> n/a
+    gosub externalInterface
+return
+
+sub externalInterface
+  ; Format: option_option_option_option_ trailing underscore is not mandatory.
+  if !s_options . #charid <> n/a
+    gosub s_interface
+  namespace push
+  namespace global TM_LOOT
+  if SELL in !TM_MODE || MINMAX in !TM_MODE || SAVEFILE in !TM_MODE || LOADFILE in !TM_MODE || PREVIEW in !TM_MODE || RELICFRAGS in !TM_MODE || NOSPAWN in !TM_MODE || SENDGOLD in !TM_MODE || LOOTGROUND in !TM_MODE || AUTOMATIC in !TM_MODE || CARVE in !TM_MODE
+    gosub tmExternalInterface
+  namespace pop
+return
+
+sub s_interface
+  if SELL in !s_options . #charid 3
+    set %externalSell #true
+    gosub okEUOButton101
+    set %externalSell #false
+  if AUTOMATIC in !s_options . #charid
+    menu set EUOCheckBox1 !TM_ARG1
+  if LOOTGROUND in !s_options . #charid
+    menu set EUOCheckBox4 !TM_ARG1
+  if LOADFILE in !s_options . #charid 5
+    if !TM_ARG1 <> #TRUE && !TM_ARG1 <> #FALSE 4
+      menu set EUOEdit7 !TM_ARG1
+      set %override_save_check #TRUE
+      gosub okLoadEUOButton25
+      set %override_save_check #FALSE
+  if SAVEFILE in !s_options . #charid 5
+    if !TM_ARG1 <> #TRUE && !TM_ARG1 <> #FALSE 4
+      menu set EUOEditSetupFile !TM_ARG1
+      set %override_save_check #TRUE
+      gosub SaveSetup
+      set %override_save_check #FALSE
+  if NOSPAWN in !s_options . #charid
+    menu set EUOCheckBox2 !TM_ARG1
+  if MINMAX in !s_options . #charid 6
+    set %minMaxSub #true
+    if !TM_ARG1 = #TRUE
+      set %buttonMinMax 1
+    else
+      set %buttonMinMax 4
+    gosub minMaxEUOButton21
+  set !TM_MODE N/A
+return
+
+sub tmExternalInterface
+  if LOOTGROUND in !TM_MODE
+    menu set EUOCheckBox4 !TM_ARG1
+  if SENDGOLD in !TM_MODE
+    menu set EUOCheckBox5 !TM_ARG1
+  if AUTOMATIC in !TM_MODE
+    menu set EUOCheckBox1 !TM_ARG1
+  if CARVE in !TM_MODE
+    menu set EUOCheckBox3 !TM_ARG1
+  if NOSPAWN in !TM_MODE
+    menu set EUOCheckBox2 !TM_ARG1
+  if RELICFRAGS in !TM_MODE
+    menu set EUOCheckBox6 !TM_ARG1
+  if PREVIEW in !TM_MODE
+    menu set EUOCheckBox7 !TM_ARG1
+  if UNRAVELEVAL in !TM_MODE
+    menu set EUOCheckBox8 !TM_ARG1
+  if LOOTALL in !TM_MODE
+    menu set EUOCheckBox9 !TM_ARG1
+  if LOADFILE in !TM_MODE 5
+    if !TM_ARG1 <> #TRUE && !TM_ARG1 <> #FALSE 4
+      menu set EUOEdit7 !TM_ARG1
+      set %override_save_check #TRUE
+      gosub okLoadEUOButton25
+      set %override_save_check #FALSE
+  if SAVEFILE in !TM_MODE 5
+    if !TM_ARG1 <> #TRUE && !TM_ARG1 <> #FALSE 4
+      menu set EUOEditSetupFile !TM_ARG1
+      set %override_save_check #TRUE
+      gosub SaveSetup
+      set %override_save_check #FALSE
+  if MINMAX in !TM_MODE 6
+    set %minMaxSub #true
+    if !TM_ARG1 = #TRUE
+      set %buttonMinMax 1
+    else
+      set %buttonMinMax 4
+    gosub minMaxEUOButton21
+  set !TM_MODE N/A
+return
+
+sub rulesPreview
+  set %llpc #lpc
+  set #lpc 10000
+  call s_makeList.txt s_deleteAllItems %preview
+  call s_makeList.txt s_getListSelected %buttonPreview
+  if #result <> #false
+  {
+    call s_makeList.txt s_copyItemByIndexInvis %buttonPreview blah %preview #false #true
+    call s_makeList.txt s_showTabByName %pre %view #true
+    call s_makeList.txt s_getDataByIndex %preview 1 5
+    if #result <> tag5
+      gosub createAdvancedIndex #result 1 #true
+  }
+  else
+    call s_makeList.txt s_addItemToList %preview Select , #spc , a , #spc , rule , #spc , on , #spc , the , #spc , RULES , #spc , tab , #spc , for , #spc , preview. #false tag1 tag2 tag3 tag4 tag5
+  set #menuButton N/A
+  set #lpc %llpc
+return
+
+sub setButtonState
+  if euoListBox2_3 in #menubutton 4
+    set %preview euoListBox2_Preview
+    set %buttonPreview euoListBox2_Rules
+    set %pre euoListBox2
+    set %view Preview
+  if euoListBox1_4 in #menuButton 4
+    set %preview euoListBox1_Preview
+    set %buttonPreview euoListBox1_Active
+    set %pre euoListBox1
+    set %view Preview
+return
+
+sub checkMovement
+  if #charposx , _ , #charposy = %lastCharPos 2
+    set %moveTimer #sysTime + 10
+    return #true
+  else 3
+    set %lastCharPos #charposx , _ , #charposy
+    set %moveTimer #sysTime + 1000
+    return #false
+return
+
+sub findContainer
+  menu set EUOCheckBox1 #false
+_retryFindContainer:
+  if %findCont = #true 2
+    set %findCont #false
+    goto _findContLaLa
+  finditem %1 C
+  if #findcnt < 1
+    findItem %1 G_2
+  set #NEXTCPOSX %nCposX
+  set #NEXTCPOSY %nCposY
+  set %swapcnt 0
+  if #findCnt > 0
+  {
+    menu set EUOEdit1 Found container...
+    set %swapcnt 0
+    set %loot_time #scnt
+    set !container_timer #SCNT2
+    for #findindex 1 #findcnt
+    {
+      if #findtype = yc
+        continue
+      set %jstart #jIndex
+      set %lastCorpse %corpse
+      set %corpse #findid
+      set #lobjectid %corpse
+      set %cnt 0
+      set %genericFail #false
+_retryOpenCorpse:
+      while %genericTimer > #sysTime
+      {
+      }
+      set %tempContId #contid
+      set %break #false
+      event macro 17 0
+      set %genericTimer #sysTime + %timerSet
+      while #contid = %tempContId && #contid <> %corpse
+      {
+        if %genericTimer < #sysTime 2
+          set %break #true
+          break
+      }
+      wait 5
+
+      if %break = #true 2
+        set %break #false
+        goto _retryFindContainer
+_findContLaLa:
+      set %lootContainer #contId
+      namespace copy TM_loot_in_progress from global TM_loot
+      set %lootCnt 0
+      finditem * c_ , %lootContainer
+      if #findcnt > 0
+      {
+        set %averageLoopTime #sysTime
+        set %startEvalTime #sysTime
+        set %weightSkip #false
+        for #findindex 1 #findcnt
+        {
+          if #findtype = xc || #findtype = wdm || #findtype = mdm || #findtype = vdm || #findtype = sdm || #findtype = dbz || #findtype = ojz || #findtype = ias || #findtype = kkq || #findtype = bbz || #findtype = kdm || #findtype = xdm || #findtype = ldm || #findtype = bim || #findtype = aim || #findtype = zhm || #findtype = ndm || #findtype = yc || #findtype = fim || #findtype = cim || #findtype = rdm || #findtype = ydm
+            continue
+          set %cnt %cnt + 1
+          set %lootItem #false
+          if #findtype in %lootList
+            set %lootItem #true
+          boobooTryAgain:
+          set %strLen N/A
+          set %property N/A
+          event property #findid
+            str count #PROPERTY $
+            if #STRRES < 2
+            {
+              wait 2
+              str count #property $
+              if #strres < 2
+              {
+                event property #findid
+                event sysmessage Prop 1 #property
+                wait 2
+                str count #property $
+                if #strres < 2 3
+                  event property #findid
+                  event sysmessage Prop 2 #property #strres
+                  wait 2
+              }
+            }
+          if #strres < 2
+          {
+            str len #property
+            if #strres <= 2
+            {
+              event sysmessage Item property error.  #findtype #property #findid
+              if !s_looting = #true 2
+                set !s_looting #false
+                namespace copy s_looting to global scripty_Loot . #charid
+              set %lastProperty #findid
+              goto boobooTryAgain
+            }
+          }
+          call s_makeList.txt addUnderscore #property
+          set %property #result
+          set %itemWeight 0
+          if weight in #property
+          {
+            set %weightStr %property
+            str pos %weightStr weight 1
+            set %weightLen #strres
+            str len %weightStr
+            set %weightLen #strres - ( %weightLen + 7 )
+            str right %weightStr %weightLen
+            set %weightStr #strres
+            str pos %weightStr _ 1
+            set %weightLen #strres - 1
+            str left %weightStr %weightLen
+            set %weightStr #strres
+            if #strres > 0 && #strres <> $
+              set %itemWeight #strres
+          }
+          if #charType in hs_is_
+            set %maxweight ( 40 + ( 3 * #str ) + ( #str / 2 ) ) + 60
+          else
+            set %maxweight ( 40 + ( 3 * #str ) + ( #str / 2 ) )
+          if #weight + %itemWeight > ( %maxWeight + 2 ) 3
+            event sysmessage SKIPPED REASON: Puts you overweight!
+            set %weightSkip #true
+            continue
+          set %imbueScore 0
+          set %lootRelicFrag #false
+          if %lootAll = #true
+            set %lootItem #true
+          if %lootItem = #false 3
+            set %containerLoot #true
+            gosub checkItem %property #findType
+            set %containerLoot #false
+          if %lootItem = #true
+          {
+            menu set EUOEdit1 Item match!  Looting.
+            set %jstart #jindex
+_retryLoot:
+              set %lootCnt %lootCnt + 1
+              if #findtype = pof
+                set %goldCnt %goldCnt + #findStack
+OmgTryAgain:
+              if %previewItems = #true && %imbueScore <> 0 3
+                display yesno Keep this item? Unravel score: %imbueScore
+                if #dispres = no
+                  continue
+              while %genericTimer > #sysTime
+              {
+              }
+              exevent drag #findid #findstack
+              if %lootContainerDrop = N/A
+              {
+                if %relicLootBag <> N/A && %lootRelicFrag = #true
+                  exevent dropc %relicLootBag
+                else 5
+                  if !tm_loot_in_progress = #true 2
+                    namespace copy TM_eval_destination from global TM_loot
+                    exevent dropc !TM_eval_destination
+                  else
+                    exevent dropc #backpackid
+              }
+              else
+              {
+                if #findtype <> pof
+                {
+                  if %relicLootBag <> N/A && %lootRelicFrag = #true
+                    exevent dropc %relicLootBag
+                  else
+                  {
+                    namespace copy TM_Loot_In_Progress from global TM_loot
+                    if !tm_loot_in_progress = #true 2
+                      namespace copy TM_eval_destination from global TM_loot
+                      exevent dropc !TM_eval_destination
+                    else
+                      exevent dropc %lootContainerDrop
+                  }
+                }
+                else
+                  exevent dropc #backpackid
+              }
+              set %genericTimer #sysTime + %timerSet
+              set %youMustWait #false
+              while #jindex > %jstart
+              {
+                set %jstart %jstart + 1
+                scanJournal %jstart
+                if You_must_wait_to_perform_another_action in #journal 3
+                  wait 21
+                  set %youMustWait #true
+                  goto OmgTryAgain
+                if You_can_not_pick_that_up in #journal || That_is_too_far_away in #journal || That_container_cannot_hold_more_weight in #journal || That_container_cannot_hold_more_items in #journal
+                {
+                  event sysmessage Pick, too far, weight, or count error. Returning!
+                  gosub pseudoIgnore %listName %corpse 2 #true
+                  if weight in #journal && !s_looting = #true
+                    set !s_looting weightSkip
+                    namespace copy s_looting to global scripty_Loot . #charid
+                  if !s_looting = #true && weight notin #journal 2
+                    set !s_looting #false
+                    namespace copy s_looting to global scripty_Loot . #charid
+                  set !TM_loot_in_progress #false
+                  namespace copy TM_loot_in_progress to global TM_loot
+                  return #false
+                }
+              }
+              if %youMustWait = #true 2
+                set %youMustWait #false
+                goto _retryLoot
+          }
+        }
+      }
+      set %goldperhour ( %goldCnt * 3600 ) / ( #SCNT - %program_start )
+      set %averageLoopTime #scnt - %loot_time
+      set %endEvalTime #systime - %startEvalTime
+      set %endEvalTimer %endEvalTime - %averageLoopTime
+      set %swapCnt %swapCnt + 1
+      menu set EUOEdit1 iCnt: , #spc , #findcnt , #spc , alTime: , #spc , %averageLoopTime , #spc , evalTime: , #spc , %endEvalTimer , #spc , g/h: , #spc , %goldperhour
+      break
+    }
+  }
+  else
+  {
+    if !s_looting = #true 2
+      set !s_looting #false
+      namespace copy s_looting to global scripty_Loot . #charid
+    return #false
+  }
+  if !s_looting = #true && %weightSkip = #true 2
+    set !s_looting weightSkip
+    namespace copy s_looting to global scripty_Loot . #charid
+  if !s_looting = #true && %weightSkip = #false 2
+    set !s_looting success
+    namespace copy s_looting to global scripty_Loot . #charid
+return
+
+sub findCorpses
+  namespace push
+  namespace global scripty_Loot . #charid
+  set !s_init #true
+  namespace pop
+  if %moveTimer <= #sysTime 6
+    set %charPos #charposx , _ , #charposy
+    gosub checkMovement
+    if #result = #false
+      set %stillMoving #true
+    else
+      set %stillMoving #false
+  if %stillMoving = #true 4
+    if !s_looting = #true 2
+      set !s_looting moving
+      namespace copy s_looting to global scripty_Loot . #charid
+    return #false
+  if %noSpawn = #true
+  {
+    finditem %allSpawn g_ , %spawnDistance
+    if #findcnt > 0
+    {
+      for #findindex 1 #findcnt
+      {
+        if #findid = #charid
+          continue
+        if #finddist <= %spawnDistance 4
+          if !s_looting = #true 2
+            set !s_looting #false
+            namespace copy s_looting to global scripty_Loot . #charid
+          return #false
+      }
+    }
+  }
+  if %lootBOS = #true
+  {
+    if #weight > #maxweight - %weightOffset || %weightSkip = #true
+      gosub sendItems pof
+  }
+  set %loot_time #scnt
+  set #nextcposx %nCposX
+  set #nextcposy %nCposY
+  set %swapcnt 0
+  if %lootGround = #true
+    goto _continueLootGround
+  set !foundCorpses #false
+  namespace copy foundCorpses to global scripty_Loot . #charid
+  findItem %corpseType G_2
+  if #findCnt > 0
+  {
+    menu set EUOEdit1 Found corpse...
+    for #findindex 1 #findcnt
+    {
+      if #findid in %iList . %listname || #findtype = yc
+        continue
+      set !foundCorpses #true
+      namespace copy foundCorpses to global scripty_Loot . #charid
+      set %lastCorpse %corpse
+      set %corpse #findid
+      if %carveCorpse = #true && %corpseCarvingTool <> N/A && %corpse notin %iList . carve
+      {
+        while %genericTimer > #sysTime
+        {
+        }
+        set #lobjectid %corpseCarvingTool
+        set #ltargetid %corpse
+        event macro 17
+        target 1s
+        event macro 22
+        gosub pseudoIgnore carve %corpse 401 n/a
+        set %genericTimer #sysTime + %timerSet
+      }
+      set #lobjectid %corpse
+      set %cnt 0
+      set %genericFail #false
+_retryOpenCorpse:
+      set %cnt %cnt + 1
+      if %cnt > 2
+      {
+        event sysmessage Fatal error opening corpse.
+        set EUOEdit1 Fatal error opening corpse! Ignoring 2 seconds.
+        gosub pseudoIgnore %listName %corpse 2 #true
+        if !s_looting = #true 2
+          set !s_looting #false
+          namespace copy s_looting to global scripty_Loot . #charid
+        return #false
+      }
+      while %genericTimer > #sysTime
+      {
+      }
+      set %jStart #jIndex
+      set %tempContId #contid
+      event macro 17 0
+      set %genericTimer #sysTime + %timerSet
+      while #contid = %tempContId
+      {
+        if %genericTimer < #sysTime 4
+          if !s_looting = #true 2
+            set !s_looting #false
+            namespace copy s_looting to global scripty_Loot . #charid
+          return #false
+      }
+      wait 5
+      if #contsize <> 144_212
+      {
+        if !s_looting = #true 2
+          set !s_looting #false
+          namespace copy s_looting to global scripty_Loot . #charid
+        while #jIndex > %jStart
+        {
+          set %jstart %jstart + 1
+          scanJournal %jstart
+          if You_did_not_earn_the_right_to_loot_this_creature in #journal 3
+            gosub pseudoIgnore %listName %corpse 60 #true
+            event sysmessage Corpse instanced. Ignoring 1 minute.
+            break
+          if I_can't_reach_that in #journal || You_must_wait in #journal 3
+            gosub pseudoIgnore %listName %corpse 4 #true
+            event sysmessage Can't reach coprse. Ignoring 4 seconds.
+            break
+          if You_may_not_loot in #journal 3
+            gosub pseudoIgnore %listName %corpse 120 #true
+            event sysmessage Player corpse! Ignoring 2 minutes.
+            break
+        }
+        return #false
+      }
+      set %lootContainer #contId
+      while #jIndex > %jstart
+      {
+        set %jstart %jstart + 1
+        scanJournal %jstart
+        if You_must_wait_to_perform_another_action in #journal || You_did_not_earn_the_right_to_loot_this_creature in #journal || I_can't_reach_that in #journal
+        {
+          if You_did_not_earn_the_right_to_loot_this_creature in #journal
+          {
+            gosub pseudoIgnore %listName %corpse 90 #true
+            event sysmessage Corpse instanced. Ignoring 1.5 minutes.
+            set %genericFail #false
+            if !s_looting = #true 2
+              set !s_looting #false
+              namespace copy s_looting to global scripty_Loot . #charid
+            return #false
+          }
+          if I_can't_reach_that in #journal
+          {
+            gosub pseudoIgnore %listName %corpse 10 #true
+            event sysmessage Can't reach coprse.  Ignoring 10 seconds.
+            set %genericFail #false
+            if !s_looting = #true 2
+              set !s_looting #false
+              namespace copy s_looting to global scripty_Loot . #charid
+            return #false
+          }
+          if !s_looting = #true 2
+            set !s_looting #false
+            namespace copy s_looting to global scripty_Loot . #charid
+          return #false
+        }
+      }
+_continueLootGround:
+    if %lootGround = #true
+      finditem * g_2
+    else
+      finditem * c_ , %lootContainer
+      {
+        set %loopStartTime 0
+        set %lootCnt 0
+        set %weightSkip #false
+        for #findindex 1 #findcnt
+        {
+          if #findtype = xc || #findtype = wdm || #findtype = vdm || #findtype = mdm || #findtype = dbz || #findtype = vdm || #findtype = bbz || #findtype = kkq || #findtype = ias || #findtype = ojz || #findtype = yfm || #findtype = das || #findtype = jas || #findtype = tas || #findtype = gas || #findtype = kas || #findtype = res || #findtype = eas || #findtype = has || #findtype = uas || #findtype = jdm || #findtype = odm || #findtype = wdm || #findtype = sdm || #findtype = kdm || #findtype = xdm || #findtype = ldm || #findtype = bim || #findtype = aim || #findtype = zhm || #findtype = ndm || #findtype = yc || #findtype = fim || #findtype = cim || #findtype = rdm || #findtype = ydm
+            continue
+          set %lootItem #false
+          if #findtype in %lootList
+            set %lootItem #true
+          set %property N/A
+          event property #findid
+          str count #PROPERTY $
+          if #STRRES < 2
+          {
+            if %lootGround = #true
+              continue
+            wait 2
+            str count #PROPERTY $
+            if #strres < 2 7
+              event sysmessage Prop wait 1
+              event property #findid
+              str count #property $
+              if #strres < 2 3
+                wait 2
+                event sysmessage Prop wait 2
+                str count #property $
+          }
+          if #strres < 2
+          {
+            event sysmessage Item property error.  #findtype #property #findid
+            if !s_looting = #true 2
+              set !s_looting #false
+              namespace copy s_looting to global scripty_Loot . #charid
+            set %lastProperty #findid
+            return #false
+          }
+          call s_makeList.txt addUnderscore #property
+          if #findid = %lastProperty
+            event sysmessage #findtype #property Prop made it through!
+          set %itemWeight 0
+          set %property #result
+          if weight in #property
+          {
+            set %weightStr %property
+            str pos %weightStr weight 1
+            set %weightLen #strres
+            str len %weightStr
+            set %weightLen #strres - ( %weightLen + 7 )
+            str right %weightStr %weightLen
+            set %weightStr #strres
+            str pos %weightStr _ 1
+            set %weightLen #strres - 1
+            str left %weightStr %weightLen
+            set %weightStr #strres
+            if #strres > 0 && #strres <> $
+              set %itemWeight #strres
+          }
+          if #charType in hs_is_
+            set %maxweight ( 40 + ( 3 * #str ) + ( #str / 2 ) ) + 60
+          else
+            set %maxweight ( 40 + ( 3 * #str ) + ( #str / 2 ) )
+          if ( #weight + %itemWeight ) > %maxWeight + 2 3
+            event sysmessage SKIPPED REASON: Puts you overweight!
+            set %weightSkip #true
+            continue
+          set %imbueScore 0
+          set %lootRelicFrag #false
+          if %lootAll = #true
+            set %lootItem #true
+          if %lootItem = #false 4
+            set %startEvalTime #sysTime
+            gosub checkItem %property #findType
+            set %endEvalTime #sysTime - %startEvalTime
+            set %averageLoopTime %averageEvalTime + %endEvalTime
+          if %lootItem = #true
+          {
+            menu set EUOEdit1 Item match! Looting.
+            set %jstart #jindex
+            if %lastCharPos = #charposx , _ , #charposy
+            {
+_retryLoot:
+              ;if #weight >= #maxweight - 40 2
+                ;event sysmessage You are overweight!
+               ; break
+              while %genericTimer > #sysTime
+              {
+              }
+              set %lootCnt %lootCnt + 1
+              set %goldperhour ( %goldCnt * 3600 ) / ( #SCNT - %program_Start )
+              if #findtype = pof
+                set %goldCnt %goldCnt + #findStack
+              menu set EUOEdit1 iCnt: , #spc , #findcnt , #spc , alTime: , #spc , %averageLoopTime , #spc , evalTime: , #spc , %endEvalTimer , #spc , g/h: , #spc , %goldperhour
+              if %previewItems = #true && %imbueScore <> 0 3
+                  display yesno Keep this item? Unravel score: %imbueScore
+                  if #dispres = no
+                    continue
+              exevent drag #findid #findstack
+              if %lootContainerDrop = N/A
+              {
+                if %relicLootBag <> N/A && %lootRelicFrag = #true
+                  exevent dropc %relicLootBag
+                else
+                  exevent dropc #backpackid
+                set %genericTimer #sysTime + %timerSet
+              }
+              else
+              {
+                if #findtype = pof
+                  exevent dropc #backpackid
+                else 4
+                  if %relicLootBag <> N/A && %lootRelicFrag = #true
+                    exevent dropc %relicLootBag
+                  else
+                    exevent dropc %lootContainerDrop
+              }
+              set %genericTimer #sysTime + %timerSet
+              set %youMustWait #false
+              while #jindex > %jstart
+              {
+                set %jstart %jstart + 1
+                scanJournal %jstart
+                if You_must_wait_to_perform_another_action in #journal
+                {
+                  wait 21
+                  set %youMustWait #true
+                  break
+                }
+                if That_container_cannot_hold_more_weight in #journal
+                {
+                  menu set EUOEdit1 Overweight!  Exiting.
+                  if !s_looting = #true 2
+                    set !s_looting weightSkip
+                    namespace copy s_looting to global scripty_Loot . #charid
+                  if !s_looting = #false 3
+                    while %genericTimer > #sysTime
+                    {
+                    }
+                  return #false
+                }
+                if You_can_not_pick_that_up in #journal || That_is_too_far_away in #journal || That_container_cannot_hold_more_weight in #journal || That_container_cannot_hold_more_items in #journal
+                {
+                  if you_can_not_pick_that_up in #journal 5
+                    while %genericTimer > #sysTime
+                    {
+                    }
+                    exevent dropc #backpackid
+                    wait 21
+                  event sysmessage Pick up, too far, weight, or count error.  Returning!
+                  gosub pseudoIgnore %listName %corpse 4 #true
+                  if weight in #journal && !s_looting = #true 2
+                    set !s_looting weightSkip
+                    namespace copy s_looting to global scripty_Loot . #charid
+                  if !s_looting = #true && weight notin #journal 2
+                    set !s_looting #false
+                    namespace copy s_looting to global scripty_Loot . #charid
+                  if !s_looting = #false !s_looting = weightSkip 3
+                  while %genericTimer > #sysTime
+                  {
+                  }
+                  return #false
+                }
+              }
+              if %youMustWait = #true 2
+                set %youMustWait #false
+                goto _retryLoot
+            }
+            else
+            {
+              event sysmessage You moved!  Stand still. Ignoring and returning.
+              gosub pseudoIgnore %listName %corpse 2 #true
+              if !s_looting = #true 2
+                set !s_looting moving
+                namespace copy s_looting to global scripty_Loot . #charid
+                if !s_looting = #false 3
+                  while %genericTimer > #sysTime
+                  {
+                  }
+              return #false
+            }
+          }
+        }
+      }
+      set %averageLoopTime #scnt - %loot_time
+      menu set EUOEdit1 iCnt: , #spc , #findcnt , #spc , alTime: , #spc , %averageLoopTime , #dot , #spc , Looted: , #spc , %lootCnt , #spc , g/h: , #spc , %goldperhour
+      gosub pseudoIgnore %listName %corpse 480 #true
+      set %swapCnt %swapCnt + 1
+      break
+    }
+  }
+  else
+  {
+    if !s_looting = #true 2
+      set !s_looting #false
+      namespace copy s_looting to global scripty_Loot . #charid
+    if !s_looting = #false 3
+      while %genericTimer > #sysTime
+      {
+      }
+    return #false
+  }
+  if !s_looting = #true && %weightSkip = #true 2
+    set !s_looting weightSkip
+    namespace copy s_looting to global scripty_Loot . #charid
+  if !s_looting = #true && %weightSkip = #false 2
+    set !s_looting success
+    namespace copy s_looting to global scripty_Loot . #charid
+  if !s_looting = weightSkip || !s_looting = success 3
+    while %genericTimer > #sysTime
+    {
+    }
+return
+
+sub SendItems
+  namespace push
+  namespace local SI
+  if !bagofsending = nobags 2
+    namespace pop
+    return #false
+  set !bos_items pof_jjg_enk_vlk
+  set !temp_LOBJECTID #LOBJECTID
+  set !temp_LTARGETID #LTARGETID
+  set !temp_LTARGETKIND #LTARGETKIND
+  set !tm_loot_in_progress #true
+  set !bagofsending N/A
+  namespace copy TM_loot_in_progress to global TM_loot
+SendItems_loop1:
+  finditem CKF C_ , #BACKPACKID
+  if #findcnt > 0
+  {
+    for #findindex 1 #findcnt
+    {
+      event property #findid
+      if sending notin #PROPERTY
+        continue
+      else
+      {
+        str len #property
+        set #strres #strres - 1
+        str left #property #strres
+        gosub GetIntensityRight #strres
+        namespace copy intensity from local GIR
+        if !intensity < 1  ;ignoreitem !bagofsending BOS
+          continue
+        set !bagofsending #findid
+        break
+      }
+    }
+    if !bagofsending = N/A 5
+      set !bagofsending nobags
+      set !TM_loot_in_progress #false
+      namespace copy TM_loot_in_progress to global TM_loot
+      namespace pop
+      return #false
+SendItems_loop2:
+    finditem !bos_items C_ , #backpackid
+    if #findcnt > 0
+    {
+      set !findstack #findstack
+      set !item #findid
+      if #findcnt > 1
+      {
+        for #findindex 1 #findcnt
+        {
+          if ( #findstack > !findstack ) 2
+            set !item #findid
+            set !findstack #findstack
+        }
+      }
+      while %genericTimer > #sysTime
+      {
+      }
+      exevent popup !bagofsending
+      set !bagContPosWait #sysTime + 500
+      while #contsize <> 167_42 && !bagContPosWait > #sysTime
+      {
+      }
+      contpos 0 15
+      wait 6
+      if #contsize <> 167_42 4
+        set !TM_loot_in_progress #false
+        namespace copy TM_loot_in_progress to global TM_loot
+        namespace pop
+        return #false
+      gosub GumpWait normal_gump normal_gump
+      set !clickx #contposx + 30
+      set !clicky #contposy + 28
+      click !clickx !clicky dmc
+      target 1s
+      if #targcurs = 0 3
+        set !TM_loot_in_progress #false
+        namespace copy TM_loot_in_progress to global TM_loot
+        return #false
+      set #LTARGETID !item
+      set #LTARGETKIND 1
+      event macro 22 0
+      wait 21
+      set %weightwarn #FALSE
+    }
+    else
+    {
+      if %override_weight_check = #FALSE
+      {
+        if ( #WEIGHT > ( #MAXWEIGHT - 10 ) ) || ( #WEIGHT > %userweightmax )
+        {
+          event sysmessage You are nearly overweight, but you have no selected$items to send.  Please unload manually.
+          set %weightwarn #TRUE
+          goto SendItems_skip
+        }
+      }
+    }
+  }
+  else
+  {
+    event sysmessage No valid bags of sending in your main pack.$Please unload manually.
+    set %weightwarn #TRUE
+    goto SendItems_skip
+  }
+  set %weightwarn #FALSE
+SendItems_skip:
+  set #LOBJECTID !temp_LOBJECTID
+  set #LTARGETID !temp_LTARGETID
+  set #LTARGETKIND !temp_LTARGETKIND
+  set !TM_loot_in_progress #FALSE
+  namespace copy TM_loot_in_progress to global TM_loot
+  namespace pop
+return
+sub GumpWait
+  set %timedelay #SCNT
+loopwait1:
+  if #CONTNAME = %1 || #CONTNAME = %2
+    return
+  if #SCNT > %timedelay + 5
+    return
+  goto loopwait1
+return
+
+sub checkItem
+  namespace push
+  namespace local itemSetup
+  namespace clear
+  set !lpc #lpc
+  set #lpc 10000
+  set !findType %2
+  set !wSpeed n/a
+  set !sSpeedIncrease 0
+  set !property %1
+  set !hitManaLeech #false
+  set !hitLifeLeech #false
+  set !propertyLong %1
+  set !type %2
+  set !count 0
+  set !totalResists 0
+  set !mScoreIntensity 0
+  set !lScoreIntensity 0
+  set !armorCount 0
+  set %relicICount 0
+  set %totalMods 0
+  set %oooResult n/a
+  set !intensity n/a
+  set %relicIntensity n/a
+  str pos !property $ 1
+  set %subtract100 #false
+  set %subtract140 #false
+  set %add140 #false
+  if ( spell_channeling in !property ) || ( Luck__100 in !property ) || ( %previewItems = #true ) 10
+    if spell_channeling in !property && faster_casting__1 notin !property
+      set %add140 #true
+    if spell_channeling in !property && faster_casting__1 in !property
+      set %subtract140 #true
+    if Luck__100 in !property
+      set %subtract100 #true
+    if %previewItems = #true 3
+      call s_makeList.txt s_deleteAllItems EUOListBox1_Preview
+      call s_makeList.txt s_selectTabByName EUOListBox1 Preview
+      menu List Add euoListBox1_Preview Score , #spc , / , #spc , Intensity , #spc , / , #spc , Max , #spc , Intensity , #spc , / , #spc , Property
+  if luck in !property && luck__100 notin !property && range in !property 2
+    set %maxI . %attrib44 120   ;
+    set %maxW . %attrib44 100   ;
+  else 2                        ;  THIS IS LUCK, CHANGES WITH INDEX CHANGE IN SETUP
+    set %maxI . %attrib44 100   ;
+    set %maxW . %attrib44 100   ;
+  while #strres <> 0 && $ in !property
+  {
+    str pos !property $ 1
+    set !armorCount !armorCount + 1
+    set %oooResult n/a
+    set !intensity n/a
+    set %relicIntensity n/a
+    set !count !count + 1
+    set !len #STRRES - 1
+    str left !property !len
+    set !attrib . !count #strres
+    ;if ring in !propertyLong 2
+      ;event sysmessage !attrib . !count
+      ;pause
+    if !armorCount = 1 4
+      if ( chain in !attrib . !count || leather in !attrib . !count || platemail in !attrib . !count || studded in !attrib . !count || leaf in !attrib . !count || bone in !attrib . !count || chainmail in !attrib . !count || ( ring in !attrib . !count && mail in !attrib . !count ) || woodland in !attrib . !count || dragon in !attrib . !count || bascinet in !attrib . !count || ( norse in !attrib . !count && helm in !attrib . !count ) || mask in !attrib . !count || bandana in !attrib . !count || ( skull in !attrib . !count && cap in !attrib . !count ) || hatsuburi in !attrib . !count || kabuto in !attrib . !count || jingasa in !attrib . !count || ( ninja in !attrib . !count && hood in !attrib . !count ) || circlet in !attrib . !count || helm in !attrib . !count || cloth  in !attrib . !count || ( gargish in !attrib . !count && ( ring notin !attrib . !count && bracelet notin !attrib . !count ) ) )
+        gosub armorCheck !attrib . !count
+      else
+        gosub armorCheck1 !attrib . !count
+    set !intensity N/A
+    if hit_mana_leech in !attrib . !count || hit_life_leech in !attrib . !count || mage_weapon in !attrib . !count
+    {
+      if hit_mana_leech in !attrib . !count
+        set !hitManaLeech #true
+      if hit_life_leech in !attrib . !count
+        set !hitLifeLeech #true
+      if mage_weapon in !attrib . !count 5
+        gosub mageWeapon !attrib . !count
+        set !attrib . !count mage_weapon_ , !intensity , $
+        str pos !attrib . !count $ 1
+        set !len1 #strres - 1
+        str left !attrib . !count !len1
+    }
+    if ( 1 in #strres || 2 in #strres || 3 in #strres || 4 in #strres || 5 in #strres || 6 in #strres || 7 in #strres || 8 in #strres || 9 in #strres || 0 in #strres )
+    {
+      gosub getIntensityRight #strres
+      if !intensity = n/a
+        gosub getIntensityLeft #result
+      set %oooResult #result
+      ;if !intensity = N/A && ( 1 in #strres || 2 in #strres || 3 in #strres || 4 in #strres || 5 in #strres || 6 in #strres || 7 in #strres || 8 in #strres || 9 in #strres || 0 in #strres )
+        ;gosub getIntensityMiddle
+      set !attrib . !count #result
+      set !intensity . !count !intensity
+      if weapon_speed in !attrib . !count && ( hit_mana_leech in !propertyLong || hit_life_leech in !propertyLong ) 2
+        set %wSpeedlala !attrib . !count
+        set !wSpeed %wSpeed . %wSpeedlala
+      if !intensity <> n/a && %maxI . %oooResult <> n/a
+      {
+        if durability_ notin !attrib . !count
+          set %totalMods %totalMods + 1
+        if ( damage_increase in !attrib . !count && spell_damage notin !attrib . !count && !type in %ringBrace ) || ( ranged in !propertyLong && ( defense_chance_increase in !attrib . !count || hit_chance_increase in !attrib . !count ) ) || ( damage_increase in !attrib . !count && spell_damage notin !attrib . !count && shield in !propertyLong )
+        {
+          set %relicIntensity ( ( 25 * 10 ) * 8 ) / 100
+          if !intensity >= %relicIntensity && %relicIntensity <> n/a ;&& %imbueMaxIEval = #false
+            set %relicICount %relicICount + 1
+          if !intensity > %maxI . %oooResult && %imbueMaxIEval = #false
+            set !intensity %maxI . %oooResult
+          if %minI . %oooResult <> n/a && !intensity < %minI . %oooResult
+            gosub weight 0 25 3 %maxW . %oooResult
+          else
+            gosub weight !intensity 25 3 %maxW . %oooResult
+          set %imbueScore %imbueScore + #result
+          if %previewItems = #true
+            menu List Add euoListBox1_Preview #result , #spc , !intensity , #spc , 25 , #spc , !attrib . !count
+        }
+        else
+        {
+          if !intensity > %maxI . %oooResult && hit_mana_leech notin !attrib . !count && hit_life_leech notin !attrib . !count && %imbueMaxIEval = #false
+            set !intensity %maxI . %oooResult
+          if %minI . %oooResult <> n/a && !intensity < %minI . %oooResult
+            gosub weight 0 %maxI . %oooResult 3 %maxW . %oooResult
+          else
+            gosub weight !intensity %maxI . %oooResult 3 %maxW . %oooResult
+          set %imbueScore %imbueScore + #result
+          if swing_speed_increase in !attrib . !count && ( hit_mana_leech in !propertyLong || hit_life_leech in !propertyLong )
+            set !sSpeedIncrease !intensity
+          if ( !hitManaLeech = #true && hit_mana_leech in !attrib . !count ) || ( !hitLifeLeech = #true && hit_life_leech in !attrib . !count )
+          {
+            if hit_mana_leech in !attrib . !count 3
+              set !mLeechCount !count
+              set !mIntensityCount !intensity
+              set !mScoreIntensity #result
+            if hit_life_leech in !attrib . !count 3
+              set !lLeechCount !count
+              set !lIntensityCount !intensity
+              set !lScoreIntensity #result
+          }
+          else
+          {
+            set %relicIntensity ( ( %maxI . %oooResult * 10 ) * 8 ) / 100
+            if ( %maxI . %oooResult = 6 || %maxI . %oooresult = 24 || %maxI . %oooresult = 23 || %maxI . %oooresult = 22 || %maxI . %oooresult = 21 || %maxI . %oooresult = 19 || %maxI . %oooresult = 18 || %maxI . %oooResult = 2 || %maxI . %oooResult = 3 || %maxI . %oooResult = 9 || %maxI . %oooResult = 17 || %maxI . %oooResult = 16 )
+                set %relicIntensity %relicIntensity + 1
+            if %maxI . %oooResult = 2 || %maxI . %oooResult = 3
+                set %relicIntensity %maxI . %oooResult
+            if ( !intensity >= %relicIntensity && %relicIntensity <> n/a ) ;|| ( faster_casting in !attrib . !count && %subtrack140 <> #true )
+            {
+              if ( luck in !attrib . !count && luck__100 notin !propertyLong ) || ( %oooResult = casting_focus && %relicIntensity >= %maxI . %ooResult ) || ( %oooResult = Faster_Cast_Recovery && %relicIntensity <= !intensity ) || ( %oooResult = Stamina_Regeneration && %relicIntensity <= !intensity ) || ( %oooResult = mana_Regeneration && %relicIntensity <= !intensity ) || ( %oooResult = hit_point_Regeneration && %relicIntensity <= !intensity )
+                set %relicICount %relicICount + 1
+              else
+              {
+                if ( luck notin !attrib . !count && %oooResult <> casting_focus && %oooResult <> Faster_Cast_Recovery && %oooResult <> hit_point_Regeneration && %oooResult <> mana_Regeneration && %oooResult <> stamina_Regeneration )
+                {
+                  if faster_casting in %oooResult && faster_casting__1 in !propertyLong
+                  {
+                    ; Spell Channeling fix.
+                  }
+                  else 2
+                    if / notin !attrib . !count
+                      set %relicICount %relicICount + 1
+                }
+              }
+            }
+          }
+          if %previewItems = #true && ( ( hit_mana_leech notin !attrib . !count && hit_life_leech notin !attrib . !count && luck notin !attrib . !count && requires notin !attrib . !count ) || ( luck in !attrib . !count && luck__100 notin !propertyLong ) ) && ( durability_ notin !attrib . !count )
+            menu List Add euoListBox1_Preview #result , #spc , !intensity , #spc , %maxI . %oooResult , #spc , !attrib . !count
+        }
+      }
+    }
+    else
+    {
+      set !intensity . !count N/A
+      if %maxI . #strres = max
+      {
+        set %totalMods %totalMods + 1
+        if mage_armor notin !attrib . !count
+          set %relicICount %relicICount + 1
+        set %imbueScore %imbueScore + %maxW . #strres
+        if %previewItems = #true
+          menu list add euoListBox1_Preview %maxW . #strres , #spc , MAX , #spc , %maxI . %oooResult , #spc , !attrib . !count
+      }
+      else
+      {
+        if ( %previewItems = #true ) || !armorCount = 1 5
+          if %oooResult = n/a && requires notin !attrib . !count && %previewItems = #true
+            menu list add euoListBox1_Preview !attrib . !count
+          else 2
+            if requires notin !attrib . !count && durability_ notin !attrib . !count && %previewItems = #true
+              menu list add euoListBox1_Preview %maxW . #strres , #spc , !intensity , #spc , %maxI . %oooResult , #spc , !attrib . !count
+      }
+    }
+    if fire_resist in !attrib . !count || cold_resist in !attrib . !count || energy_resist in !attrib . !count || poison_resist in !attrib . !count || physical_resist in !attrib . !count
+      gosub anyResist
+    if #FINDTYPE in DWR_EWR_GWR_YJG && ( slayer in !attrib . !count || killer in !attrib . !count || protection in !attrib . !count || bonus in !attrib . !count || exceptional_bonus in !attrib . !count )
+      gosub checkTalisman
+    set !len !len + 1
+    str del !property 1 !len
+    set !property #STRRES
+    ;display ok Intensity: !intensity Score: %imbueScore Attrib: !attrib . !count
+    ;pause
+  }
+  if ( hit_mana_leech in !propertyLong || hit_life_leech in !propertyLong )
+  {
+    set !sSpeedIncrease !sSpeedIncrease + 100
+    if !hitManaLeech = #true
+    {
+      set !mMax ( !wSpeed / !sSpeedIncrease )
+      if range in !propertyLong
+        set !mMax !mMax / 2
+      set %relicIntensity ( ( !mMax * 10 ) * 9 ) / 100
+      if !mIntensityCount >= %relicIntensity && %relicIntensity <> n/a
+        set %relicICount %relicICount + 1
+      if !mIntensityCount > !mMax
+        set !mIntensityCount !mMax
+      gosub weight !mIntensityCount !mMax 3 110
+      set %imbueScore %imbueScore - !mScoreIntensity
+      set %imbueScore %imbueScore + #result
+      if %previewItems = #true
+        menu list add euoListBox1_Preview #result , #spc , !mIntensityCount , #spc , !mMax , #spc , Hit_Mana_Leech
+    }
+    if !hitLifeLeech = #true
+    {
+      set !lMax ( !wSpeed / !sSpeedIncrease )
+      if range in !propertyLong
+        set !lMax !lMax / 2
+      set %relicIntensity ( ( !lMax * 10 ) * 9 ) / 100
+      if !lIntensityCount >= %relicIntensity && %relicIntensity <> n/a
+        set %relicICount %relicICount + 1
+          if !lIntensityCount > !lmax
+            set !lIntensityCount !lmax
+      gosub weight !lIntensityCount !lMax 3 110
+      set %imbueScore %imbueScore - !lScoreIntensity
+      set %imbueScore %imbueScore + #result
+      if %previewItems = #true
+        menu list add euoListBox1_Preview #result , #spc , !lIntensityCount , #spc , !lMax , #spc , Hit_Life_Leech
+    }
+  }
+  if %subtract100 = #true && %imbueScore >= 100
+  {
+    set %imbueScore %imbueScore - 100
+    if %previewItems = #true
+      menu list add euoListBox1_preview -100 , #spc , Luck
+  }
+  if %add140 = #true
+  {
+    set %totalMods %totalMods + 1
+    if planesword notin !propertyLong
+      set %imbueScore %imbueScore + 140
+    set %relicICount %relicICount + 1
+    if %previewItems = #true
+      menu list add euoListBox1_preview Faster , #spc , Casting , #spc , +140 , #spc , score.
+  }
+  if %subtract140 = #true && %imbueScore >= 140
+  {
+    set %totalMods %totalMods - 1
+    set %imbueScore %imbueScore - 140
+    if %previewItems = #true
+      menu list add euoListBox1_preview Faster , #spc , Casting , #spc , -140 , #spc , score.
+  }
+  set %lootRelicFrag #false
+  if ( %imbueScore >= %editRelic && %relicFragLoot = #true ) || ( %relicICount >= 4 && %relicFragLoot = #true ) || ( %relicUnravel = #true && %imbueScore >= %editRelic )
+    set %lootRelicFrag #true
+  if !totalResists > 0 5
+    set !count !count + 1
+    set !attrib . !count Total_Resists
+    set !intensity . !count !totalResists
+    if %previewItems = #true
+      menu List Add euoListBox1_Preview Total Resists: !totalResists
+  if %previewItems = #true 3
+      menu list add euoListBox1_preview Mods >= 80%: %relicICount
+      menu List Add euoListBox1_Preview Total Mods : %totalMods
+      menu List Add euoListBox1_preview Imbue Score: %imbueScore
+  set !count !count + 1
+  set !attrib . !count Imbue_Score
+  set !intensity . !count %imbueScore
+  set !count !count + 1
+  set !attrib . !count Number_of_Mods
+  set !intensity . !count %relicICount
+  set !count !count + 1
+  set !attrib . !count Total_Mods
+  set !intensity . !count %totalMods
+  gosub checkRules %property
+  set #lpc !lpc
+  namespace pop
+return
+
+sub armorCheck
+  if ( leather in %1 || studded in %1 || stormgrip in %1 ) && gargish notin %1
+  {
+    if ( leather in %1 || stormgrip in % 1 ) && jingasa notin %1 && ninja notin %1 && studded notin %1 && shorts notin %1 && skirt notin %1 && bustier notin %1 && female_leather_armor notin %1
+      gosub armorCalc 17 19 18 18 18 4 3 5 4 4
+    if leather_jingasa in %1
+      gosub armorCalc 19 18 18 17 18 3 5 4 4 4
+    if leather_ninja_hood in %1
+      gosub armorCalc 17 18 18 18 19 4 3 4 5 4
+    if ( leather_ninja_pants in %1 || leather_ninja_jacket in %1 || leather_ninja_mitts in %1 ) || ( leather_shorts in %1 || leather_skirt in %1 || leather_bustier in %1 || female_leather_armor in %1 )
+      gosub armorCalc 18 17 19 18 18 4 3 5 4 4
+    if studded in %1
+      gosub armorCalc 18 17 19 19 18 4 3 5 5 4
+    return
+  }
+  if ( platemail in %1 && gargish notin %1 ) || ( plate_helm in %1 )
+  {
+    if ( platemail in %1 && jingasa notin %1 && hatsuburi notin %1 ) || ( plate in %1 && helm in %1 )
+      gosub armorCalc 18 20 18 17 17 4 6 4 3 3
+    if platemail_hatsuburi in %1
+      gosub armorCalc 17 20 18 18 17 3 6 4 4 3
+    if platemail_jingasa in %1
+      gosub armorCalc 17 22 17 17 17 3 8 3 3 3
+    return
+  }
+  if gargish in %1 && wing notin %1
+  {
+    if gargish_cloth in %1
+      gosub armorCalc 21 20 22 21 21 7 6 8 7 7
+    if gargish_leather in %1
+      gosub armorCalc 21 20 21 21 22 7 6 7 7 8
+    if gargish_platemail in %1
+      gosub armorCalc 21 23 21 20 20 7 9 7 6 6
+    if gargish in %1 && stone in %1 && amulet notin %1 && earrings notin %1 && necklace notin %1
+      gosub armorCalc 23 21 21 21 19 9 7 7 7 5
+    if gargish in %1 && ( amulet in %1 || earrings in %1 || necklace in %1 )
+      gosub armorCalc 17 16 17 18 17 3 2 3 4 3
+    return
+  }
+  if chainmail in %1 || ringmail in %1
+  {
+    if ringmail in %1
+      gosub armorCalc 20 18 18 18 16 6 4 4 4 2
+    if chainmail in %1 && hatsuburi notin %1
+      gosub armorCalc 16 19 19 17 19 2 5 5 3 5
+    if chainmail_hatsuburi in %1
+      gosub armorCalc 17 20 17 19 17 3 6 3 5 3
+  }
+  if ( ( helm in %1 && plate notin %1 && helmet notin %1 ) || winged in %1 || helmet in %1 || bascinet in %1 || cloth_ninja_hood in %1 || circlet in %1 || bandana in %1 || hat in %1 || cap in %1 || bonnet in %1 ) && bone notin %1 && leaf notin %1 && woodland notin %1 && dragon notin %1
+  {
+    if close in %1 && helm in %1
+      gosub armorCalc 18 18 18 18 18 4 4 4 4 4
+    if helmet in %1 && close notin %1
+      gosub armorCalc 18 17 19 17 19 4 3 5 3 5
+    if bascinet in %1
+      gosub armorCalc 17 22 17 17 17 3 8 3 3 3
+    if norse_helm in %1
+      gosub armorCalc 19 19 16 17 19 5 5 2 3 5
+    if orc_helm in %1
+      gosub armorCalc 18 18 16 20 18 4 4 2 6 4
+    if cloth_ninja_hood in %1
+      gosub armorCalc 20 15 20 20 24 6 1 6 6 10
+    if circlet in %1
+      gosub armorCalc 17 16 20 20 17 3 2 6 6 3
+    if ( raven in %1 || vulture in %1 || winged in %1 ) && helm in %1
+      gosub armorCalc 17 20 16 20 17 3 6 2 6 3
+    if bandana in %1 || skullcap in %1
+      gosub armorCalc 23 15 18 23 20 9 1 4 9 6
+    if hat in %1 || cap in %1 || bonnet in %1
+      gosub armorCalc 20 15 20 20 24 6 1 6 6 10
+    return
+  }
+  if mask in %1
+  {
+    if bear in %1
+      gosub armorCalc 19 20 18 19 23 5 6 4 5 9
+    if deer in %1
+      gosub armorCalc 16 17 21 22 23 2 3 7 8 9
+    if orc in %1
+      gosub armorCalc 22 16 16 23 22 8 2 2 9 8
+    if horned in %1 && tribal in %1 && mask in %1
+      gosub armorCalc 19 21 24 20 15 5 7 10 6 1
+    if red in %1 && tribal in %1 && mask in %1
+      gosub armorCalc 25 18 15 20 21 11 4 1 6 7
+    return
+  }
+  if bone in %1 || leaf in %1 || hide in %1 || woodland in %1 || dragon in %1 || kabuto in %1
+  {
+    if bone in %1
+      gosub armorCalc 17 18 18 19 19 3 4 4 5 5
+    if leaf_tunic in %1 || leaf_arms in %1 || leaf_gloves in %1 || leaf_leggings in %1 || leaf_gorget in %1 || leaf_tonlet in %1
+      gosub armorCalc 19 17 18 19 17 5 3 4 5 3
+    if hide in %1 && ( tunic in %1 || pauldrons in %1 || gloves in %1 || pants in %1 || gorget in %1 )
+      gosub armorCalc 18 18 18 17 19 4 4 4 3 5
+    if woodland in %1 && ( chest in %1 || arms in %1 || gauntlets in %1 || leggings in %1 || gorget in %1 )
+      gosub armorCalc 18 20 18 17 17 4 6 4 3 3
+    if dragon in %1 && ( gloves in %1 || helm in %1 || leggings in %1 || sleeves in %1 ||breastplate in %1 )
+      gosub armorCalc 18 18 18 18 18 4 4 4 4 4
+    if kabuto in %1
+      gosub armorCalc 21 17 17 17 18 7 3 3 3 4
+  }
+return
+
+sub armorCalc
+  set %maxI . %attrib53 %1  ; P
+  set %maxI . %attrib50 %2  ; Ph
+  set %maxI . %attrib18 %3  ; F
+  set %maxI . %attrib5  %4  ; C
+  set %maxI . %attrib12  %5  ; E
+  set %minI . %attrib53 %6
+  set %minI . %attrib50 %7
+  set %minI . %attrib18 %8
+  set %minI . %attrib5  %9
+  set %minI . %attrib12  %10
+return
+sub armorCheck1
+  set %maxI . %attrib53 15
+  set %maxI . %attrib50 15
+  set %maxI . %attrib18 15
+  set %maxI . %attrib5  15
+  set %maxI . %attrib12  15
+  set %minI . %attrib53 1
+  set %minI . %attrib50 1
+  set %minI . %attrib18 1
+  set %minI . %attrib5  1
+  set %minI . %attrib12  1
+return
+
+sub mageWeapon
+  set %totalMods %totalMods + 1
+  set %imbueScore %imbueScore + %imbueScore . %1
+  set %sKore %imbueScore . %1
+  set %relicICount %relicICount + %relicICount . %1
+  set !intensity %intensity . %1
+  menu List Add euoListBox1_Preview %sKore , #spc , !intensity , #spc , %sKore , % , #spc , !attrib . !count
+return
+
+sub weight ; %1 intensity %2 maxIntensity %3 decimals(3) %4 propWeight
+  namespace push
+  namespace local propWeight
+  for %i 1 %3
+    set %1 %1 * 10
+  set !1 %1 / %2
+  set !4 !1 * %4
+  str len !4
+  set !len #strres - %3
+  str left !4 !len
+  if #strres <> n/a
+    set #result #strres
+  else
+    set #result 0
+  namespace pop
+return #result
+
+sub checkTalisman
+  if slayer in !attrib . !count 2
+    set !count !count + 1
+    set !attrib . !count Any_Slayer
+  if killer in !attrib . !count 3
+    set !count !count + 1
+    set !attrib . !count Any_Killer_Talisman
+    set !intensity . !count !intensity
+  if protection in !attrib . !count 3
+    set !count !count + 1
+    set !attrib . !count Any_Protection_Talisman
+    set !intensity . !count !intensity
+  if bonus in !attrib . !count && exceptional_bonus notin !attrib . !count 3
+    set !count !count + 1
+    set !attrib . !count Any_Bonus_Talisman
+    set !intensity . !count !intensity
+  if exceptional_bonus in !attrib . !count 3
+    set !count !count + 1
+    set !attrib . !count Any_Exceptional_Bonus_Talisman
+    set !intensity . !count !intensity
+return
+
+sub anyResist
+  set !totalResists !totalResists + !intensity
+  set !counter !count + 1
+  set !attrib . !counter Any_Resist
+  set !intensity . !counter !intensity . !count
+  set !count !count + 1
+return
+
+sub getIntensityMiddle   ; REDO WITH FULL SEARCH FOR NUMS
+  namespace push
+  namespace local GIM
+  set !str %1
+GetIntensityRight_loop1:
+  str pos !str _ 2
+  set !len #STRRES - 1
+  str left !str !len
+  set !str #strres
+  str len #strres
+  set !ptr #STRRES
+  set !intensity N/A
+  str mid !str !ptr 1
+  if #STRRES in 0_1_2_3_4_5_6_7_8_9_+_- , %
+  {
+    if ( #STRRES in 0_1_2_3_4_5_6_7_8_9_- ) && ( #STRRES <> _ )
+    {
+      if !intensity = N/A
+        set !intensity #STRRES
+      else
+        set !intensity #STRRES , !intensity
+    }
+    set !ptr !ptr - 1
+    if !ptr > 0
+      goto GetIntensityRight_loop1
+  }
+  str mid !str 1 !ptr
+  set #RESULT !str
+  namespace copy intensity to local itemSetup
+  namespace pop
+return
+;-------------------------------------------------------------------------------
+sub getIntensityRight
+  namespace push
+  namespace local GIR
+  set !str %1
+  str len !str
+  set !ptr #STRRES
+  set !intensity N/A
+GetIntensityRight_loop1:
+  str mid !str !ptr 1
+  if #STRRES in 0_1_2_3_4_5_6_7_8_9_+_- , _%
+  {
+    if ( #STRRES in 0_1_2_3_4_5_6_7_8_9_- ) && ( #STRRES <> _ )
+    {
+      if !intensity = N/A
+        set !intensity #STRRES
+      else
+        set !intensity #STRRES , !intensity
+    }
+    set !ptr !ptr - 1
+    if !ptr > 0
+      goto GetIntensityRight_loop1
+  }
+  str mid !str 1 !ptr
+  set #RESULT #STRRES
+  namespace copy intensity to local itemSetup
+  namespace pop
+return #RESULT
+;-------------------------------------------------------------------------------
+sub getIntensityLeft
+  namespace push
+  namespace local GIL
+  set !str %1
+  str len !str
+  set !len #STRRES
+  set !ptr 1
+  set !intensity N/A
+GetIntensityLeft_loop1:
+  str mid !str !ptr 1
+  if #STRRES in 0_1_2_3_4_5_6_7_8_9_+_- , _%
+  {
+    if ( #STRRES in 0_1_2_3_4_5_6_7_8_9_- ) && ( #STRRES <> _ )
+    {
+      if !intensity = N/A
+        set !intensity #STRRES
+      else
+        set !intensity !intensity , #STRRES
+    }
+    set !ptr !ptr + 1
+    if !ptr <= !len
+      goto GetIntensityLeft_loop1
+  }
+  str mid !str !ptr !len
+  set #RESULT #STRRES
+  namespace copy intensity to local itemSetup
+  namespace pop
+return #RESULT
+
+sub checkRules
+  set !rule_counter 0
+  set %lala
+  if %lootRelicFrag = #true
+    goto skipSkipBedip
+  for %i 1 1000
+  {
+    if %ruleAttrib . %i = N/A && %ruleAttribNot . %i = N/A && %ruleAttribOr . %i = N/A
+      break
+    set %ruleIndexAndTF #false
+    set %addToRuleIndexAnd 0
+    set %lootItem #false
+    set %lootItemAnd #false
+    set %lootItemNo #false
+    set %lootITemOr #false
+    set %lootItemNow #false
+    set %checkRules 0
+    set %ruleOr %ruleAttribOr . %i
+    set %ruleNot %ruleAttribNot . %i
+    set %ruleAnd %ruleAttrib . %i
+    set %oyaoyaoya %items . %ruleAnd
+    ;if !findtype in % . %oyaoyaoya
+      ;pause
+    ;pause
+    for %m 1 !count
+    {
+      set %lala !attrib . %m
+      if % . %lala = #true && %containerLoot <> #true
+      {
+        set %lootItemNow #true
+        break
+      }
+      if ( ( %items . %ruleOr in !attrib . %m ) && ( %ruleStateOr . %i = na ) ) || ( ( %items . %ruleOr in !attrib . %m ) && ( !intensity . %m %ruleStateOr . %i %ruleIntensityOr . %i ) )
+        set %lootItemOr #true
+      if ( ( %items . %ruleNot in !attrib . %m ) && ( %ruleStateNot . %i = na ) ) || ( ( %items . %ruleNot in !attrib . %m ) && ( !intensity . %m %ruleStateNot . %i %ruleIntensityNot . %i ) )
+      {
+        set %lootItem no
+        break
+      }
+      if ( ( %items . %ruleAnd in !attrib . %m ) && ( %ruleState . %i = na ) ) || ( ( %items . %ruleAnd in !attrib . %m ) && ( !intensity . %m %ruleState . %i %ruleIntensity . %i ) )
+      {
+        if any_resist in %items . %ruleAnd && %ruleIndexAndTF = #true
+          goto skipTF
+        set %addToRuleIndexAnd %addToRuleIndexAnd + 1
+        if any_resist in %items . %ruleAnd
+          set %ruleIndexAndTF #true
+        skipTF:
+      }
+    }
+    if %lootItemNow = #true || %lootItem = no 4
+      if %lootItemNow = #true
+        break
+      if %lootItem = no
+        continue
+    set %ruleSuckAss %i
+    for %o 1 1000
+    {
+      set %ruleSuckAss %ruleSuckAss , %o
+      set %ruleOr %ruleAttribOr . %ruleSuckAss
+      set %ruleNot %ruleAttribNot . %ruleSuckAss
+      set %ruleAnd %ruleAttrib . %ruleSuckAss
+      if ( %ruleAttribOr . %ruleSuckAss = N/A && %ruleAttribNot . %ruleSuckAss = N/A && %ruleAttrib . %ruleSuckAss = N/A )
+        break
+      for %n 1 !count
+      {
+        if ( ( %items . %ruleOr in !attrib . %n ) && ( %ruleStateOr . %ruleSuckAss = na ) ) || ( ( %items . %ruleOr in !attrib . %n ) && ( !intensity . %n %ruleStateOr . %ruleSuckAss %ruleIntensityOr . %ruleSuckAss ) )
+          set %lootItemOr #true
+        if ( ( %items . %ruleNot in !attrib . %n ) && ( %ruleStateNot . %ruleSuckAss = na ) ) || ( ( %items . %ruleNot in !attrib . %n ) && ( !intensity . %n %rulestateNot . %ruleSuckAss %ruleIntensityNot . %ruleSuckAss ) )
+        {
+          set %lootItem no
+          break
+        }
+        ;event sysmessage %items . %ruleAnd IN !attrib . %n THEN %ruleState . %ruleSUckAss THEN !intensity . %n %ruleState . %rulesuckass %ruleIntensity . %rulesuckass
+        ;pause
+        if ( ( %items . %ruleAnd in !attrib . %n ) && ( %ruleState . %ruleSuckAss = na ) ) || ( ( %items . %ruleAnd in !attrib . %n ) && ( !intensity . %n %rulestate . %ruleSuckAss %ruleIntensity . %ruleSuckAss ) )
+        {
+          if any_resist in %items . %ruleAnd && %ruleIndexAndTF = #true
+            goto skipTF1
+          set %addToRuleIndexAnd %addToRuleIndexAnd + 1
+          if any_resist in %items . %ruleAnd
+            set %ruleIndexAndTF #true
+          skipTF1:
+        }
+      }
+      if %lootItem = no
+        break
+    }
+    if ( %addToRuleIndexAnd = %ruleIndexAnd . %i || %lootItemOr = #true ) && %lootItem <> no
+    {
+      set %lootItem #true
+      break
+    }
+  }
+  skipSkipBedip:
+  if %lootItemNow = #true || %lootRelicFrag = #true
+    set %lootItem #true
+return
+;------------------------ Check Check Boxes
+sub checkCheckBoxes
+  call s_makeList.txt s_getListSize EUOListBox1_Active
+  if #result <> 0 && #result <> #false && #result <> N/A
+    set %activeRuleList #true
+  else
+    set %activeRuleList #false
+  set %checkCheckBoxes #sysTime + 1500
+  menu get euoCheckBox1 ; Autoloot
+  set %autoLoot #menuRes
+  menu get euoCheckBox2 ; NoSpawn
+  set %noSpawn #menuRes
+  menu get euoCheckBox3 ; Carve
+  set %carveCorpse #menures
+  menu get euoCheckBox4 ; LootGround
+  set %lootGround #menuRes
+  menu get euoCheckBox5 ; BOS
+  set %lootBos #menuRes
+  menu get EUOCheckBox6 ; Loot Relic Frags
+  set %relicFragLoot #menuRes
+  menu get okEditRelic
+  set %editRelic #menuRes
+  menu get EUOCheckBox7 ; Item Preview
+  set %previewItems #menuRes
+  menu get EUOCheckBox8 ; Unravel Evaluation
+  set %relicUnravel #menuRes
+  menu get EUOCheckBox81  ; No Max Eval?
+  set %imbueMaxIEval #menuRes
+  menu get EUOCheckBox9 ; Loot All
+  set %lootAll #menuRes
+return
+
+sub okSetToolEUOButton23
+  if #menuButton = okSetToolEUOButton23
+  {
+    display ok Click ok and target your corpse carving tool.
+    set #targcurs 1
+    while #targcurs = 1
+      wait 1
+    set %corpseCarvingTool #ltargetid
+    menu delete okSetToolEUOButton23
+    menu Font Size 8
+    menu Font Style
+    menu Font Color WindowText
+    menu Font BGColor Red
+    menu Button okSetToolEUOButton23a 160 220 43 21 Unset
+  }
+  if #menuButton = okSetToolEUOButton23a
+  {
+    menu delete okSetToolEUOButton23a
+    menu Font Size 8
+    menu Font Style
+    menu Font Color WindowText
+    menu Font BGColor BtnFace
+    set %corpseCarvingTool N/A
+    menu Button okSetToolEUOButton23 160 220 43 21 Set Tool
+  }
+  set #menuButton N/A
+return
+
+sub okSetRelicEUOButton23
+  if #menuButton = okSetRelicEUOButton23
+  {
+    display ok Click ok and target your relic loot bag.
+    set #targcurs 1
+    while #targcurs = 1
+      wait 1
+    set %relicLootBag #ltargetid
+    menu delete okSetRelicEUOButton23
+    menu Font Size 8
+    menu Font Style
+    menu Font Color WindowText
+    menu Font BGColor Red
+    menu Button okSetRelicEUOButton23a 160 245 43 21 Unset
+  }
+  if #menuButton = okSetRelicEUOButton23a
+  {
+    menu delete okSetRelicEUOButton23a
+    menu Font Size 8
+    menu Font Style
+    menu Font Color WindowText
+    menu Font BGColor BtnFace
+    set %relicLootBag N/A
+    menu Button okSetRelicEUOButton23 160 245 43 21 Set Relic
+  }
+  set #menuButton N/A
+return
+
+sub createRuleIndex
+  call s_makeList.txt s_getListSize EUOListBox1_Active
+  if #result <> #false && #result > 0
+  {
+    if %ruleIndex <> 0 && %ruleIndex <> N/A
+    {
+      for %i 1 %ruleIndex
+      {
+        set %ruleIndexAnd . %i N/A
+        set %ruleAttribOr . %i N/A
+        set %ruleAttribNot . %i N/A
+        set %ruleAttrib . %i N/A
+        set %ruleState . %i N/A
+        set %ruleStateOr . %i N/A
+        set %ruleIntensityOr . %i N/A
+        set %ruleIntensityNot . %i N/A
+        set %ruleIntensity . %i N/A
+        set %ruleFour . %i N/A
+        set %ruleFive . %i N/A
+        set %ruleSuck %i
+        for %o 1 100
+        {
+          set %ruleSuck %rulesuck , %o
+          if %ruleAttrib . %ruleSuck = N/A && %ruleAttribOr . %ruleSuck = N/A && %ruleAttribNot . %ruleSuck = N/A && %ruleFour . %ruleSuck = N/A && %ruleFive . %ruleSuck = N/A
+            break
+          set %ruleAttrib . %ruleSuck N/A
+          set %ruleState . %ruleSuck N/A
+          set %ruleIntensity . %ruleSuck N/A
+          set %ruleAttribOr . %ruleSuck N/A
+          set %ruleStateOr . %ruleSuck N/A
+          set %ruleIntensityOr . %ruleSuck N/A
+          set %ruleAttribNot . %ruleSuck N/A
+          set %ruleStateNot . %ruleSuck N/A
+          set %ruleIntensityNot . %ruleSuck N/A
+          set %ruleFour . %ruleSuck N/A
+          set %ruleFive . %ruleSuck N/A
+        }
+      }
+    }
+    namespace push
+    namespace local advRule
+    namespace clear
+    namespace pop
+    set %ruleIndex 0
+    set %itemsList
+    set %lootList
+    for %i 1 #result
+    {
+      set %ruleIndex %ruleIndex + 1
+      set %ruleIndexAnd . %ruleIndex 0
+      call s_makeList.txt s_getDataByIndex EUOListBox1_Active %i 5
+      set %ruleResult #result
+      if #result = tag5
+      {
+        call s_makeList.txt s_getDataByIndex euoListBox1_Active %i 1
+        if #result >= %firstNum && #result <= %lastNum
+        {
+          set %rule %items . #result
+          set %lootList %lootList , % . %rule
+          set %ruleIndex %ruleIndex - 1
+          continue
+        }
+      }
+      ;call s_makeList.txt s_getDataByIndex EUOListBox1_Active %i 5
+      if %ruleResult <> tag5   ;#result <> tag5
+      {
+        gosub createAdvancedIndex #result %ruleIndex
+        continue
+      }
+      set %ruleIndexAnd . %ruleIndex %ruleIndexAnd . %ruleIndex + 1
+      call s_makeList.txt s_getItemByIndex euoListBox1_Active %i
+      set %ruleName . %ruleIndex #result
+      call s_makeList.txt s_getDataByIndex euoListBox1_Active %i 1
+      set %ruleAttrib . %ruleIndex #result
+      call s_makeList.txt s_getDataByIndex euoListBox1_Active %i 2
+      set %ruleState . %ruleIndex #result
+      call s_makeList.txt s_getDataByIndex euoListBox1_Active %i 3
+      set %ruleIntensity . %ruleIndex #result
+      call s_makeList.txt s_getDataByIndex EUOListBox1_Active %i 4
+      set %ruleFour . %ruleIndex #result
+      call s_makeList.txt s_getDataByIndex euoListBox1_Active %i 5
+      set %ruleFive . %ruleIndex #result
+    }
+  }
+return
+
+sub createAdvancedIndex
+  namespace push
+  namespace local advRule
+  set !ruleIndex %2
+  set %ruleIndexAnd . %ruleIndex 0
+  set !advancedRule %1
+  set %ruleIndexOne !ruleIndex
+  set %ruleIndexOneOr !ruleIndex
+  set %ruleIndexOneNot !ruleIndex
+  set !ruleIndexAdv 1
+  set !ruleIndexOrAdv 1
+  set !ruleIndexNotAdv 1
+  set %ruleHellYea N/A
+  if %3 = #true 3
+    call s_makeList.txt s_addItemToList %preview #spc #true tag1 tag2 tag3 tag4 tag5
+    call s_makeList.txt s_addItemToList %preview Advanced , #spc , rule: #true tag1 tag2 tag3 tag4 tag5
+    call s_makeList.txt s_addItemToList %preview #spc #true tag1 tag2 tag3 tag4 tag5
+  while $ in !advancedRule
+  {
+    str pos !advancedRule $
+    set !lenStart #strres
+    set !logic AND
+    if #strres < 4
+    {
+      if #strres <= 3
+      {
+        set !lenStart !lenStart - 1
+        str left !advancedRule !lenStart
+        if & in #strres || -- in #strres || or in #strres
+        {
+          if & in #strres
+            set !logic AND
+          if or in #strres
+            set !logic OR
+          if -- in #strres
+            set !logic NOT
+          if %3 = #true
+            call s_makeList.txt s_addItemToList %preview !logic #true tag1 tag2 tag3 tag4 tag5
+          set !lenStart !lenStart + 1
+          str del !advancedRule 1 !lenStart
+          set !advancedRule #strres
+          set !advancedRuleOne #strres
+          str pos !advancedRule $
+          set !lenStart #strres
+          str len !advancedRule
+        }
+      }
+    }
+    if !logic = and
+      set %ruleIndexAnd . %ruleIndex %ruleIndexAnd . %ruleIndex + 1
+    str left !advancedRule #strres
+    set !advancedRuleOne #strres
+    while $ in !advancedRuleOne
+    {
+      str pos !advancedRuleOne _
+      set !len #strres - 1
+      str left !advancedRuleOne !len
+      if #strres > 114 && #strres < 141
+        set %itemsList %itemsList , ! . #strres
+      if and in !logic 2
+        set %ruleAttrib . %ruleIndexOne #strres
+        set %hellYeaAttrib . %ruleIndexOne #strres
+      if or in !logic 2
+        set %ruleAttribOr . %ruleIndexOneOr #strres
+        set %hellYeaAttrib . %ruleIndexOne #strres
+      if not in !logic 2
+        set %ruleAttribNot . %ruleIndexOneNot #strres
+        set %hellYeaAttrib . %ruleIndexOne #strres
+      set !len !len + 1
+      str del !advancedRuleOne 1 !len
+      set !advancedRuleOne #strres
+      str pos !advancedRuleOne _
+      set !len #strres - 1
+      str left !advancedRuleOne !len
+      if and in !logic 2
+        set %ruleState . %ruleIndexOne #strres
+        set %hellYeaState . %ruleIndexOne #strres
+      if or in !logic 2
+        set %ruleStateOr . %ruleIndexOneOr #strres
+        set %hellYeaState . %ruleIndexOne #strres
+      if not in !logic 2
+        set %ruleStateNot . %ruleIndexOneNot #strres
+        set %hellYeaState . %ruleIndexOne #strres
+      set !len !len + 1
+      str del !advancedRuleOne 1 !len
+      set !advancedRuleOne #strres
+      str pos !advancedRuleOne $
+      set !len #strres - 1
+      str left !advancedRuleOne !len
+      if and in !logic 2
+        set %ruleIntensity . %ruleIndexOne #strres
+        set %hellYeaIntensity . %ruleIndexOne #strres
+      if or in !logic 2
+        set %ruleIntensityOr . %ruleIndexOneOr #strres
+        set %hellYeaIntensity . %ruleIndexOne #strres
+      if not in !logic 2
+        set %ruleIntensityNot . %ruleIndexOneNot #strres
+        set %hellYeaIntensity . %ruleIndexOne #strres
+      if %3 = #true
+      {
+        set %hellyeahellyea %hellYeaAttrib . %ruleIndexOne
+        set %hellyeahellyea1 %items . %hellYeahellyea
+        if _ in %hellYeaHellYea1 2
+          gosub addspace %hellYeaHellYea1
+        set %hellYeaHellYea1 #result
+        if %hellYeaHellYea1 = N/A || items in %hellYeaHellYea1
+          set %ruleHellYea %hellYeaHellYea , #spc , %hellYeaState . %ruleIndexOne , #spc , %hellYeaIntensity . %ruleIndexOne
+        else
+        {
+          if %hellyeastate . %ruleIndexOne <> na
+            set %ruleHellYea %hellYeaHellYea1 , #spc , %hellYeaState . %ruleIndexOne , #spc , %hellYeaIntensity . %ruleIndexOne
+          else
+            set %ruleHellYea %hellYeaHellYea1
+        }
+        call s_makeList.txt s_addItemToList %preview %ruleHellYea #true tag1 tag2 tag3 tag4 tag5
+      }
+      if and in !logic 2
+        set %ruleIndexOne %ruleIndexOne , !ruleIndexAdv
+        set !ruleIndexAdv !ruleIndexAdv + 1
+      if or in !logic 2
+        set %ruleIndexOneOr %ruleIndexOneOr , !ruleIndexOrAdv
+        set !ruleIndexOrAdv !ruleIndexOrAdv + 1
+      if not in !logic 2
+        set %ruleIndexOneNot %ruleIndexOneNot , !ruleIndexNotAdv
+        set !ruleIndexNotAdv !ruleIndexNotAdv + 1
+      str del !advancedRule 1 !lenStart
+      set !advancedRule #strres
+      set !advancedRuleOne
+    }
+  }
+  namespace pop
+return
+
+sub buttons
+  if #menuButton = EUOBUTTONLOOT1 2
+    set #menuButton N/A
+    return
+  if #menuButton = minMaxEUOButton21 ; Pause button.
+    gosub #menuButton
+  if math in #menuButton 3 ; Button state. >= <= = < > N/A
+    gosub changeState % . #menuButton #menuButton %x . #menuButton %y . #menuButton %x1 . #menuButton %y1 . #menuButton
+    set % . #menuButton #result
+    set #menuButton N/A
+  if ok in #menuButton
+    gosub okayButtons
+  if #menuButton = CLOSED 2
+    display Ok Menu closed? Halting looter.
+    halt
+  if arrows in #menuButton
+    gosub menuArrows
+return
+
+sub okayButtons
+  set %lpcOoya #lpc
+  set #lpc 100
+  if #menuButton = okAddEUObutton16 || #menuButton = okEUOButton13 || #menuButton = okEUOButton14 || #menuButton = okEUOButton15 || #menuButton = okEUOButton101 || #menuButton = okEUOButton102
+    gosub #menuButton
+  if #menuButton = okEUOButton1021
+    gosub okEUOButton102
+  if #menuButton = okEUOButton6 || #menuButton = okEUOButton103 || #menuButton = okEUOButton8 || #menuButton = okEUOButton18 || #menuButton = okEUOButton19 || #menuButton = okEUOButton2 || #menuButton = okEUOButton4
+    gosub #menuButton
+  if #menuButton = okDeleteEUOButton9 || #menuButton = okDeleteEUOButton10  ; OK DELETE USER TEXT ENTRY BUTTON
+    gosub okDeleteEUOButton9
+  if #menuButton = okClearEUOButton12 || #menuButton = okClearEUOButton11  ; OK CLEAR EUOCOMBOLISTBOX2
+    gosub okClearEUOButton12
+  if #menuButton = okSetToolEUOButton23a || #menuButton = okSetToolEUOButton23
+    gosub okSetToolEUOButton23
+  if #menuButton = okSetRelicEUOButton23 || #menuButton = okSetRelicEUOButton23a
+    gosub okSetRelicEUOButton23
+  if #menuButton = okIgnoreEUOButton34 || #menuButton = okIgnoreEUOButton35 || #menuButton = oksaveEUOButton24 || #menuButton = okLoadEUOButton25 || #menuButton = okArtifactUpEUOButton || #menuButton = okArtifactDownEUOButton
+    gosub #menuButton
+  if #menuButton = okPauseEUOButton20 || #menuButton = okPauseEUOButton23
+    gosub okPauseEUOButton20
+  if #menuButton = okEUOButton104 || #menuButton = okEUOButton104a
+    gosub okEUOButton104
+  if #menuButton = okLootEUOButton22 || #menuButton = okLootEUOButton22B
+    gosub okLootEUOButton22
+  set #lpc %lpcOoya
+return
+
+sub okEUOButton103
+  set %findCont #true
+  gosub findContainer
+set #menuButton N/A
+return
+
+sub okEUOButton101  ; Sell Gems
+  wait 20
+  if %externalSell = #true 2
+    gosub scriptyFireSale provisioner ovf bvf evf fvf uvf rvf hvf gvf vuf enk tlk rwf lnk
+    wait 20
+  else 3
+    gosub scriptyFireSale provisioner ovf bvf evf fvf uvf rvf hvf gvf vuf
+    gosub scriptyFireSale jeweler ovf bvf evf fvf uvf rvf hvf gvf vuf
+    wait 20
+  set #menubutton N/A
+return
+
+sub okPauseEUOButton20
+  menu delete okPauseEUOButton20
+  menu delete okPauseEUOButton23
+  menu Font Size 8
+  menu Font Style
+  menu Font Color WindowText
+  menu Font BGColor Red
+  menu Button okPauseEUOButton20 268 4 19 21 P
+  menu Button okPauseEUOButton23 207 220 43 21 PAUSE
+  set #menuButton N/A
+  while #menuButton <> okPauseEUOButton20 && #menuButton <> okPauseEUOButton23
+  {
+    if ( minMax in #menuButton || math in #menuButton || closed in #menuButton || arrows in #menuButton || ( ok in #menuButton && pause notin #menuButton ) ) && ( stabs notin #menuButton && #menuButton <> N/A ) ;&& ( OKPAUSEEUOBUTTON notin #menuButton )
+      gosub buttons
+  }
+  menu delete okPauseEUOButton20
+  menu delete okPauseEUOButton23
+  menu Font Size 8
+  menu Font Style
+  menu Font Color WindowText
+  menu Font BGColor BtnFace
+  menu Button okPauseEUOButton20 268 4 19 21 p
+  menu Button okPauseEUOButton23 207 220 43 21 pause
+  set #menuButton N/A
+return
+
+sub okSaveEUOButton24
+  menu get EUOEdit7
+  call s_makeList.txt addUnderscore #menures
+  set %EUOEdit7 #result
+  if %EUOEdit7 <> Text...
+  {
+    call s_makeList.txt TM_NGFS_DoesSaveExist %EUOEdit7
+    if #result = #true
+      call s_makeList.txt TM_NGFS_DeleteName %EUOEdit7
+    call s_makeList.txt s_saveListToRegistry EUOListBox1_Active %EUOEdit7
+    call s_makeList.txt s_saveListToRegistry EUOListBox2_Rules %EUOEdit7
+    call s_makeList.txt s_saveListToRegistry EUOComboBox4 %EUOEdit7
+    call s_makeList.txt s_saveListToRegistry EUOComboBox7 %EUOEdit7
+    call s_makeList.txt s_getListSize EUOListBox2_Saves
+    set %listChecker #result
+    set %listCheckerCheck #false
+    if %listChecker > 0
+    {
+      for %i 1 %listChecker
+      {
+        call s_makeList.txt s_getItemByIndex EUOListBox2_Saves %i
+        if #result = %EUOEdit7
+        {
+          set %listCheckerCheck #true
+          break
+        }
+      }
+    }
+    if %listCheckerCheck <> #true
+      call s_makeList.txt s_addItemToList EUOListBox2_Saves %EUOEdit7 #true EUOListBox1_Active EUOListBox2_Rules EUOComboBox4 EUOComboBox7 N/A
+    call s_makeList.txt TM_NGFS_DoesSaveExist saveList
+    if #result = #true
+      call s_makeList.txt TM_NGFS_DeleteName saveList
+    call s_makeList.txt s_saveListToRegistry EUOListBox2_Saves savelist
+    menu set EUOEdit1 Finished saving rules.
+  }
+  else
+    display Ok You must enter some text to save and/or load!
+  set #menuButton N/A
+return
+sub okLoadEUOButton25
+  set %lpc #lpc
+  set #lpc 2000
+  if %override_save_check <> #true
+  {
+    call s_makeList.txt s_getSelectedItem EUOListBox2_Saves
+    set %resulty #result
+  }
+  else
+  {
+    menu get EUOEdit7
+    set %resulty #menures
+  }
+  if #result <> #false
+  {
+    ignoreitem reset
+    if %lastLoad <> #result && %lastLoad <> N/A && %override_save_check <> #true
+    {
+      display YesNo Do you wish to save your work before loading a new data set?
+      if #dispres = yes
+      {
+        call s_makeList.txt s_saveListToRegistry EUOListBox1_Active %lastLoad
+        call s_makeList.txt s_saveListToRegistry EUOListBox2_Rules %lastLoad
+        call s_makeList.txt s_saveListToRegistry EUOComboBox4 %lastLoad
+        call s_makeList.txt s_saveListToRegistry EUOComboBox7 %lastLoad
+      }
+    }
+    set %lastLoad %resulty
+    call s_makeList.txt s_loadListFromRegistry blah %resulty
+    call s_makeList.txt s_reDraw EUOListBox2_Saves
+    call s_makeList.txt s_reDraw EUOListBox1_Active
+    call s_makeList.txt s_reDraw EUOComboBox4
+    call s_makeList.txt s_reDraw EUOComboBox7
+    call s_makeList.txt s_getListSize EUOComboBox7
+    set %comboBox7IgnoredItemsList
+    if #result > 0
+    {
+      set %resulty #result
+      for !i 1 %resulty
+      {
+        call s_makeList.txt s_getDataByIndex euoComboBox7 !i 1
+        ignoreitem #result IgnoreComboList
+        set %comboBox7IgnoredItemsList %comboBox7IgnoredItemsList , #result , _ ,
+      }
+    }
+    ; ADD SHIT HERE TO IGNORE LOADED LIST! Added above...
+
+    menu combo select euoComboBox4 1
+    menu combo select euoComboBox7 1
+    call s_makeList.txt s_getListSize euoComboBox4
+    set %index %endIndex
+    if #result > 0
+    {
+      for %i 1 #result
+      {
+        set %index %index + 1
+        set %itemsIndex N/A
+        call s_makeList.txt s_getDataByIndex euoComboBox4 %i 1
+        set %itemsIndex #result
+        call s_makeList.txt s_getItemByIndex euoComboBox4 %i
+        call s_makeList.txt addunderscore #result
+        set !indexAttrib . %itemsIndex #result
+        set %items . %itemsIndex !indexAttrib . %itemsIndex
+      }
+    }
+    call s_makeList.txt s_selectTabByName EUOListBox1 Active
+    call s_makeList.txt s_selectTabByName EUOListBox2 Rules
+    gosub createRuleIndex
+    menu set EUOEdit1 Finished loading rules.
+  }
+  else
+    display Ok You must select an item to load! Ok to continue.
+  set #menuButton N/A
+  set #lpc 20
+return
+
+sub okDeleteEUOButton9
+  if #menuButton = okDeleteEUOButton9
+    set %okDeleteEUOButton euoListBox1
+  if #menuButton = okDeleteEUOButton10
+    set %okDeleteEUOButton euoListBox2
+  if #menuButton <> okDeleteEUOButton9 && #menuButton <> okDeleteEUOButton10
+    set %okDeleteEUOButton #false
+  if %okDeleteEUOButton <> #false
+  {
+    call s_makeList.txt s_getTabNameFromSelectedTab %okDeleteEUOButton
+    set %okDeleteEUOButton %okDeleteEUOButton , _ , #result
+    call s_makeList.txt s_getListSize %okDeleteEUOButton
+    if #result < 1
+    {
+      display ok You can't delete an empty list!  Add rules first!
+      set #menuButton N/A
+      return
+    }
+    display YesNo Are you sure you wish to delete this item?
+    if #dispres = yes
+    {
+      menu get %okDeleteEUOButton
+      set %menuresOkDelete #menures
+      call s_makeList.txt s_deleteItemByIndex %okDeleteEUOButton %menuresOkDelete #true
+      gosub createRuleIndex
+      if %okDeleteEUOButton = euoListBox2_Saves
+      {
+        call s_makeList.txt s_getSelectedItem %menuresOkDelete
+        call s_makeList.txt TM_NGFS_DeleteName #result
+        call s_makeList.txt s_saveListToRegistry EUOListBox2_Saves savelist
+      }
+      if ( %okDeleteEUOButton = euoListBox2_Rules || %okDeleteEUOButton = euoListBox2_Active ) && %lastLoad <> N/A
+      {
+        if %okDeleteEUOButton = euoListBox2_Active
+          call s_makeList.txt s_saveListToRegistry EUOListBox1_Active %lastLoad
+        if %okDeleteEUOButton = euoListBox2_Rules
+          call s_makeList.txt s_saveListToRegistry EUOListBox2_Rules %lastLoad
+      }
+      ;gosub createRuleIndex
+    }
+  }
+  else
+    display Ok Something is wrong with button #menuButton , #dot Check it.
+  set #menuButton N/A
+return
+
+sub okEUOButton15
+  call s_makeList.txt s_getListSize euoListBox2_Rules
+  if #result <> #false && #result > 1
+  {
+    call s_makeList.txt s_selectTabByName EUOListBox1 Active
+    call s_makeList.txt s_selectTabByName EUOListBox2 Rules
+    menu font size 8
+    menu Font BGColor BtnFace
+    menu Delete okEUOButton15      ;261 436 43 21 Rule
+    menu Delete okAddEUOButton16   ;213 436 43 21 Add
+    ;menu Delete okRuleEUOButton17      ;165 436 43 21 Omit
+    menu Delete okEUOButton26      ;117 436 43 21 Add All
+    menu Button okDoneEUOButton15 265 436 39 21 Done
+    menu Button okRuleEUOButton16 221 436 39 21 ADD
+    ;menu Button okruleEUOButton17 177 436 39 21 NOT
+    ;menu Button okRuleEUOButton26 133 436 39 21 AND
+    ;menu Button okRuleEUOButtonOR 91 436 39 21 OR
+    ;menu Button okRuleEUOButton17 177 436 39 21 NOT
+      set #menuButton N/A
+    menu set euoEdit1
+    set #menuButton N/A
+    set #lpc 20
+    set %ruleStart #false
+    set %advRuleText N/A
+    set %advRuleRule N/A
+    repeat
+      gosub flashingText Advanced 100 224 1000
+      if #menuButton <> N/A && minMax notin #menuButton && math notin #menuButton && ok notin #menuButton && arrows notin #menuButton
+      {
+        call s_makeList.txt s_handleTabs #menuButton
+        if #result <> N/A
+          gosub #result
+      }
+      if okrule in #menuButton && stabs notin #menuButton
+        gosub okRulebuttons
+    until #menuButton = okDoneEUOButton15
+    menu delete EUOLabel999
+    if %advancedRuleTextCnt = 1
+      menu delete EUOLabel11
+    menu get EUOEdit1
+    set %changeIt #menures
+    call s_makeList.txt addUnderscore %changeIt
+    str right #result 2
+    if or notin #strres && & notin #strres && -- notin #strres
+    {
+      set %changeIt %changeit , #spc , }
+      call s_makeList.txt s_addItemToList euoListBox2_Rules %changeIt #true tag1 tag2 tag3 tag4 %advRuleRule
+    }
+    else
+    {
+      display Ok You cannot end a rule in &(and), or, or --(not). Ok to continue.
+      menu set EUOEdit1
+    }
+    menu font size 8
+    menu Font BGColor BtnFace
+    menu delete okRuleEUOButtonOR
+    menu delete okRuleEUOButton26
+    menu delete okRuleEUOButton17
+    menu delete okRuleEUOButton16
+    menu delete okDoneEUOButton15
+    menu Button okEUOButton15 265 436 39 21 Rule
+    menu Button okaddEUOButton16 221 436 39 21 Add
+    menu set EUOEdit1 Creating rule complete!
+  }
+  else
+    display Ok You must have more than one rule to create advanced rules!
+  set #menuButton N/A
+return
+
+sub flashingText
+  if %advancedRuleText = N/A 2
+    set %advancedRuleText #sysTime
+  set %advancedRuleTextCnt 1
+  if %advancedRuleText <= #sysTime && %advancedRuleTextCnt = 1
+  {
+    set %advancedRuleText #sysTime + %4
+    set %advancedRuleTextCnt %advancedRuleTextCnt + 1
+    menu Font Color Red
+    menu Text EUOLabel999 %2 %3 %1
+    menu Font Color WindowText
+  }
+  if %advancedRuleText <= #sysTime && %advancedRuleTextCnt = 2
+  {
+    set %advancedRuleTextCnt 1
+    menu delete EUOLabel999
+    set %advancedRuleText #sysTime + %4
+  }
+return
+
+sub okRuleButtons
+  if okRuleEUOButton16 in #menuButton || okRuleEUOButton26 in #menuButton || okRuleEUOButtonOR in #menuButton || okRuleEUOButton17 in #menuButton
+    gosub #menuButton
+return
+
+sub okRuleEUOButton26   ; And
+  menu font size 8
+  menu font style b
+  set %advRuleText %advRuleText , & , #spc
+  set %advRuleRule %advRuleRule , & , $
+  menu set EUOEdit1 %advRuleText
+  menu font style
+  menu Font BGColor BtnFace
+  menu delete OKRULEEUOBUTTON16
+  menu delete okRuleEUOButton26 ;and
+  ;menu delete okRuleEUOButtonOR ;or
+  menu delete okRuleEUOButton17 ; not
+  menu Button okRuleEUOButton16 221 436 39 21 ADD
+  set #menuButton N/A
+return
+sub okRuleEUOButtonOR   ; Or
+  menu font size 8
+  menu Font BGColor BtnFace
+  set %advRuleText %advRuleText , or , #spc
+  set %advRuleRule %advRuleRule , or , $
+  menu set EUOEdit1 %advRuleText
+  menu delete OKRULEEUOBUTTON16
+  menu delete okRuleEUOButton26 ;and
+  ;menu delete okRuleEUOButtonOR ;or
+  menu delete okRuleEUOButton17 ; not
+  menu Button okRuleEUOButton16 221 436 39 21 ADD
+  set #menuButton N/A
+return
+sub okRuleEUOButton17  ; not
+  menu font size 8
+  menu Font BGColor BtnFace
+  menu font style b
+  set %advRuleText %advRuleText , -- , #spc
+  set %advRuleRule %advRuleRule , -- , $
+  menu set EUOEdit1 %advRuleText
+  menu font style
+  menu delete OKRULEEUOBUTTON16
+  menu delete okRuleEUOButton26 ;and
+  ;menu delete okRuleEUOButtonOR ;or
+  menu delete okRuleEUOButton17 ;not
+  menu Button okRuleEUOButton16 221 436 39 21 ADD
+  set #menuButton N/A
+return
+
+sub okRuleEUOButton16  ; Adv Rule ADD Button.
+  call s_makeList.txt s_selectTabByName euoListBox2 Rules
+  call s_makeList.txt s_getListSize euoListBox2_Rules
+  if #menures <> #false && #result > 0
+  {
+    call s_makeList.txt s_getSelectedItem euoListBox2_Rules
+    if { in #result
+    {
+      if #result in %advRuleText
+      {
+        display Ok That rule already in use! Ok to continue.
+        set #menuButton N/A
+        return
+      }
+      if %advRuleText = N/A
+      {
+        set %advRuleText
+        set %advRuleText %advRuleText , { , #result , #spc
+        set %advRuleRule
+      }
+      else
+        set %advRuleText %advRuleText , #result , #spc
+      call s_makeList.txt s_getSelectedData euoListBox2_Rules 5
+      set %advRuleRule %advRuleRule , #result
+      menu set EUOEdit1 %advRuleText
+      menu font size 8
+      menu Font BGColor BtnFace
+      menu delete okRuleEUOButton16 ;add
+      menu Button okRuleEUOButton26 133 436 39 21 AND
+      ;menu Button okRuleEUOButtonOR 91 436 39 21 OR
+      menu Button okRuleEUOButton17 177 436 39 21 NOT
+      set #menuButton N/A
+      return
+    }
+    if #result notin %advRuleText
+    {
+      if %advRuleText = N/A
+      {
+        set %advRuleText
+        set %advRuleText %advRuleText , { , #spc , #result , #spc
+        set %advRuleRule
+        call s_makeList.txt s_getSelectedData euoListBox2_Rules 1
+        set %advRuleRule %advRuleRule , #result , _
+        call s_makeList.txt s_getSelectedData euoListBox2_Rules 2
+        set %advRuleRule %advRuleRule , #result , _
+        call s_makeList.txt s_getSelectedData euoListBox2_Rules 3
+        set %advRuleRule %advRuleRule , #result , $
+      }
+      else
+      {
+        set %advRuleText %advRuleText , #result , #spc
+        call s_makeList.txt s_getSelectedData euoListBox2_Rules 1
+        set %advRuleRule %advRuleRule , #result , _
+        call s_makeList.txt s_getSelectedData euoListBox2_Rules 2
+        set %advRuleRule %advRuleRule , #result , _
+        call s_makeList.txt s_getSelectedData euoListBox2_Rules 3
+        set %advRuleRule %advRuleRule , #result , $
+      }
+      menu set EUOEdit1 %advRuleText
+      menu font size 8
+      menu Font BGColor BtnFace
+      menu delete okRuleEUOButton16 ;add
+      menu Button okRuleEUOButton26 133 436 39 21 AND
+      ;menu Button okRuleEUOButtonOR 91 436 39 21 OR
+      menu Button okRuleEUOButton17 177 436 39 21 NOT
+    }
+    else
+      display Ok That rule was already used in the current rule. Ok to continue.
+  }
+  else
+    display You MUST select an item to add. Click ok to continue.
+  set #menuButton N/A
+return
+
+sub okIgnoreEUOButton34 ; Ignore item +
+  display Ok Click ok and target the item to ignore.
+  set #targcurs 1
+  while #targcurs = 1
+    wait 1
+  finditem #ltargetid
+  if #findcnt > 0 && #findtype notin %comboBox7IgnoredItemsList
+  {
+    event property #findid
+    wait 10
+    if #findtype notin %comboBox7IgnoredItemsList
+    {
+      ignoreitem #findtype IgnoreComboList
+      call s_makeList.txt s_addItemToList euoComboBox7 #findtype , #spc , #property #true #findtype N/A N/A N/A N/A
+      set %comboBox7IgnoredItemsList
+      for !i 1 %comboBox7ListSize
+      {
+        call s_makeList.txt s_getDataByIndex euoComboBox7 !i 1
+        set %comboBox7IgnoredItemsList %comboBox7IgnoredItemsList , #result , _ ,
+      }
+    }
+  }
+  else
+    display Ok Item was not found, already ignored? Click ok to continue.
+  set #menuButton N/A
+return
+
+sub okIgnoreEUOButton35  ; Ignore item -
+  menu get euoComboBox7
+  display YesNo Are you sure you wish to delete this item?
+  call s_makeList.txt s_getSelectedData euoComboBox7 1
+  ignoreitem #result IgnoreComboList
+  menu get euoComboBox7
+  set %comboBox7ListSize1 #menures
+  call s_makeList.txt s_deleteItemByIndex euoComboBox7 #menures #true
+  call s_makeList.txt s_getListSize euoComboBox7
+  set %comboBox7ListSize #result
+  if %comboBox7ListSize >= %comboBox7ListSize1
+    menu combo select euoComboBox7 %comboBox7ListSize1
+  if %comboBox7ListSize < %comboBox7ListSize1 && %comboBox7ListSize > 0
+  {
+    set %comboBox7ListSize1 %comboBox7ListSize1 - 1
+    menu combo select euoComboBox7 %comboBox7ListSize1
+  }
+  if %comboBox7ListSize = 1
+    menu combo select euoComboBox7 1
+  set %comboBox7IgnoredItemsList
+  if %comboBox7ListSize > 0
+  {
+    for !i 1 %comboBox7ListSize
+    {
+      call s_makeList.txt s_getDataByIndex euoComboBox7 !i 1
+      set %comboBox7IgnoredItemsList %comboBox7IgnoredItemsList , #result , _ ,
+    }
+  }
+  set #menuButton N/A
+return
+
+sub okCLearEUOButton12  ; 12 euoListBox2
+  set %menuButtonOpen N/A
+  set %menuButtonOpen1 N/A
+  if 12 in #menuButton
+    set %menuButtonOpen euoListBox2
+  if 11 in #menuButton
+    set %menuButtonOpen euoListBox1
+  call s_makeList.txt s_getTabNameFromSelectedTab %menuButtonOpen
+  if #result = Saves
+  {
+    display Ok You can't clear the Saves tab.  Only delete items.
+    set #menuButton N/A
+    return
+  }
+  if #result = Rules
+    set %menuButtonOpen1 euoListBox2_Rules
+  if #result = Preview && %menuButtonOpen = euoListBox2
+    set %menuButtonOpen1 euoListBox2_Preview
+  if #result = Preview && %menuButtonOpen = euoListBox1
+    set %menuButtonOpen1 euoListBox1_Preview
+  if #result = Active
+    set %menuButtonOpen1 euoListBox1_Active
+  if #result = History
+    set %menuButtonOpen1 euoListBox1_History
+  if #result = Status
+    set %menuButtonOpen1 euoListBox1_Status
+  display yesno Are you sure you wish to delete all items in #result , ?$
+  +Pres Yes or No to continue.
+  if #dispres = yes
+    call s_makeList.txt s_deleteAllItems %menuButtonOpen1
+  set #menuButton N/A
+return
+sub okAddEUOButton16
+  set %rawr #false
+  set %listSize
+  call s_makeList.txt s_getSelectedItem euoListBox2_Rules
+  set %ruleListBox2 #result
+
+  call s_makeList.txt s_getListSize euoListBox1_Active
+  set %listSize #result
+  if %listSize > 0
+  {
+    for %i 1 #result
+    {
+      call s_makeList.txt s_getItemByIndex euoListBox1_Active %i
+      if #result = %ruleListBox2
+      {
+        set %rawr #true
+        display Ok That rule already exists!  Ok to continue.
+        break
+      }
+    }
+  }
+  if %rawr = #false
+  {
+    call s_makeList.txt s_copySelectedItem euoListBox2_Rules euoListBox1_Active #true #true
+    if #result = #true 2
+      menu select smakelisteuoListBox2_Rules %listSize
+      gosub createRuleIndex
+    if #result = #false
+    {
+      display Ok You must select an item to add an item to the list.$
+                +Items on the Save menu cannot be selected to add.$
+                +Hit ok to continue and retry your selection.
+    }
+  }
+  set #menuButton N/A
+return
+
+sub menuArrows
+  if #menuButton = arrowsEUOButton33 || #menuButton = arrowsEUOButton31 || #menuButton = arrowsEUOButton32 || #menuButton = arrowsEUOButton30
+  {
+    if #menuButton = arrowsEUOButton33 || #menuButton = arrowsEUOButton32
+    {
+      set %arrowsEUOButton1 Rules
+      set %arrowsEUOButton euoListBox2_Rules
+    }
+    else
+    {
+      set %arrowsEUOButton1 Active
+      set %arrowsEUOButton euoListBox1_Active
+    }
+    if #menuButton = arrowsEUOButton31 || #menuButton = arrowsEUOButton33
+      call s_makeList.txt s_moveSelectedDown %arrowsEUOButton #true
+    else
+      call s_makeList.txt s_moveSelectedUp %arrowsEUOButton #true
+    if #result = #false
+    {
+      display Ok You must select a menu item in the %arrowsEUOButton1 $
+      + window, or cannot move the items$
+      + up/down further! Click ok to continue.
+    }
+    set #menuButton N/A
+  }
+return
+
+sub minMaxEUOButton21
+  if %minMaxSub <> #true
+  {
+    set %buttonMinMax %buttonMinMax + 1
+    if %buttonMinMax > 4
+      set %buttonMinMax 1
+  }
+  set %minMaxSub #false
+  IF %buttonMinMax = 1
+  {
+    menu Set statusBox Minimizing menu...
+    menu Delete minMaxEUOButton21
+    menu font color black
+    menu Font BGColor BtnFace
+    menu Button minMaxEUOButton21 288 4 19 21 M
+    menu window Size 309 760
+  }
+  IF %buttonMinMax = 2
+  {
+    menu Set statusBox Maximizing menu...
+    menu Delete minMaxEUOButton21
+    menu font color red
+    menu Font BGColor BtnFace
+    menu Button minMaxEUOButton21 288 4 19 21 3
+    menu window Size 309 462
+  }
+  IF %buttonMinMax = 3
+  {
+    menu Set statusBox Maximizing menu...
+    menu Delete minMaxEUOButton21
+    menu font color red
+    menu Font BGColor BtnFace
+    menu Button minMaxEUOButton21 288 4 19 21 2
+    menu window Size 309 245
+  }
+  IF %buttonMinMax = 4
+  {
+    menu Set statusBox Maximizing menu...
+    menu Delete minMaxEUOButton21
+    menu font color red
+    menu Font BGColor BtnFace
+    menu Button minMaxEUOButton21 288 4 19 21 m
+    menu window Size 309 28
+  }
+  set #menuButton N/A
+return
+
+sub changeState  ; >= = <= < > NA
+  namespace push
+  namespace local CBS . %2
+  menu Font BGColor BtnFace
+  set !state %1
+  set !name %2
+  set !x1 %3
+  set !y1 %4
+  set !x2 %5
+  set !y2 %6
+  set !state !state + 1
+  if !state > 6
+    set !state 1
+  gosub getState !state
+  set !text #RESULT
+  menu delete !name
+  menu Button !name !x1 !y1 !x2 !y2 !text
+  set #RESULT !state
+  namespace pop
+return #RESULT
+;-------------------------------------------------------------------------------
+sub getState  ; >= = <= < >
+  namespace push
+  namespace local GBS . %2
+  set !state %1
+  if !state = 1
+    set #RESULT >=
+  if !state = 2
+    set #RESULT =
+  if !state = 3
+    set #RESULT <=
+  if !state = 4
+    set #RESULT <
+  if !state = 5
+    set #RESULT >
+  if !state = 6
+    set #RESULT NA
+  namespace pop
+return #RESULT
+
+sub showEUOMenu1
+  menu Clear
+  menu Window Title Scripty's LM - #charname
+  menu Window Color BtnFace
+  menu Window Size 309 760
+  menu Font Transparent #true
+  menu Font Align Right
+  menu Font Name MS Sans Serif
+  menu Font Size 8
+  menu Font Style b
+  menu Font Color WindowText
+  menu Font Transparent #false
+  menu Font Align Left
+  menu Text EUOLabel1 4 8 Status:
+  menu Text EUOLabel1a 385 8 Artifact Options
+  menu Font Style
+  menu Text EUOLabel2 5 468 Attributes:
+  menu Text EUOLabel3 25 492 Skills:
+  menu Text EUOLabel4 8 516 Talisman:
+  menu Text EUOLabel5 26 540 User:
+  menu Text EUOLabel6 25 588 Items:
+  menu Text EUOLabel7 16 612 Named:
+  menu Text EUOLabel8 28 564 Text:   ; TEXT ENTRY TEXT
+  menu Text EUOLabel9 19 636 Ignore:
+  menu Text EUOLabel10 1 660 SaveLoad:
+  menu Font BGColor Window
+  ;menu List Create EUOListBox1 4 48 301 165
+  menu Edit EUOEdit1 47 4 202
+  menu set EUOEdit1 Initializing variables...
+  menu Edit EUOEdit7 56 656 145 Text...
+  ;menu List Create EUOListBox2 4 264 301 165
+  ;menu Combo Create EUOComboBox1 56 464 145
+  ;menu Combo Create EUOComboBox2 56 488 145
+  ;menu Combo Create EUOComboBox3 56 512 145
+  ;menu Combo Create EUOComboBox4 56 536 145
+  menu Font BGColor BtnFace
+  menu Button mathEUOButton1 208 464 31 21 >=
+  menu Button okEUOButton2 272 464 31 21 OK
+  menu Font BGColor Window
+  menu Edit EUOEdit2 240 464 31 10
+  menu Font BGColor BtnFace
+  menu Button mathEUOButton3 208 488 31 21 >=
+  menu Button okEUOButton4 272 488 31 21 OK
+  menu Font BGColor Window
+  menu Edit EUOEdit3 240 488 31 10
+  menu Font BGColor BtnFace
+  menu Button mathEUOButton5 208 512 31 21 >=
+  menu Button okEUOButton6 272 512 31 21 OK
+  menu Font BGColor Window
+  menu Edit EUOEdit4 240 512 31 10
+  menu Font BGColor BtnFace
+  menu Button mathEUOButton7 208 536 31 21 >=
+  menu Button okEUOButton8 272 536 31 21 OK
+  menu Font BGColor Window
+  menu Edit EUOEdit5 240 536 31 10
+  menu Font BGColor BtnFace
+  menu Button okDeleteEUOButton9 5 220 39 21 Delete
+  menu Button okDeleteEUOButton10 5 436 39 21 Delete
+  menu Button okClearEUOButton11 49 220 39 21 Clear
+  menu Button okClearEUOButton12 49 436 39 21 Clear
+  menu Font BGColor Window
+  ;menu Combo Create EUOComboBox5 56 584 145
+  menu Font BGColor BtnFace
+  menu Button okEUOButton13 208 560 31 21 OK   ; TEXT ENTRY OK BUTTON
+  menu Font BGColor Window
+  ;menu Combo Create EUOComboBox6 56 608 145
+  menu Font BGColor BtnFace
+  ;menu Button okEUOButton14 240 560 31 21 CLR
+  menu Button okEUOButton15 265 436 39 21 Rule
+  menu Button okaddEUOButton16 221 436 39 21 Add
+  ;menu Button okEUOButton17 177 436 39 21 Omit
+  ;menu Button okEUOButton26 133 436 39 21 Add +
+  menu Font BGColor Window
+  menu Edit okEUOEdit6 56 560 145 ; TEXT ENTRY BOX
+  menu Font BGColor BtnFace
+  menu Button okEUOButton18 208 584 31 21 OK
+  menu Button okEUOButton19 208 608 31 21 OK
+  ;menu Button EUOButton27 272 584 31 21 OK+
+  ;menu Button EUOButton28 272 608 31 21 OK+
+  ;menu Button EUOButton29 240 584 31 21 DEL
+  ;menu Button EUOButton30 240 608 31 21 DEL
+  menu Button okPauseEUOButton20 268 4 19 21 p
+  menu Button okPauseEUOButton23 207 220 43 21 pause
+  menu Button okSetToolEUOButton23 160 220 43 21 Set Tool
+  menu Button minMaxEUOButton21 288 4 19 21 M
+  menu Button okArtifactUpEUOButton 380 220 49 21 Up
+  menu Button okArtifactDownEUOButton 430 220 49 21 Down
+  menu Button okLootEUOButton22 255 220 49 21 Set Loot
+  menu Button oksaveEUOButton24 256 656 47 21 Save
+  menu Button okloadEUOButton25 208 656 47 21 Load
+  menu Button okIgnoreEUOButton34 208 632 47 21 Ignore
+  menu Button okIgnoreEUOButton35 256 632 47 21 -Ignore
+  menu Check EUOCheckBox1 4 728 105 17 #true Autoloot
+  menu Check EUOCheckBox2 4 712 105 17 #false No Spawn
+  menu Check EUOCheckBox3 106 728 105 17 #false Carve Corpses
+  menu Check EUOCheckBox4 106 712 105 17 #false Loot Ground
+  menu Check EUOCheckBox5 214 728 105 17 #false Gold B.O.S.
+  menu Check EUOCheckBox8 214 712 105 17 #false Unravel Eval.
+  menu Check EUOCheckBox81 322 744 105 17 #true No Max Eval
+  menu Check EUOCheckBox7 214 744 105 17 #false Preview
+  menu Check EUOCheckBox6 106 744 105 17 #false Relic Frags
+  menu Check EUOCheckBox9 4 744 105 17 #false Loot All
+  menu Font Name Arial
+  menu Font BGColor Window
+  menu Font Size 6
+  menu Button arrowsEUOButton26 252 37 11 13 <
+  menu Button arrowsEUOButton27 264 37 11 13 >
+  menu Button arrowsEUOButton28 252 253 11 13 <
+  menu Button arrowsEUOButton29 264 253 11 13 >
+  menu Font Size 6
+  menu Button arrowsEUOButton30 276 37 13 13 /\
+  menu Button arrowsEUOButton31 290 37 13 13 \/
+  menu Button arrowsEUOButton32 276 253 13 13 /\
+  menu Button arrowsEUOButton33 290 253 13 13 \/
+  menu Font Size 8
+  menu Font BGColor BtnFace
+  menu Button okEUOButton101 4 684 71 25 Sell Gems
+  menu Button okEUOButton102 80 684 71 25 Search Bag
+  menu Button okEUOButton1021 248 4 19 21 S
+
+  menu Button okEUOButton103 156 684 71 25 Search Open
+  menu Button okEUOButton104 232 684 71 25 More Options
+
+  menu Check euoCheckBox100 396 437 53 17 #false on/off
+
+  menu Show 0 0
+return
+
+sub AddSpace
+  namespace push
+  namespace local subspaces
+  repeat
+    str pos %1 _
+    if #strres = 0
+      break
+    set !pos #strres
+    str del %1 #strres 1
+    str ins #strres #spc !pos
+    set %1 #strres
+  until #false
+  namespace pop
+return %1
+
+sub okEUOButton14
+  call s_makeList.txt s_getListSize euoComboBox4
+  set %resulty #result
+  if #result > 0
+  {
+    for %i 1 %resulty
+    {
+      call s_makeList.txt s_getItemByIndex euoComboBox4 %i
+      call s_makeList.txt addUnderscore #result
+      set %item #result
+      call s_makeList.txt s_GetListSize euoListBox1_Active
+      for %o 1 #result
+      {
+        call s_makeList.txt s_getDataByIndex euoListBox1_Active %o 1
+        if %items . #result = %item 2
+          call s_makeList.txt s_deleteItemByIndex euoListBox1_Active %o #true
+        break
+      }
+      call s_makeList.txt s_GetListSize euoListBox2_Rules
+      for %o 1 #result
+      {
+        call s_makeList.txt s_getDataByIndex euoListBox2_Rules %o 1
+        if %items . #result = %item 2
+          call s_makeList.txt s_deleteItemByIndex euoListBox2_Rules %o #true
+        break
+      }
+    }
+    call s_makeList.txt s_deleteAllItems euoComboBox4
+    set %index %endIndex
+  }
+  set #menuButton N/A
+return
+sub okEUOButton13
+  menu get okEUOEdit6
+  if #menures = N/A
+  {
+    display ok Text box empty, add some text to add an item! Returning.
+    set #menuButton N/A
+    return
+  }
+
+  ;=========================================  CHECK!
+  call s_makeList.txt addUnderscore #menures
+  set %resulty #result
+  call s_makeList.txt s_getListSize euoComboBox4
+  for %i 1 #result
+  {
+    call s_makeList.txt s_getDataByIndex euoComboBox4 %i 1
+    if %items . #result = %resulty
+    {
+      display ok This rule matches an existing rule! Ok to continue.
+      set #menubutton N/A
+      return
+    }
+  }
+  set %index %index + 1
+  set !indexAttrib . %index %resulty
+  set %items . %index !indexAttrib . %index
+  ;=========================================  CHECK!
+
+  call s_makeList.txt s_addItemToList euoComboBox4 #menures #false %index tag2 tag3 tag4 tag5
+  call s_makeList.txt s_selectItemByIndex euoComboBox4 #result
+  menu set okEUOEdit6
+  set #menuButton N/A
+return
+sub okEUOButton2    ; Attributes OK button.
+  set %ruleAttrib N/A
+  set %ruleState N/A
+  set %ruleIntensity N/A
+  set %tempAttrib1 N/A
+  set %tempAttrib N/A
+  set %tempState N/A
+  set %tempIntensity N/A
+  menu get euoComboBox1
+  set %comboSelection #menures
+  set %ruleAttrib1 %attrib . #menures
+  gosub addSpace %ruleAttrib1
+  set %ruleAttrib #result
+  gosub getState %mathEUOButton1
+  set %ruleState #result
+  menu get EUOEdit2
+  set %ruleIntensity #menures
+  if %ruleAttrib = N/A || %ruleState = N/A || %ruleIntensity = N/A
+  {
+    display ok Something is not filled in!  Please verify fields!
+    set #menuButton N/A
+    return
+  }
+  set %rawr #false
+  set %s_makeListResult N/A
+  call s_makeList.txt s_getListSize euoListBox2_Rules
+  set %s_makeListResult #result
+  for %i 1 #result
+  {
+    if %s_makeListResult = 0
+      break
+    call s_makeList.txt s_getDataByIndex euoListBox2_Rules %i 1
+    set %tempAttrib #result
+    call s_makeList.txt s_getDataByIndex euoListBox2_Rules %i 2
+    set %tempState #result
+    call s_makeList.txt s_getDataByIndex euoListBox2_Rules %i 3
+    set %tempIntensity #result
+    if ( %items . %tempAttrib = %ruleAttrib1 ) && ( %tempState = %ruleState ) && ( %tempIntensity = %ruleIntensity )
+    {
+      set %rawr #true
+      break
+    }
+  }
+  if %rawr = #false
+  {
+    call s_makeList.txt s_getDataByIndex euoComboBox1 %comboSelection 4
+    set %tempAttribIndex #result
+    call s_makeList.txt s_getDataByIndex euoComboBox1 %comboSelection 1
+    if %ruleState = na
+      set %boo %ruleAttrib
+    else
+      set %boo %ruleAttrib , #spc , %ruleState , #spc , %ruleIntensity
+      ;display ok %rulestate %ruleintensity %tempAttribIndex
+    call s_makeList.txt s_addItemToList EUOListBox2_Rules %boo #true #result %ruleState %ruleIntensity %tempAttribIndex tag5
+  }
+  else
+    display ok That rule matches the existing rule %ruleAttrib , #spc , %ruleState , #spc , %ruleIntensity !
+  set #menuButton N/A
+return
+sub okEUOButton4    ; Skills OK button.
+  set %ruleAttrib N/A
+  set %ruleState N/A
+  set %ruleIntensity N/A
+  set %ruleAttrib1 N/A
+  set %ruleAttrib N/A
+  set %ruleState N/A
+  set %ruleIntensity N/A
+  set %tempAttrib N/A
+  set %tempState N/A
+  set %tempIntensity N/A
+  menu get euoComboBox2
+  set %comboSelection #menures
+  set %ruleAttrib1 %attriba . #menures
+  gosub addSpace %ruleAttrib1
+  set %ruleAttrib #result
+  gosub getState %mathEUOButton3
+  set %ruleState #result
+  menu get EUOEdit3
+  set %ruleIntensity #menures
+  if %ruleAttrib = N/A || %ruleAttrib1 = N/A || %ruleState = N/A || %ruleIntensity = N/A
+  {
+    display ok Something is not filled in!  Please verify fields!
+    set #menuButton N/A
+    return
+  }
+  set %rawr #false
+  set %s_makeListResult N/A
+  call s_makeList.txt s_getListSize euoListBox2_Rules
+  set %s_makeListResult #result
+  for %i 1 #result
+  {
+    if %s_makeListResult = 0
+      break
+    call s_makeList.txt s_getDataByIndex euoListBox2_Rules %i 1
+    set %tempAttrib #result
+    call s_makeList.txt s_getDataByIndex euoListBox2_Rules %i 2
+    set %tempState #result
+    call s_makeList.txt s_getDataByIndex euoListBox2_Rules %i 3
+    set %tempIntensity #result
+    if ( %items . %tempAttrib = %ruleAttrib1 ) && ( %tempState = %ruleState ) && ( %tempIntensity = %ruleIntensity )
+    {
+      set %rawr #true
+      break
+    }
+  }
+  if %rawr = #false
+  {
+    call s_makeList.txt s_getDataByIndex euoComboBox2 %comboSelection 4
+    set %tempAttribIndex #result
+    call s_makeList.txt s_getDataByIndex euoComboBox2 %comboSelection 1
+    if %ruleState = na
+      set %boo %ruleAttrib
+    else
+      set %boo %ruleAttrib , #spc , %ruleState , #spc , %ruleIntensity
+    call s_makeList.txt s_addItemToList EUOListBox2_Rules %boo #true #result %ruleState %ruleIntensity %tempAttribIndex tag5
+  }
+  else
+    display ok That rule matches the existing rule %ruleAttrib , #spc , %ruleState , #spc , %ruleIntensity !
+  set #menuButton N/A
+return
+sub okEUOButton6       ; Talisman OK button.
+  set %ruleAttrib N/A
+  set %ruleState N/A
+  set %ruleIntensity N/A
+  set %ruleAttrib1 N/A
+  set %ruleAttrib N/A
+  set %ruleState N/A
+  set %ruleIntensity N/A
+  set %tempAttrib N/A
+  set %tempState N/A
+  set %tempIntensity N/A
+  menu get euoComboBox3
+  set %comboSelection #menures
+  set %ruleAttrib1 %attribb . #menures
+  gosub addSpace %ruleAttrib1
+  set %ruleAttrib #result
+  gosub getState %mathEUOButton5
+  set %ruleState #result
+  menu get EUOEdit4
+  set %ruleIntensity #menures
+  if %ruleAttr  display ok !stabsmenubutton  #menubuttonib = N/A || %ruleState = N/A || %ruleIntensity = N/A
+  {
+    display ok Something is not filled in!  Please verify fields!
+    set #menuButton N/A
+    return
+  }
+  set %rawr #false
+  set %s_makeListResult N/A
+  call s_makeList.txt s_getListSize euoListBox2_Rules
+  set %s_makeListResult #result
+  for %i 1 #result
+  {
+    if %s_makeListResult = 0
+      break
+    call s_makeList.txt s_getDataByIndex euoListBox2_Rules %i 1
+    set %tempAttrib #result
+    call s_makeList.txt s_getDataByIndex euoListBox2_Rules %i 2
+    set %tempState #result
+    call s_makeList.txt s_getDataByIndex euoListBox2_Rules %i 3
+    set %tempIntensity #result
+    if ( %items . %tempAttrib = %ruleAttrib1 ) && ( %tempState = %ruleState ) && ( %tempIntensity = %ruleIntensity )
+    {
+      set %rawr #true
+      break
+    }
+  }
+  if %rawr = #false
+  {
+    call s_makeList.txt s_getDataByIndex euoComboBox3 %comboSelection 4
+    set %tempAttribIndex #result
+    call s_makeList.txt s_getDataByIndex euoComboBox3 %comboSelection 1
+    if %ruleState = na
+      set %boo %ruleAttrib
+    else
+      set %boo %ruleAttrib , #spc , %ruleState , #spc , %ruleIntensity
+    call s_makeList.txt s_addItemToList EUOListBox2_Rules %boo #true #result %ruleState %ruleIntensity %tempAttribIndex tag5
+  }
+  else
+    display ok That rule matches the existing rule %ruleAttrib , #spc , %ruleState , #spc , %ruleIntensity !
+  set #menuButton N/A
+return
+sub okEUOButton8      ; User defined Ok Button.
+  set %ruleState N/A
+  set %ruleIntensity N/A
+  set %ruleAttrib1 N/A
+  set %ruleAttrib N/A
+  set %tempAttrib N/A
+  set %tempState N/A
+  set %tempIntensity N/A
+  menu get euoComboBox4
+  if #menures = N/A || #menures = 0 || #menures < 0
+  {
+    display ok This is a user defined list, something is empty!  Please verify fields!
+    set #menuButton N/A
+    return
+  }
+  call s_makeList.txt s_getSelectedData euoComboBox4 1
+  set %ruleAttrib1 %items . #result
+  gosub addSpace %ruleAttrib1
+  set %ruleAttrib #result
+  gosub getState %mathEUOButton7
+  set %ruleState #result
+  menu get EUOEdit5
+  set %ruleIntensity #menures
+  if %ruleAttrib1 = N/A || %ruleState = N/A || %ruleIntensity = N/A
+  {
+    display ok Something is not filled in! Please verify fields!
+    set #menuButton N/A
+    return
+  }
+  set %rawr #false
+  set %s_makeListResult N/A
+  call s_makeList.txt s_getListSize euoListBox2_Rules
+  set %s_makeListResult #result
+  for %i 1 #result
+  {
+    if %s_makeListResult = 0
+      break
+    call s_makeList.txt s_getDataByIndex euoListBox2_Rules %i 1
+    set %tempAttrib #result
+    call s_makeList.txt s_getDataByIndex euoListBox2_Rules %i 2
+    set %tempState #result
+    call s_makeList.txt s_getDataByIndex euoListBox2_Rules %i 3
+    set %tempIntensity #result
+    if ( %items . %tempAttrib = %ruleAttrib1 ) && ( %tempState = %ruleState ) && ( %tempIntensity = %ruleIntensity )
+    {
+      set %rawr #true
+      break
+    }
+  }
+  if %rawr = #false
+  {
+    call s_makeList.txt s_getSelectedData euoComboBox4 1
+    if %ruleState = na
+      set %boo %ruleAttrib
+    else
+      set %boo %ruleAttrib , #spc , %ruleState , #spc , %ruleIntensity
+    call s_makeList.txt s_addItemToList EUOListBox2_Rules %boo #true #result %ruleState %ruleIntensity N/A tag5
+  }
+  else
+    display ok That rule matches the existing rule %ruleAttrib , #spc , %ruleState , #spc , %ruleIntensity !
+  set #menuButton N/A
+return
+sub okEUOButton18         ; Items Ok button.
+  set %ruleAttrib1 N/A
+  set %ruleAttrib N/A
+  set %ruleState N/A
+  set %ruleIntensity N/A
+  set %tempAttrib N/A
+  set %tempState N/A
+  set %tempIntensity N/A
+  set %ruleNum N/A
+  menu get euoComboBox5
+  set %comboSelection #menures
+  call s_makeList.txt s_getDataByIndex euoComboBox5 #menures 1
+  ;call s_makeList.txt s_getSelectedItem euoComboBox5
+  if #result = #false
+  {
+    display Ok Item not correct, ok to continue.
+    set #menuButton N/A
+    return
+  }
+  set %ruleNum #result
+  set %ruleAttrib1 %items . #result
+  if %ruleAttrib1 = N/A
+  {
+    display ok There is something wrong, ok to continue!
+    set #menuButton N/A
+    return
+  }
+  gosub addSpace %ruleAttrib1
+  set %ruleAttrib #result
+  set %ruleState na
+  set %ruleIntensity 0
+  set %rawr #false
+  set %s_makeListResult N/A
+  call s_makeList.txt s_getListSize euoListBox2_Rules
+  set %s_makeListResult #result
+  for %i 1 #result
+  {
+    if %s_makeListResult = 0
+      break
+    call s_makeList.txt s_getDataByIndex euoListBox2_Rules %i 1
+    set %tempAttrib #result
+    if ( %items . %tempAttrib = %ruleAttrib1 )
+    {
+      set %rawr #true
+      break
+    }
+  }
+  if %rawr = #false
+  {
+    call s_makeList.txt s_getDataByIndex euoComboBox5 %comboSelection 4
+    call s_makeList.txt s_addItemToList EUOListBox2_Rules %ruleAttrib #true %ruleNum tag2 tag3 #result tag5
+  }
+  else
+    display ok That rule matches the existing rule %ruleAttrib , !
+  set #menuButton N/A
+return
+sub okEUOButton19         ; Slayer OK button.
+  set %ruleAttrib1 N/A
+  set %ruleState N/A
+  set %ruleIntensity N/A
+  set %ruleAttrib N/A
+  set %ruleState N/A
+  set %ruleIntensity N/A
+  set %tempAttrib N/A
+  set %tempState N/A
+  set %tempIntensity N/A
+  set %ruleNum N/A
+  menu get euoComboBox6
+  set %comboSelection #menures
+  call s_makeList.txt s_getDataByIndex euoComboBox6 #menures 1
+  ;call s_makeList.txt s_getSelectedItem euoComboBox6
+  if #result = #false
+  {
+    display Ok Enter item in text window below User entry before hitting ok.  Returning.
+    set #menuButton N/A
+    return
+  }
+  set %ruleNum #result
+  set %ruleAttrib1 %items . #result
+  if %ruleAttrib1 = N/A
+  {
+    display ok This is a user input field!  Please input some user data to continue!
+    set #menuButton N/A
+    return
+  }
+  gosub addSpace %ruleAttrib1
+  set %ruleAttrib #result
+  set %ruleState na
+  set %ruleIntensity 0
+  set %rawr #false
+  set %s_makeListResult N/A
+  call s_makeList.txt s_getListSize euoListBox2_Rules
+  set %s_makeListResult #result
+  for %i 1 #result
+  {
+    if %s_makeListResult = 0
+      break
+    call s_makeList.txt s_getDataByIndex euoListBox2_Rules %i 1
+    set %tempAttrib #result
+    if ( %items . %tempAttrib = %ruleAttrib1 )
+    {
+      set %rawr #true
+      break
+    }
+  }
+  if %rawr = #false
+  {
+    call s_makeList.txt s_getDataByIndex euoComboBox6 %comboSelection 4
+    call s_makeList.txt s_addItemToList EUOListBox2_Rules %ruleAttrib #true %ruleNum na tag3 #result tag5
+  }
+  else
+    display ok That rule matches the existing rule %ruleAttrib , !
+  set #menuButton N/A
+return
+;------------------------ Setup
+sub setupAttribs
+  set %lpc #lpc
+  set #lpc 10000
+
+  set %nCposX 50
+  set %nCposY 50
+  set %checkCheckBoxes #sysTime
+  set %attrib1 Any_Resist
+  set %attrib2 Casting_Focus
+  set %maxI . %attrib2 3
+  set %maxW . %attrib2 120
+  set %attrib3 Cold_Damage
+  set %attrib4 Cold_Eater
+  set %maxI . %attrib4 15
+  set %maxW . %attrib4 90
+  set %attrib5 Cold_Resist
+  set %maxI . %attrib5 15
+  set %maxW . %attrib5 100
+  set %attrib6 Damage_Eater
+  set %maxI . %attrib6 15
+  set %maxW . %attrib6 225
+  set %attrib7 Damage_Increase
+  set %maxI . %attrib7 50
+  set %maxW . %attrib7 100
+  set %attrib8 Defense_Chance_Increase
+  set %maxI . %attrib8 15
+  set %maxW . %attrib8 110
+  set %attrib9 Dexterity_Bonus
+  set %maxI . %attrib9 8
+  set %maxW . %attrib9 110
+  set %attrib10 Energy_Damage
+  set %attrib11 Energy_Eater
+  set %maxI . %attrib11 15
+  set %maxW . %attrib11 90
+  set %attrib12 Energy_Resist
+  set %maxI . %attrib12 15 ; Energy
+  set %maxW . %attrib12 100
+  set %attrib13 Enhance_Potions
+  set %maxI . %attrib13 25
+  set %maxW . %attrib13 100
+  set %attrib14 Faster_Cast_Recovery
+  set %maxI . %attrib14 3
+  set %maxW . %attrib14 120
+  set %attrib15 Faster_Casting
+  set %maxI . %attrib15 1
+  set %maxW . %attrib15 140
+  set %attrib16 Fire_Damage
+  set %attrib17 Fire_Eater
+  set %maxI . %attrib17 15
+  set %maxW . %attrib17 90
+  set %attrib18 Fire_Resist
+  set %maxI . %attrib18 15 ; fire
+  set %maxW . %attrib18 100
+  set %attrib19 Hit_Chance_Increase
+  set %maxI . %attrib19 15
+  set %maxW . %attrib19 130
+  set %attrib20 Hit_Cold_Area
+  set %maxI . %attrib20 50
+  set %maxW . %attrib20 100
+  set %attrib21 Hit_Curse
+  ;set %maxI . %attrib20 15
+  ;set %maxW . %attrib20 125
+  set %attrib22 Hit_Dispel
+  set %maxI . %attrib22 50
+  set %maxW . %attrib22 100
+  set %attrib23 Hit_Energy_Area
+  set %maxI . %attrib23 50
+  set %maxW . %attrib23 100
+  set %attrib24 Hit_Fatigue
+  set %maxI . %attrib24 50
+  set %maxW . %attrib24 125
+  set %attrib25 Hit_Fire_Area
+  set %maxI . %attrib25 50
+  set %maxW . %attrib25 100
+  set %attrib26 Hit_Fireball
+  set %maxI . %attrib26 50
+  set %maxW . %attrib26 140
+  set %attrib27 Hit_Harm
+  set %maxI . %attrib27 50
+  set %maxW . %attrib27 110
+  set %attrib28 Hit_Life_Leech
+  set %maxI . %attrib28 50
+  set %maxW . %attrib28 110
+  set %attrib29 Hit_Lightning
+  set %maxI . %attrib29 50
+  set %maxW . %attrib29 140
+  set %attrib30 Hit_Lower_Attack
+  set %maxI . %attrib30 50
+  set %maxW . %attrib30 110
+  set %attrib31 Hit_Lower_Defense
+  set %maxI . %attrib31 50
+  set %maxW . %attrib31 130
+  set %attrib32 Hit_Magic_Arrow
+  set %maxI . %attrib32 50
+  set %maxW . %attrib32 120
+  set %attrib33 Hit_Mana_Drain
+  set %maxI . %attrib33 50
+  set %maxW . %attrib33 125
+  set %attrib34 Hit_Mana_Leech
+  set %maxI . %attrib34 50
+  set %maxW . %attrib34 110
+  set %attrib35 Hit_Physical_Area
+  set %maxI . %attrib35 50
+  set %maxW . %attrib35 100
+  set %attrib36 Hit_Point_Increase
+  set %maxI . %attrib36 5
+  set %maxW . %attrib36 110
+  set %attrib37 Hit_Point_Regeneration
+  set %maxI . %attrib37 2
+  set %maxW . %attrib37 100
+  set %attrib38 Hit_Poison_Area
+  set %maxI . %attrib38 50
+  set %maxW . %attrib38 100
+  set %attrib39 Hit_Stamina_Leech
+  set %maxI . %attrib39 50
+  set %maxW . %attrib39 100
+  set %attrib40 Intelligence_Bonus
+  set %maxI . %attrib40 8
+  set %maxW . %attrib40 110
+  set %attrib41 Kinetic_Eater
+  set %maxI . %attrib41 15
+  set %maxW . %attrib41 90
+  set %attrib42 Lower_Mana_Cost
+  set %maxI . %attrib42 8
+  set %maxW . %attrib42 110
+  set %attrib43 Lower_Reagent_Cost
+  set %maxI . %attrib43 20
+  set %maxW . %attrib43 100
+  set %attrib44 Luck
+  set %maxI . %attrib44 100
+  set %maxW . %attrib44 100
+  set %attrib45 Mage_Armor
+  ; Mage Armor no longer has imbue weight, but does count as a mod.
+  set %attrib46 Mage_Weapon
+  ; Mage Weapon is special case taken care of in script.
+  set %attrib47 Mana_Increase
+  set %maxI . %attrib47 8
+  set %maxW . %attrib47 110
+  set %attrib48 Mana_Regeneration
+  set %maxI . %attrib48 2
+  set %maxW . %attrib48 100
+  set %attrib49 Physical_Damage
+  set %attrib50 Physical_Resist
+  set %maxI . %attrib50 15 ; phys
+  set %maxW . %attrib50 100
+  set %attrib51 Poison_Damage
+  set %attrib52 Poison_Eater
+  set %maxI . %attrib52 15
+  set %maxW . %attrib52 90
+  set %attrib53 Poison_Resist
+  set %maxI . %attrib53 15 ; poison
+  set %maxW . %attrib53 100
+  set %attrib54 Reflect_Physical_Damage
+  set %maxI . %attrib54 15
+  set %maxW . %attrib54 100
+  set %attrib55 Resonance
+  set %attrib56 Searing_Weapon
+  set %attrib57 Self_Repair
+  set %maxI . %attrib57 5
+  set %maxW . %attrib57 100
+  set %attrib58 Soul_Charge
+  set %maxI . %attrib58 20
+  set %maxW . %attrib58 100
+  set %attrib59 Spell_Channeling
+  set %maxI . %attrib59 max
+  set %maxW . %attrib59 100
+  set %attrib60 Spell_Damage_Increase
+  set %maxI . %attrib60 12
+  set %maxW . %attrib60 100
+  set %attrib61 Splintering_Weapon
+  set %maxI . %attrib61 20
+  set %maxW . %attrib61 150
+  set %attrib62 Stamina_Increase
+  set %maxI . %attrib62 8
+  set %maxW . %attrib62 110
+  set %attrib63 Stamina_Regeneration
+  set %maxI . %attrib63 3
+  set %maxW . %attrib63 100
+  set %attrib64 Strength_Bonus
+  set %maxI . %attrib64 8
+  set %maxW . %attrib64 110
+  set %attrib65 Swing_Speed_Increase
+  set %maxI . %attrib65 30
+  set %maxW . %attrib65 110
+  set %attrib66 Velocity
+  set %maxI . %attrib66 50
+  set %maxW . %attrib66 140
+  set %attrib67 Lower_Requirements
+  set %maxI . %attrib67 100
+  set %maxW . %attrib67 100
+  set %attrib68 Durability
+  set %maxI . %attrib68 100
+  set %maxW . %attrib68 100
+  set %attrib69 Imbue_Score
+  set %attrib70 Number_of_Mods
+  set %attrib71 Total_Resists
+  set %attrib72 Max_Defense_Chance_Increase
+  set %attrib73 Total_Mods
+  ;set %attrib74
+  ;------------------------ Skills
+  set %attriba1 Anatomy
+  set %maxI . %attriba1 15
+  set %maxW . %attriba1 140
+  set %attriba2 Animal_Lore
+  set %maxI . %attriba2 15
+  set %maxW . %attriba2 140
+  set %attriba3 Animal_Taming
+  set %maxI . %attriba3 15
+  set %maxW . %attriba3 140
+  set %attriba4 Archery
+  set %maxI . %attriba4 15
+  set %maxW . %attriba4 140
+  set %attriba5 Bushido
+  set %maxI . %attriba5 15
+  set %maxW . %attriba5 140
+  set %attriba6 Chivalry
+  set %maxI . %attriba6 15
+  set %maxW . %attriba6 140
+  set %attriba7 Discordance
+  set %maxI . %attriba7 15
+  set %maxW . %attriba7 140
+  set %attriba8 Evaluate_Intelligence
+  set %maxI . %attriba8 15
+  set %maxW . %attriba8 140
+  set %attriba9 Fencing
+  set %maxI . %attriba9 15
+  set %maxW . %attriba9 140
+  set %attriba10 Focus
+  set %maxI . %attriba10 15
+  set %maxW . %attriba10 140
+  set %attriba11 Healing
+  set %maxI . %attriba11 15
+  set %maxW . %attriba11 140
+  set %attriba12 Mace_Fighting
+  set %maxI . %attriba12 15
+  set %maxW . %attriba12 140
+  set %attriba13 Magery
+  set %maxI . %attriba13 15
+  set %maxW . %attriba13 140
+  set %attriba14 Magic_Resistance
+  set %maxI . %attriba14 15
+  set %maxW . %attriba14 140
+  set %attriba15 Meditation
+  set %maxI . %attriba15 15
+  set %maxW . %attriba15 140
+  set %attriba16 Musicianship
+  set %maxI . %attriba16 15
+  set %maxW . %attriba16 140
+  set %attriba17 Mysticism
+  set %maxI . %attriba17 15
+  set %maxW . %attriba17 140
+  set %attriba18 Necromancy
+  set %maxI . %attriba18 15
+  set %maxW . %attriba18 140
+  set %attriba19 Ninjitsu
+  set %maxI . %attriba19 15
+  set %maxW . %attriba19 140
+  set %attriba20 Parrying
+  set %maxI . %attriba20 15
+  set %maxW . %attriba20 140
+  set %attriba21 Peacemaking
+  set %maxI . %attriba21 15
+  set %maxW . %attriba21 140
+  set %attriba22 Provocation
+  set %maxI . %attriba22 15
+  set %maxW . %attriba22 140
+  set %attriba23 Resisting_Spells
+  set %maxI . %attriba23 15
+  set %maxW . %attriba23 140
+  set %attriba24 Spirit_Speak
+  set %maxI . %attriba24 15
+  set %maxW . %attriba24 140
+  set %attriba25 Stealing
+  set %maxI . %attriba25 15
+  set %maxW . %attriba25 140
+  set %attriba26 Stealth
+  set %maxI . %attriba26 15
+  set %maxW . %attriba26 140
+  set %attriba27 Swordsmanship
+  set %maxI . %attriba27 15
+  set %maxW . %attriba27 140
+  set %attriba28 Tactics
+  set %maxI . %attriba28 15
+  set %maxW . %attriba28 140
+  set %attriba29 Throwing
+  set %maxI . %attriba29 15
+  set %maxW . %attriba29 140
+  set %attriba30 Veterinary
+  set %maxI . %attriba30 15
+  set %maxW . %attriba30 140
+  set %attriba31 Wrestling
+  set %maxI . %attriba31 15
+  set %maxW . %attriba31 140
+  set %attriba32 Lumberjacking
+  set %maxI . %attriba32 15
+  set %maxW . %attriba32 140
+  ;------------------------ Talisman
+  set %attribb1 Alchemy_Bonus
+  set %attribb2 Alchemy_Exceptional_Bonus
+  set %attribb3 Blacksmithing_Bonus
+  set %attribb4 Blacksmithing_Exceptional_Bonus
+  set %attribb5 Cartography_Bonus
+  set %attribb6 Cartography_Exceptional_Bonus
+  set %attribb7 Cooking_Bonus
+  set %attribb8 Cooking_Exceptional_Bonus
+  set %attribb9 Fletching_Bonus
+  set %attribb10 Fletching_Exceptional_Bonus
+  set %attribb11 Inscription_Bonus
+  set %attribb12 Inscription_Exceptional_Bonus
+  set %attribb13 Masonry_Bonus
+  set %attribb14 Masonry_Exceptional_Bonus
+  set %attribb15 Tailoring_Bonus
+  set %attribb16 Tailoring_Exceptional_Bonus
+  set %attribb17 Talisman_of_Clean_Bandage_Summoning
+  set %attribb18 Talisman_of_Ingots_Summoning
+  set %attribb19 Tinkering_Bonus
+  set %attribb20 Tinkering_Exceptional_Bonus
+  set %attribb21 Any_Slayer
+  set %attribb22 Any_Killer_Talisman
+  set %attribb23 Any_Protection_Talisman
+  set %attribb24 Any_Bonus_Talisman
+  set %attribb25 Any_Exceptional_Bonus_Talisman
+  ; ---------------------------------
+  set %attribc1 Main_Items
+  set %attribc2 Arrows
+  set %attribc3 Bandages
+  set %attribc4 Bolts
+  set %attribc5 Bones
+  set %attribc6 Colored_Nets
+  set %attribc7 Daemon_Bones
+  set %attribc8 Feathers
+  set %attribc9 Gems
+  set %attribc10 Gold
+  set %attribc11 Hides
+  set %attribc12 Magery_Reagents
+  set %attribc13 Magery_Scrolls
+  set %attribc14 Meat
+  set %attribc15 MIBs
+  set %attribc16 ML_Items
+  set %attribc17 Mysticism_Scrolls
+  set %attribc18 Necro_Reagents
+  set %attribc19 Necro_Scrolls
+  set %attribc20 SA_Ingredients
+  set %attribc21 SA_Misc_Items
+  set %attribc22 Scales
+  set %attribc23 Solen_Items
+  set %attribc24 Special_Nets
+  set %attribc25 Spellweaving_Scrolls
+  set %attribc26 Treasure_Maps
+  set %attribc27 Valiant_Scroll
+  set %attribc28 Armor_Enhancements
+  set %attribc29 Medusa_Reagents
+  ;------------------------ Slayer Weapons
+  set %attribd1 Air_Elemental_Slayer
+  set %maxI . %attribd1 max
+  set %maxW . %attribd1 110
+  set %attribd2 Arachnid_Slayer
+  set %maxI . %attribd2 max
+  set %maxW . %attribd2 130
+  set %attribd3 Balanced
+  set %maxI . %attribd3 max
+  set %maxW . %attribd3 150
+  set %attribd4 Battle_Lust
+  set %maxI . %attribd4 max
+  set %maxW . %attribd4 100
+  set %attribd5 Blessed
+  set %attribd6 Blood_Drinker
+  set %maxI . %attribd6 max
+  set %maxW . %attribd6 140
+  set %attribd7 Blood_Elemental_Slayer
+  set %maxI . %attribd7 max
+  set %maxW . %attribd7 110
+  set %attribd8 Brittle
+  set %attribd9 Cursed
+  set %attribd10 Demon_Slayer
+  set %maxI . %attribd10 max
+  set %maxW . %attribd10 130
+  set %attribd11 Dragon_Slayer
+  set %maxI . %attribd11 max
+  set %maxW . %attribd11 110
+  set %attribd12 Earth_Elemental_Slayer
+  set %maxI . %attribd12 max
+  set %maxW . %attribd12 110
+  set %attribd13 Elemental_Slayer
+  set %maxI . %attribd13 max
+  set %maxW . %attribd13 130
+  set %attribd14 Elves_Only
+  set %attribd15 Exceptional
+  set %attribd16 Fey_Slayer
+  set %maxI . %attribd16 max
+  set %maxW . %attribd16 130
+  set %attribd17 Fire_Elemental_Slayer
+  set %maxI . %attribd17 max
+  set %maxW . %attribd17 110
+  set %attribd18 Gargoyle_Slayer
+  set %maxI . %attribd18 max
+  set %maxW . %attribd18 110
+  set %attribd19 Gargoyles_Only
+  set %attribd20 Increased_Karma_Loss
+  set %attribd21 Lifespan
+  set %attribd22 Lizardman_Slayer
+  set %maxI . %attribd22 max
+  set %maxW . %attribd22 110
+  set %attribd23 Locked_Down
+  set %attribd24 Lower_Requirements
+  set %maxI . %attribd24 100
+  set %maxW . %attribd24 100
+  set %attribd25 Mana_Phase
+  set %attribd26 Night_Sight
+  set %maxI . %attribd26 max
+  set %maxW . %attribd26 100
+  set %attribd27 Ogre_Slayer
+  set %maxI . %attribd27 max
+  set %maxW . %attribd27 110
+  set %attribd28 One_Handed_Weapon
+  set %attribd29 Ophidian_Slayer
+  set %maxI . %attribd29 max
+  set %maxW . %attribd29 110
+  set %attribd30 Orc_Slayer
+  set %maxI . %attribd30 max
+  set %maxW . %attribd30 110
+  set %attribd31 Owned_By
+  set %attribd32 Poison_Elemental_Slayer
+  set %maxI . %attribd32 max
+  set %maxW . %attribd32 110
+  set %attribd33 Rage_Focus
+  set %attribd34 Reactive_Paralyze
+  set %maxI . %attribd34 max
+  set %maxW . %attribd34 140
+  set %attribd35 Repond_Slayer
+  set %maxI . %attribd35 max
+  set %maxW . %attribd35 130
+  set %attribd36 Reptile_Slayer
+  set %maxI . %attribd36 max
+  set %maxW . %attribd36 130
+  set %attribd37 Scorpion_Slayer
+  set %maxI . %attribd37 max
+  set %maxW . %attribd37 110
+  set %attribd38 Skill_Required__Archery
+  set %attribd39 Skill_Required__Fencing
+  set %attribd40 Skill_Required__Mace_Fighting
+  set %attribd41 Skill_Required__Swordsmanship
+  set %attribd42 Snake_Slayer
+  set %maxI . %attribd42 max
+  set %maxW . %attribd42 110
+  set %attribd43 Snow_Elemental_Slayer
+  set %maxI . %attribd43 max
+  set %maxW . %attribd43 110
+  set %attribd44 Spider_Slayer
+  set %maxI . %attribd44 max
+  set %maxW . %attribd44 110
+  set %attribd45 Terathan_Slayer
+  set %maxI . %attribd45 max
+  set %maxW . %attribd45 110
+  set %attribd46 Troll_Slayer
+  set %maxI . %attribd46 max
+  set %maxW . %attribd46 110
+  set %attribd47 Two_Handed_Weapon
+  set %attribd48 Undead_Slayer
+  set %maxI . %attribd48 max
+  set %maxW . %attribd48 130
+  set %attribd49 Use_Best_Weapon_Skill
+  set %maxI . %attribd49 max
+  set %maxW . %attribd49 140
+  set %attribd50 Vermin_Slayer
+  set %maxI . %attribd50 max
+  set %maxW . %attribd50 130
+  set %attribd51 Water_Elemental_Slayer
+  set %maxI . %attribd51 max
+  set %maxW . %attribd51 110
+  set %attribd52 Bovine_Slayer
+  set %maxI . %attribd52 max
+  set %maxW . %attribd52 110
+  set %attribd53 Ring
+  set %attribd54 Bracelet
+  set %attribd55 Artifact
+  set %attribd56 Durability
+  set %attribd57 Cannot_Be_Repaired
+  set %attribd58 Crystal_of_Shame
+  set %attribd59 Varnish_of
+  set %attribd60 Cure_of
+  set %attribd61 Wash_of
+  set %attribd62 Scour_of
+  set %attribd63 Polish_of
+  set %attribd64 Gloss_of
+  set %attribd65 Thread_of
+  set %attribd66 Shield
+  set %attribd67 Buckler
+  set %attribd68 Range
+  set %attribd69 Ringmail
+  set %attribd70 Agapite
+  set %attribd71 Verite
+  set %attribd72 Valorite
+  set %attribd73 Towering
+  set %attribd74 Bane
+  set %maxI . %attribd74 max
+  set %maxW . %attribd74 140
+  set %attribd75 Prized
+  set %attribd76 Massive
+  set %attribd77 Unwieldy
+  set %attribd78 Antique
+  set %attribd79 Earrings
+  ;------------------------ Specific Items
+  set %ringBrace _lwl_ujg_mdz_ijg_cwl_jdz_
+  set %magery1 NXL_QXL_PXL_AYL_ZXL_CYL_BYL_WXL_
+  set %magery2 VXL_YXL_XXL_IYL_HYL_KYL_JYL_EYL_
+  set %magery3 DYL_GYL_FYL_STL_RTL_UTL_TTL_OTL_
+  set %magery4 NTL_QTL_PTL_AUL_ZTL_CUL_BUL_WTL_
+  set %magery5 VTL_YTL_XTL_IUL_HUL_KUL_JUL_EUL_
+  set %magery6 DUL_GUL_FUL_QUL_PUL_SUL_RUL_MUL_
+  set %magery7 LUL_OUL_NUL_YUL_XUL_AVL_ZUL_UUL_
+  set %magery8 TUL_WUL_VUL_GVL_FVL_IVL_HVL_CVL_
+  set %magery_scrolls %magery1 , %magery2 , %magery3 , %magery4 , %magery5 , %magery6 , %magery7 , %magery8
+  set %gold POF_
+  set %gems UVF_NVF_RVF_HVF_EVF_BVF_VVF_GVF_ZVF_VUF_OVF_FVF_AXS_GXS_VWS_WWS_TWS_FXS_UWS_
+  set %magery_Reagents WZF_MZF_RZF_KZF_KUF_JZF_SZF_JUF_NZF_
+  set %necro_Reagents TZF_DUF_IUF_YZF_UZF_
+  set %treasure_Maps SVH_XVH_ITY_UVH_  ; osi
+  set %special_nets UDF_
+  set %bandages ZLF_
+  set %solen_items TTO_GMF_IJG_OKF_  ; Zoogi Fungus, pet balls, bracelet of binding , picnic basket
+  set %arrows RWF_ ; Arrows
+  set %bolts LNK_ ; Bolts
+  set %hides DEG_EEG_JJG_
+  set %scales STO_
+  set %feathers VLK_
+  set %valiant_scroll AXAB_
+  set %daemon_bones OZF_
+  set %bones OJK_XIK_SJK_IJK_TJK_BJK_UJK_DJK_MJK_AJK_LJK_FJK_RJK_EJK_ZIK_YIK_JJK_GJK_KJK_HJK_
+  set %meat VRD_PUD_ ; ribs, birds
+  set %ml_items SY_QY_PY_JWS_DWS_GWS_FWS_EWS_LWS_RWS_SWS_QWS_XOF_CGM_FIL_XVK_QCK_OWK_
+  set %necro_scrolls KYM_QYM_WYM_SYM_PYM_NYM_TYM_HYM_VYM_UYM_RYM_MYM_LYM_JYM_IYM_OYM_CZM_
+  set %spellweaving_scrolls OCR_JCR_DCR_ZBR_FCR_LCR_GCR_ICR_NCR_UCR_KCR_CCR_HCR_ACR_BCR_ ; still need summon fiend
+  set %colored_nets UDF_
+  set %mibs HTD_
+  set %sa_Ingredients XIY_LJY_SKR_BUI_TPE_ODHB_KZGB_EZGB_DZGB_TDHB_SDHB_MDHB_TCHB_UDHB_HDHB_WKR_ICHB_XYGB_YCHB_XCHB_TKR_NDHB_ZYGB_VKR_WLF_YYGB_AZGB_UCHB_JDHB_WCHB_QDHB_JZGB_IDHB_ZIY_CDHB_
+  set %sa_Misc_Items SCHB_OFF_NDHB_RDHB_QZG_UZG_KVI_MDI_STO_QKR_XIY_HDHB_XTO_SPS_SJG_AZF_GJG_LZF_HXM_PKR_MSG_LEJ_RCHB_
+  set %mysticism_scrolls UJR_TJR_EKR_DKR_GKR_FKR_ZJR_AKR_CKR_BKR_MKR_LKR_OKR_NKR_IKR_HKR_
+  set %armor_enhancements tcr_mth_padb_sadb_onab_lth_qadb_
+  set %main_items %valiant_scroll , %gold , %bandage , %hides , %mibs , %bones , %scales , %daemon_bones , %arrows , %bolts , %feathers
+  set %medusa_reagents oxm_hxm_
+
+  set %mages0 ME_EB_R_PD_HD_U_SH_SC_FD_AC_YH_RC_DF_JE_TE_NE_bi_EJ_ED_CJ_RI_I_WF_VD_ZI_N_UC_W_CD_XH_
+  set %mages1 II_WD_BD_SI_XD_DJ_mhb_FO_VN_HH_EC_fn_TJ_oj_BJ_BE_WI_UJ_HI_
+  set %mages2 YD_DD_OC_LC_MC_OD_WGB_QF_PC_GC_MAB_CHB_S_
+  set %mageTypes %mages0 , %mages1 , %mages2
+  set %Rank0 YI_JQC_LIB_VF_JGB_rf_VGB_iz_GB_UZ_SZ_q_DW_CAB_HAB_CI_HS_XU_AV_NAB_OAB_QAB_PAB_RAB_SAB_LAB_OCB_UB_RB_UD_EH_QO_DN_
+  set %Rank1 UI_IE_FB_VI_DI_vf_LZ_JAB_bg_LD_HE_K_VM_CH_NI_AB_NB_KAB_AF_MB_FZ_TZ_
+  set %Rank2 YE_XE_X_TI_DD_XF_GDB_VE_SD_UE_SN_rn_y_GN_RM_J_FE_QE_OE_CF_ZC_ND_
+  set %Rank3 abb_hbb_yab_xab_uab_tab_IJ_GJ_FJ_PE_KQB_SJ_t_n_YZ_db_jd_MO_VH_OI_PI_khb_xc_v_OO_oz_iab_se_DE_WE_AE_HJ_SRB_OIB_AAB_XZ_SIB_IS_XI_QGB_QD_hbb_  ;_ZF_TG_EG_PG_BE_CO ; CUT OUT ZF and after
+  set %spawnTypes %Rank0 , %Rank1 , %Rank2 , %Rank3
+  set %allSpawn %mageTypes , %spawnTypes
+  set %spawnDistance 8
+
+  set % . mathEUOButton1 1
+  set % . mathEUOButton3 1
+  set % . mathEUOButton5 1
+  set % . mathEUOButton7 1
+  set %x . mathEUOButton1 208
+  set %x . mathEUOButton3 208
+  set %x . mathEUOButton5 208
+  set %x . mathEUOButton7 208
+  set %y . mathEUOButton1 464
+  set %y . mathEUOButton3 488
+  set %y . mathEUOButton5 512
+  set %y . mathEUOButton7 536
+  set %x1 . mathEUOButton1 31
+  set %x1 . mathEUOButton3 31
+  set %x1 . mathEUOButton5 31
+  set %x1 . mathEUOButton7 31
+  set %y1 . mathEUOButton1 21
+  set %y1 . mathEUOButton3 21
+  set %y1 . mathEUOButton5 21
+  set %y1 . mathEUOButton7 21
+
+  set %buttonMinMax 1
+
+  set #menuButton N/A
+  set %font_arial MS , #SPC , Ariel
+
+  call s_makeList.txt s_maketabHolder EUOListBox1 4 50 301 165 White black %font_arial 8
+  call s_makeList.txt s_addTab EUOListBox1 Active Active #false
+  call s_makeList.txt s_addTab EUOListBox1 History History #false
+  call s_makeList.txt s_addTab EUOListBox1 Status Status #false
+  call s_makeList.txt s_addTab EUOListBox1 Preview Preview #false rulesPreview
+  call s_makeList.txt s_selectTabByName EUOListBox1 Active
+
+  call s_makeList.txt s_maketabHolder EUOListBox2 4 266 301 165 White black %font_arial 8
+  call s_makeList.txt s_addTab EUOListBox2 Rules Rules #false
+  call s_makeList.txt s_addTab EUOListBox2 Saves Saves #false
+
+  call s_makeList.txt s_loadListFromRegistry EUOListBox2_Saves saveList
+
+  call s_makeList.txt s_addTab EUOListBox2 Preview Preview #false rulesPreview
+  call s_makeList.txt s_selectTabByName EUOListBox2 Rules
+
+  call s_makeList.txt s_makeTabHolder EUOListBox3 310 50 244 165 White black %font_arial 8
+  call s_makeList.txt s_addTab EUOListBox3 Loot_Artifacts Loot_Artifacts #false
+  call s_makeList.txt s_makeTabHolder EUOListBox4 310 266 244 165 White black %font_arial 8
+  call s_makeList.txt s_addTab EUOListBox4 Dont_Loot Dont_Loot #false
+
+  ;menu Edit euoEditLoot 340 646 129
+  call s_makeList.txt s_makeTabHolder EUOListBox5 310 456 244 165 White black %font_arial 8
+  call s_makeList.txt s_addTab EUOListBox5 Loot_Rules Loot_Rules #false
+  menu Font BGColor Window
+	;menu Text OMGOMG2 310 648 Name:
+	menu Text OMGOMG1 312 628 Type:
+  menu Edit euoEditLoot1 496 624 27 10
+  ;menu Edit euoEditLoot2 500 644 27 100
+  menu Font BGColor BtnFace
+  ;menu Button BUTBUT2 528 644 27 21 OK
+  menu Button BUTBUT1 524 624 27 21 OK
+  menu Button euoButtonLoot1 468 624 27 21 >=
+  ;menu Button euoButtonLoot2 472 644 27 21 >=
+  ;pause
+  call s_makeList.txt s_makeList combo euoComboBox8 340 624 129 464 white black %font_arial 8
+  ;for %i 1 1000  ; TYPE FOR LOOT RULES
+  ;{
+    ;call s_makeList.txt s_addItemToList euoComboBox8 %lootAttrib . %i #true %i tag2 tag3 tag4 tag5
+  ;}
+
+  set %index 0
+  call s_makeList.txt s_makeList combo euoComboBox1 56 464 145 464 white black %font_arial 8
+  for %i 1 1000
+  {
+    if %attrib . %i = N/A     ; <>= ATTRIBUTES
+      break
+    set %index %index + 1
+    set !indexAttrib . %index %attrib . %i
+    set %items . %index !indexAttrib . %index
+    gosub addspace %attrib . %i
+    call s_makeList.txt s_addItemToList euoComboBox1 #result #true %index tag2 tag3 tag4 tag5
+  }
+  ;call s_makeList.txt s_alphabetizeListByName euoComboBox1 >
+  menu combo select euoComboBox1 1
+
+  call s_makeList.txt s_makeList combo euoComboBox2 56 488 145 488 white black %font_arial 8
+  for %i 1 1000
+  {
+    if %attriba . %i = N/A     ; SKILLS
+      break
+    set %index %index + 1
+    set !indexAttrib . %index %attriba . %i
+    set %items . %index !indexAttrib . %index
+    gosub addSpace %attriba . %i
+    call s_makeList.txt s_addItemToList euoComboBox2 #result #true %index tag2 tag3 tag4 tag5
+  }
+  ;call s_makeList.txt s_alphabetizeListByName euoComboBox2 >
+  menu combo select euoComboBox2 1
+
+  call s_makeList.txt s_makeList combo euoComboBox3 56 512 145 512 white black %font_arial 8
+  for %i 1 1000
+  {
+    if %attribb . %i = N/A    ; TALISMAN
+      break
+    set %index %index + 1
+    set !indexAttrib . %index %attribb . %i
+    set %items . %index !indexAttrib . %index
+    gosub addSpace %attribb . %i
+    call s_makeList.txt s_addItemToList euoComboBox3 #result #true %index tag2 tag3 tag4 tag5
+  }
+  ;call s_makeList.txt s_alphabetizeListByName euoComboBox3 >
+  menu combo select euoComboBox3 1
+
+  call s_makeList.txt s_makeList combo euoComboBox4 56 536 145 536 white black %font_arial 8
+
+  call s_makeList.txt s_makeList combo euoComboBox5 56 584 145 584 white black %font_arial 8
+  set %firstNum %index + 1
+  for %i 1 1000
+  {
+    if %attribc . %i = N/A     ; ITEMS
+      break
+    set %index %index + 1
+    set !indexAttrib . %index %attribc . %i
+    set %items . %index !indexAttrib . %index
+    gosub addSpace %attribc . %i                                                                 ; Specific Items List
+    call s_makeList.txt s_addItemToList euoComboBox5 #result #true %index na tag3 tag4 tag5 ; Make sure to add % . when retrieving second item for adding to list.
+  }
+  ;115-140  That's the index number
+  set %lastNum %index
+  ;call s_makeList.txt s_alphabetizeListByName euoComboBox5 >
+  menu combo select euoComboBox5 1
+
+  call s_makeList.txt s_makeList combo euoComboBox6 56 608 145 608 white black %font_arial 8
+  for %i 1 1000
+  {
+    if %attribd . %i = N/A     ; NAMED
+      break
+    set %index %index + 1
+    set !indexAttrib . %index %attribd . %i
+    set %items . %index !indexAttrib . %index
+    gosub addSpace %attribd . %i
+    call s_makeList.txt s_addItemToList euoComboBox6 #result #true %index na tag3 tag4 tag5
+  }
+  ;call s_makeList.txt s_alphabetizeListByName euoComboBox6 >
+  menu combo select euoComboBox6 1
+
+  ;menu Combo Create EUOComboBox7 56 632 145
+  call s_makeList.txt s_makeList combo euoComboBox7 56 632 145 632 white black %font_arial 8
+  ;gosub changeState 5 mathEUOButton7 %x . mathEUOButton7 %y . mathEUOButton7 %x1 . mathEUOButton7 %y1 . mathEUOButton7
+  set %endIndex %index
+
+set %wSpeedWeapon_Speed_2s 5000
+set %wSpeedWeapon_Speed_2_25s 5625
+set %wSpeedWeapon_Speed_2_5s 6300
+set %wSpeedWeapon_Speed_2_75s 6875
+set %wSpeedWeapon_Speed_3s 7500
+set %wSpeedWeapon_Speed_3_25s 8125
+set %wSpeedWeapon_Speed_3_5s 8750
+set %wSpeedWeapon_Speed_3_75s 9375
+set %wSpeedWeapon_Speed_4s 10000
+set %wSpeedWeapon_Speed_4_25s 10625
+set %wSPeedWeapon_Speed_4_5s 11250
+set %wSpeedWeapon_Speed_4_75s 11875
+set %wSpeedWeapon_Speed_5s 12500
+
+set %imbueScoreMage_Weapon__0_Skill 300
+set %relicICountMage_Weapon__0_Skill 1
+set %intensityMage_Weapon__0_Skill 0
+set %imbueScoreMage_Weapon__10_Skill 200
+set %relicICountMage_Weapon__10_Skill 1
+set %intensityMage_Weapon__10_Skill 10
+set %imbueScoreMage_Weapon__15_Skill 150
+set %relicICountMage_Weapon__15_Skill 1
+set %intensityMage_Weapon__15_Skill 15
+set %imbueScoreMage_Weapon__16_Skill 140
+set %relicICountMage_Weapon__16_Skill 1
+set %intensityMage_Weapon__16_Skill 16
+set %imbueScoreMage_Weapon__17_Skill 130
+set %relicICountMage_Weapon__17_Skill 1
+set %intensityMage_Weapon__17_Skill 17
+set %imbueScoreMage_Weapon__18_Skill 120
+set %relicICountMage_Weapon__18_Skill 1
+set %intensityMage_Weapon__18_Skill 18
+set %imbueScoreMage_Weapon__19_Skill 110
+set %relicICountMage_Weapon__19_Skill 1
+set %intensityMage_Weapon__19_Skill 19
+set %imbueScoreMage_Weapon__20_Skill 100
+set %relicICountMage_Weapon__20_Skill 1
+set %intensityMage_Weapon__20_Skill 20
+set %imbueScoreMage_Weapon__21_Skill 90
+set %relicICountMage_Weapon__21_Skill 1
+set %intensityMage_Weapon__21_Skill 21
+set %imbueScoreMage_Weapon__22_Skill 80
+set %relicICountMage_Weapon__22_Skill 1
+set %intensityMage_Weapon__22_Skill 22
+set %imbueScoreMage_Weapon__23_Skill 70
+set %relicICountMage_Weapon__23_Skill 0
+set %intensityMage_Weapon__23_Skill 23
+set %imbueScoreMage_Weapon__24_Skill 60
+set %relicICountMage_Weapon__24_Skill 0
+set %intensityMage_Weapon__24_Skill 24
+set %imbueScoreMage_Weapon__25_Skill 50
+set %relicICountMage_Weapon__25_Skill 0
+set %intensityMage_Weapon__25_Skill 25
+set %imbueScoreMage_Weapon__26_Skill 40
+set %relicICountMage_Weapon__26_Skill 0
+set %intensityMage_Weapon__26_Skill 26
+set %imbueScoreMage_Weapon__27_Skill 30
+set %relicICountMage_Weapon__27_Skill 0
+set %intensityMage_Weapon__27_Skill 27
+set %imbueScoreMage_Weapon__28_Skill 20
+set %relicICountMage_Weapon__28_Skill 0
+set %intensityMage_Weapon__28_Skill 28
+set %imbueScoreMage_Weapon__29_Skill 10
+set %relicICountMage_Weapon__29_Skill 0
+set %intensityMage_Weapon__29_Skill 29
+
+  set %attribe1 Cavalry_s_Folly
+  set %attribe2 Fallen_Mystic_s_Spellbook
+  set %attribe3 Mystic_s_Garb
+  set %attribe4 Summoner_s_Kilt
+  set %attribe5 Stone_Dragon_s_Tooth
+  set %attribe6 Fallen_Mystic_s_Spellbook
+  set %attribe7 Library_Talisman___A_Primer_On_Arms_Damage_Removal
+  set %attribe8 Corgul_s_Enchanted_Sash
+  set %attribe9 Compassion_s_Eye
+  set %attribe10 Melisande_s_Corroded_Hatchet
+  set %attribe11 Dread_s_Revenge
+  set %attribe12 Paroxysmus__Swamp_Dragon
+  set %attribe13 Demon_Hunter_s_Standard
+  set %attribe14 Scroll_Of_Valiant_Commendation__Replica_
+  set %attribe15 Leurocian_s_Mempo_Of_Fortune
+  set %attribe16 Death_s_Head
+  set %attribe17 Cast_Off_Zombie_Skin
+  set %attribe18 The_Impaler_s_Pick
+  set %attribe19 Draconi_s_Wrath
+  set %attribe20 Channeler_s_Defender
+  set %attribe21 Banshee_s_Call
+  set %attribe22 The_Berserker_s_Maul
+  set %attribe23 Holy_Knight_s_Breastplate
+  set %attribe24 Hunter_s_Headdress
+  set %attribe25 Jackal_s_Collar
+  set %attribe26 Serpent_s_Fang
+  set %attribe27 The_Inquisitor_s_Resolution
+  set %attribe28 Titan_s_Hammer
+  set %attribe29 Valkyrie_s_Glaive
+  set %attribe30 Scrapper_s_Compendium
+  set %attribe31 Stitcher_s_Mittens
+  set %attribe32 Conjurer_s_Trinket
+  set %attribe33 The_Night_Reaper
+  set %attribe34 Pendant_Of_The_Magi
+  set %attribe35 Essence_Of_Battle
+  set %attribe36 Resillient_Bracer
+  set %attribe37 Light_In_The_Void
+  set %attribe38 Staff_Of_Resonance
+  set %attribe39 Blade_Of_Insanity
+  set %attribe40 Arcane_Shield
+  set %attribe41 Voice_Of_The_Fallen_King
+  set %attribe42 Spirit_Of_The_Totem
+  set %attribe43 Ring_Of_The_Elements
+  set %attribe44 Leggings_Of_Bane
+  set %attribe45 Frostbringer
+  set %attribe46 Breath_Of_The_Dead
+  set %attribe47 Aegis
+  set %attribe48 Totem_Of_The_Void
+  set %attribe49 Mace_And_Shield_Reading_Glasses
+  set %attribe50 Abyssal_Blade
+  set %attribe51 Life_Syphon
+  set %attribe52 Standard_Of_Chaos
+  set %attribe53 Venom
+  set %attribe54 Basilisk_Hide_Breastplate
+  set %attribe55 Jade_War_Axe
+  set %attribe56 Mangler
+  set %attribe57 Staff_Of_Shattered_Dreams
+  set %attribe58 Sword_Of_Shattered_Hopes
+  set %attribe59 Void_Infused_Kilt
+  set %attribe60 Axe_Of_Abandon
+  set %attribe61 Blade_Of_Battle
+  set %attribe62 Dragon_Hide_Shield
+  set %attribe63 Legacy_Of_Despair
+  set %attribe64 Petrified_Snake
+  set %attribe65 Resonant_Staff_Of_Enlightenment
+  set %attribe66 Token_Of_Holy_Favor
+  set %attribe67 Wall_Of_Hungry_Mouths
+  set %attribe68 Dragon_Jade_Earrings
+  set %attribe69 Stone_Slith_Claw
+  set %attribe70 Vampiric_Essence
+  set %attribe71 Pillar_Of_Strength
+  set %attribe72 Spined_Bloodworm_Braces
+  set %attribe73 Axes_Of_Fury
+  set %attribe74 Bronzed_Armor_Of_The_Valkyrie
+  set %attribe75 Mantle_Of_The_Fallen
+  set %attribe76 Snake_Skin_Boots
+  set %attribe77 Forged_Metal_Of_Artifacts
+  set %attribe78 Mana_Phasing_Orb
+  set %attribe79 The_Culling_Blade
+  set %attribe80 Torc_Of_The_Guardians
+  set %attribe81 Ring_Of_The_Soulbinder
+  set %attribe82 Mischief_Maker
+  set %attribe83 Heart_Of_The_Lion
+  set %attribe84 Fey_Leggings
+  set %attribe85 Tangle
+  set %attribe86 Quiver_Of_Infinity
+  set %attribe87 Helm_Of_Vengeance
+  set %attribe88 Crown_Of_Arcane_Temperament
+  set %attribe89 Wind_Of_Corruption
+  set %attribe90 Hailstorm
+  set %attribe91 Ironwood_Composite_Bow
+  set %attribe92 Flesh_Ripper
+  set %attribe93 Leviathan_Hide_Bracers
+  set %attribe94 Forged_Pardon
+  set %attribe95 Ghost_Ship_Anchor
+  set %attribe96 Brightblade
+  set %attribe97 Prismatic_Lenses
+  set %attribe98 Blight_Of_The_Tundra
+  set %attribe99 Hephaestus
+  set %attribe100 Shroud_Of_The_Condemned
+  set %attribe101 Bracelet_Of_Protection
+  set %attribe102 Unforgiven_Veil
+  set %attribe103 Unicorn_Mane_Woven_Talons
+  set %attribe104 Despicable_Quiver
+  set %attribe105 Crimson_Cincture
+  set %attribe106 Dread_Flute
+  set %attribe107 Crystalline_Ring
+  set %attribe108 Mark_Of_The_Travesty
+  set %attribe109 Animated_Legs_Of_The_Insane_Tinker
+  set %attribe110 Lavaliere
+  set %attribe111 Defender_Of_The_Magus
+  set %attribe112 Slither
+  set %attribe113 Burning_Amber
+  set %attribe114 Protector_Of_The_Battle_Mage
+  set %attribe115 Sign_Of_Chaos
+  set %attribe116 Sign_Of_Order
+  set %attribe117 Breastplate_Of_The_Berserker
+  set %attribe118 Night_Eyes
+  set %attribe119 Obsidian_Earrings
+  set %attribe120 Torc_Of_The_Guardians
+  set %attribe121 Storm_Caller
+  set %attribe122 Raptor_Claw
+  set %attribe123 Claws_Of_The_Berserker
+  set %attribe124 Demon_Bridle_Ring
+  set %attribe125 Rune_Beetle_Carapace
+  set %attribe126 Flute_Of_Renewal
+  set %attribe127 Swords_Of_Prosperity
+  set %attribe128 Stormgrip
+  set %attribe129 Assassin_Armor
+  set %attribe130 Divine_Countenance
+  set %attribe131 Gauntlets_Of_Nobility
+  set %attribe132 Midnight_Bracers
+  set %attribe133 Ring_Of_The_Vile
+  set %attribe134 Staff_Of_The_Magi
+  set %attribe135 Armor_Of_Fortune
+  set %attribe136 Bone_Crusher
+  set %attribe137 The_Dragon_Slayer
+  set %attribe138 Hat_Of_The_Magi
+  set %attribe139 Ornament_Of_The_Magician
+  set %attribe140 The_Taskmaster
+  set %attribe141 Axe_Of_The_Heavens
+  set %attribe142 Bracelet_Of_Health
+  set %attribe143 The_Dryad_Bow
+  set %attribe144 Helm_Of_Insight
+  set %attribe145 Legacy_Of_The_Dread_Lord
+  set %attribe146 Ornate_Crown_Of_The_Harrower
+  set %attribe147 Shadow_Dancer_Leggings
+  set %attribe148 Tunic_Of_Fire
+  set %attribe149 Blade_Of_The_Righteous
+  set %attribe150 Zyronic_Claw
+  set %attribe151 Rune_Engraved_Peg_Leg
+  set %attribe152 Corgul_s_Handbook_On_Mysticism
+  set %attribe153 Field_Of_Blades
+  set %attribe154 Corgul_s_Handbook_On_The_Undead
+  set %attribe155 Illustrious_Wand_Of_The_Thundering_Glory
+  set %attribe156 Small_Soul_Forge
+  set %attribe157 Enchanted_Coral_Bracelet
+  set %attribe158 Smiling_Moon_Blade
+  set %attribe159 Seahorse_Statuette
+  set %attribe160 Bow_Of_The_Juka_King
+  set %attribe161 Pixie_Swatter
+  set %attribe162 Cold_Blood
+  set %attribe163 Gloves_Of_The_Pugilist
+  set %attribe164 Staff_Of_Power
+  set %attribe165 Runed_Sash_Of_Warding
+  set %attribe166 Orcish_Visage
+  set %attribe167 Wrath_Of_The_Dryad
+  set %attribe168 Surge_Shield
+  set %attribe169 The_Admiral_s_Hearty_Rum
+  set %attribe170 Dread_Pirate_Hat
+  set %attribe171 Captain_Quacklebush_s_Cutlass
+  set %attribe172 Ship_Model_Of_The_H_M_S__Cape
+  set %attribe173 Shield_Of_Invulnerability
+  set %attribe174 Alchemist_s_Bauble
+  set %attribe175 Cavorting_Club
+  set %attribe176 Iolo_s_Lute
+  set %attribe177 Arctic_Death_Dealer
+  set %attribe178 Enchanted_Tital_Leg_Bone
+  set %attribe179 Luna_Lance
+  set %attribe180 Polar_Bear_Mask
+  set %attribe181 Blaze_Of_Death
+  set %attribe182 Night_s_Kiss
+  set %attribe183 Gold_Bricks
+  set %attribe184 Violet_Courage
+  set %attribe185 Burglar_s_Bandana
+  set %attribe186 Gwenno_s_Harp
+  set %attribe187 Nox_Ranger_s_Heavy_Crossbow
+  set %attribe188 Helm_Of_Swiftness
+  set %attribe189 Boomstick
+  set %attribe190 Soul_Seeker
+  set %attribe191 Righteous_Anger
+  set %attribe192 This_Is_A_Set_Item
+  set %attribe193 Tome_Of_Lost_Knowledge
+  set %attribe194 Hygieia_s_Amulet__Replica_
+  set %attribe195 Barbed_Runic_Sewing_Kit
+  set %attribe196 Special_Hair_Dye
+  set %attribe197 Pigments_Of_Tokuno
+  set %attribe198 A_Promotional_Token
+  set %attribe199 Darkened_Sky
+  set %attribe200 Equivocation
+  set %attribe201 Craven
+  set %attribe202 Resonant_Shield_Of_Vengeance
+  set %attribe203 Gladiator_s_Collar__Replica_
+  set %attribe204 Giant_Steps
+  set %attribe205 VvV_Item
+  for %i 1 1000
+  {
+    if %attribe . %i = N/A     ; SLAYER
+      break
+    set %attribe %attribe . %i
+    set % . %attribe #true
+    gosub addSpace %attribe . %i
+    call s_makeList.txt s_addItemToList euoListBox3_Loot_Artifacts #result #true %attribe . %i
+  }
+  ;call s_makeList.txt s_alphabetizeListByName EUOListBox3_Loot_Artifacts >
+
+  menu Font Size 8
+  menu Font Style
+  menu Font Color WindowText
+  menu Font BGColor BtnFace
+  menu Button okSetRelicEUOButton23 160 245 43 21 Set Relic
+  menu Font BGColor white
+  menu edit okEditRelic 208 245 43 500
+
+  set %genericTimer #sysTime
+  set %stillMoving #true
+  set %moveTimer #sysTime
+  set %activeRuleList #false
+  set %listName CorpseIgnore
+  set %lastCharPos #charposx , _ , #charposy
+  namespace push
+  namespace local #charid . %listName
+  namespace clear
+  namespace pop
+  namespace push
+  namespace local itemSetup
+  namespace clear
+  namespace pop
+  gosub pseudoIgnore %listName #charid 10 n/a
+  set %corpseUnignore #sysTime + 1500
+
+  namespace push
+  namespace global TM_loot
+  set !TM_initialized #TRUE
+  set !TM_loot_enable #TRUE
+  set !TM_loot_in_progress #FALSE
+  set !TM_loot_success #FALSE ; item successfully found and looted
+  set !TM_loot_artifact_success #FALSE ; artifact found and looted
+  set !TM_eval_request #FALSE
+  set !TM_artifact_index 0
+  set !TM_ping N/A
+  set !mode N/A
+  set !arg N/A
+  set !TM_MODE N/A
+  set !TM_ARG1 N/A
+  namespace pop
+  set %program_Start #sCnt
+
+set %containerLoot #false
+menu set EUOEdit1 Finished initializing script...
+  set #lpc 20
+return
+
+; %1 = ignore list name
+; %2 = reset, clear namespace returns #TRUE          SET TO N/A WHEN NOT IN USE
+; %2 = save, save ignore list to registry            SET TO N/A WHEN NOT IN USE
+; %2 = load, load list from registry                 SET TO N/A WHEN NOT IN USE
+; %2 = item to ignore: ids, numbers, names, character ids, whatever  SET TO N/A WHEN NOT IN USE
+; %3 = time to ignore for in SECONDS                 SET TO N/A WHEN NOT IN USE
+; %4 = set to #true to ACTUALLY ignore in euo/game   SET TO N/A WHEN NOT IN USE
+sub pseudoIgnore
+  namespace push
+  namespace global #charid . %1
+  set !lpc #lpc
+  set #lpc 10000
+  if %2 = reset || !index = n/a 2
+    namespace clear
+    set !index 0
+  set !listname %1
+  set !id %2
+  set !time %3
+  set !ignore %4
+  set %1 n/a
+  set %2 n/a
+  set %3 n/a
+  set %4 n/a
+  if !id in %iList . !listname
+    set !idTest !id
+  if %0 > 1 && !id notin %iList . !listname && !id <> save && !id <> load && !id <> n/a && !id <> reset 9
+    set !index !index + 1
+    if !time <> n/a
+      set !passedTimer . !index #sCnt + !time
+    else
+      set !passedTimer . !index n/a
+    set !passedVar . !index !id
+    if !ignore = #true 2
+      ignoreitem !passedVar . !index !listname
+      set !passedIgnore . !index #true
+  set %iList . !listname
+  set %iTimer . !listname
+  set !iList . !listname
+  set !iTimer . !listname
+  if !id = load
+    gosub loadIgnoreList !listname
+  if !index > 0
+  {
+    set !indexEnd !index
+    set %iTimer . !listname !passedTimer1
+    set !iTimer . !listname !passedTimer1
+    for !i 1 !index
+    {
+      if !i > !indexEnd
+        continue
+      if !passedIgnore . !i = #true && !passedVar . !i = !idTest && !passedTimer . !i = n/a
+        set !passedTimer . !i #sCnt - 1
+      if !passedTimer . !i < #sCnt 15
+        if !passedIgnore . !i = #true 3
+          ignoreitem !passedVar . !i
+          if !passedTimer . !i = n/a
+            set !passedTimer . !i #sCnt + 1
+        for !o !i !indexEnd
+        {
+          set !e ( !o + 1 )
+          set !passedVar . !o !passedVar . !e
+          set !passedTimer . !o !passedTimer . !e
+          set !passedIgnore . !o !passedIgnore . !e
+          set !passedVar . !e n/a
+          set !passedTimer . !e n/a
+          set !passedIgnore . !e n/a
+        }
+        set !indexEnd !indexEnd - 1
+      if !passedTimer . !i < %iTimer . !i 2
+        set %iTimer . !listname !passedTimer . !i
+        set !iTimer . !listname !passedTimer . !i
+      if !i > 1 2
+        set %iList . !listname %iList . !listname , !passedVar . !i , _
+        set !iList . !listname !iList . !listname , !passedVar . !i , _
+      else 2
+          set %iList . !listname _ , !passedVar . !i , _
+          set !iList . !listname _ , !passedVar . !i , _
+    }
+    set !index !indexEnd
+    if ( !id = save && !index > 0 ) || !id = load 7
+      if !id = save 6
+        if !index = 0
+          set *iIgnore . !listname n/a
+        else 3
+          set *iIgnore . !listname !index , $ , !listname , $
+          for !i 1 !index
+            set *iIgnore . !listname *iIgnore . !listname , !passedVar . !i , _ , !passedTimer . !i , _ , !passedIgnore . !i , &
+  }
+  if !index = 0 6
+    ignoreitem reset !listname
+    set %iList . !listname n/a
+    set !iList . !listname n/a
+    set %iTimer . !listname n/a
+    set !iTimer . !listname n/a
+    set #result #false
+  else
+    set #result %iList . !listname
+  set !idTest n/a
+  set #lpc !lpc
+  namespace pop
+return #result
+sub loadIgnoreList
+  if *pseudoIgnore . %1 = n/a 2
+    displa ok No saved data! Ok to continue.
+    return #false
+  namespace clear
+  ignoreitem reset %1
+  set !string *iIgnore . %1
+  for !i 1 2
+  {
+    str len !string
+    set !len #strres
+    str pos !string $ 1
+    set !ptr #strres
+    str del !string #strres !len
+    if !i = 1
+      set !index #strres
+    if !i = 2
+      set !listname #strres
+    str del !string 1 !ptr
+    set !string #strres
+  }
+  for !i 1 !index
+  {
+    for !o 1 3
+    {
+      set !string #strres
+      str len !string
+      set !len #strres
+      if !o < 3
+        str pos !string _ 1
+      if !o = 3
+        str pos !string & 1
+      set !ptr #strres
+      str del !string #strres !len
+      if !o = 1
+        set !passedVar . !i #strres
+      if !o = 2
+        set !passedTimer . !i #strres
+      if !o = 3 3
+        set !passedIgnore . !i #strres
+        if !passedIgnore . !i = #true
+          ignoreitem !passedVar . !i
+      str del !string 1 !ptr
+    }
+  }
+return
+
+sub scriptyFireSale
+  namespace push
+  namespace local scriptySell . #charid
+  set !items
+  if %0 > 1 6
+    for !i 2 100
+    {
+      if % . !i = n/a
+        break
+      set !items !items , % . !i , _
+    }
+  if !init = n/a 2
+    gosub init
+    set !init #true
+  for !i 1 !itemAmt
+  {
+    if !itemName . !i in !items && !itemType . !i notin !items && !itemType . !i <> tlk
+      set !items !items , !itemType . !i , _
+  }
+  set !vendorType %1
+  repeat
+    finditem hs_is_ocb_ncb_av_xu G_7
+    for #findindex 1 #findcnt
+    {
+      set !vendorFound #false
+      event property #findid
+      if !vendorType in #property
+      {
+        set !vendorFound #true
+        exevent popup #findid
+        gosub GumpWait normal_gump normal_gump
+        if #result = #false
+          continue
+        if #result = #true
+        {
+          wait 5
+          ;if
+           ; click 22 40 ;2
+          if !vendorType = jeweler || !vendorType = carpenter || !vendortype = provisioner || !vendorType = bowyer ;3
+            click 22 57
+          if !vendorType = minter || !vendorType = tinker ;4
+            click 22 77
+          if !vendorTYpe = armourer || !vendorType = blacksmith ;5
+            click 22 97
+          gosub GumpWait bill_gump bill_gump
+          wait 5
+          if #result = #false
+            continue
+          if #result = #true
+          {
+            gosub setpix
+            set !sellCounter 0
+            set !totalCnt 0
+            set !yes #false
+              repeat
+                set !scanThisY !scanCheckY1
+                set !endScanThisY !scanThisY + 90
+                for !i !scanThisY !endScanThisY
+                {
+                  savepix !scanCheckX1 !i !pixel
+                  if #pixcol > !scanCheck1 - 1025 && #pixcol < !scanCheck1 + 1025
+                  {
+                    set !yes #true
+                    break
+                  }
+                  else
+                    set !yes #false
+                }
+                for !i 1 !itemAmt
+                {
+                  savepix !itemx . !i !itemy . !i !pixel
+                  if ( #pixcol > !item . !i - 1025 && #pixcol < !item . !i + 1025 && #contname = bill_gump )
+                  {
+                    if ( !itemType . !i notin !items ) && ( !itemName . !i notin !items )
+                      continue
+                    set !yesLoopCatch #true
+                    click !dClickToSellX !dClickToSellY d
+                    set !sellCounter !sellCounter + 1
+                    set !totalCnt !totalCnt + 1
+                    wait 5
+                    click !clickSellDownX !clickSellDownY
+                    wait 1
+                    set !continue #true
+                    set !continueCnt 0
+                    set !sellCnt 0
+                    while !continue = #true && #contname = bill_gump
+                    {
+                      savepix !numScanX1 !numScanY1 !pixel
+                      if #pixcol < 3000000
+                        set !continueCnt !continueCnt + 1
+                      else
+                        set !continueCnt 0
+                      if !continueCnt > 3
+                        set !continue #false
+                      if !continue = #true 8
+                        set !totalCnt !totalCnt + 1
+                        click !clickToSellX !clickToSellY f
+                        set !sellCnt !sellCnt + 1
+                        if !sellCnt >= 499
+                          set !continue !false
+                        set !sellWait #sysTime + 25
+                        repeat
+                        until !sellWait < #sysTime
+                      if !totalCnt >= 499 2
+                        set !yes #false
+                        break
+                    }
+                    break
+                  }
+                }
+                click !clickListDownx !clickListDowny
+                wait 5
+              until !yes = #false || #contname <> bill_gump || !sellCounter > 4
+              click !clickOkX !clickOkY
+              set !billGumpWait #sysTime + 1000
+              while #contname = bill_gump || !billGumpWait > #sysTime
+              {
+                set !sellWait #sysTime + 5
+                repeat
+                until !sellWait < #sysTime
+              }
+            break
+          }
+        }
+      }
+    }
+    if !vendorFound = #false 2
+      namespace pop
+      return #false
+    set !itemsTemp !items
+    for !i 11 16
+    {
+      if !itemName . !i in !items 2
+        set !itemsTemp !itemsTemp , tlk , _
+        break
+    }
+    set !itemCnter 0
+    if !items <> n/a
+      finditem !itemsTemp C_ , #backpackid
+    else
+      finditem !allItems C_ , #backpackid
+    for #findindex 1 #findcnt
+    {
+      if #findtype = tlk
+      {
+        for !i 11 16
+        {
+          if #findcol = !board . !i && !itemName . !i in !items
+            set !itemCnter !itemCnter + #findstack
+        }
+        continue
+      }
+      if #findtype = uvf 3
+        event property #findid
+        if blackrock in #property
+          continue
+      if #findtype = enk && #findcol <> 0
+        continue
+      set !itemCnter !itemCnter + #findstack
+    }
+  until !itemCnter = 0
+  namespace pop
+return
+
+;170 215
+
+sub init
+  set !pixel 999
+  set !lpc #lpc
+  set #lpc 10000
+  set !board11 0
+  set !board12 1151
+  set !board13 1193
+  set !board14 2010
+  set !board15 1191
+  set !board16 1194
+  set !item1 8707806
+  set !itemName1 Tourmaline
+  set !itemType1 ovf
+  set !item2 13041663
+  set !itemName2 Citrine
+  set !itemType2 bvf
+  set !item3 9712020
+  set !itemName3 Amethyst
+  set !itemType3 evf
+  set !item4 14595509
+  set !itemName4 Sapphire
+  set !itemType4 fvf
+  set !item5 12428709
+  set !itemName5 Diamond
+  set !itemType5 uvf
+  set !item6 1619455
+  set !itemName6 Amber
+  set !itemType6 rvf
+  set !item7 15724543
+  set !itemName7 Ruby
+  set !itemType7 hvf
+  set !item8 14090198
+  set !itemName8 Emerald
+  set !itemType8 gvf
+  set !item9  16758197
+  set !itemName9 StarSapphire
+  set !itemType9 vuf
+  set !item10 9208947
+  set !itemName10 Iron
+  set !itemType10 enk
+  set !item11 4357053
+  set !itemName11 Board
+  set !itemType11 tlk
+  set !item12 13026964
+  set !itemName12 Frostwood
+  set !itemType12 tlk
+  set !item13 543240
+  set !itemName13 Heartwood
+  set !itemType13 tlk
+  set !item14 2718620
+  set !itemName14 Oak
+  set !itemType14 tlk
+  set !item15 7054757
+  set !itemName15 Ash
+  set !itemType15 tlk
+  set !item16 1579140
+  set !itemName16 Bloodwood
+  set !itemType16 tlk
+  set !item17 10878975
+  set !itemName17 Arrow
+  set !itemType17 rwf
+  set !item18 4879277
+  set !itemName18 Bolt
+  set !itemType18 lnk
+  for !i 1 1000
+  {
+    if !itemType . !i = n/a 2
+      set !itemAmt !i - 1
+      break
+  }
+  set !itemmers hvf_gvf_vuf_rvf_fvf_evf_bvf_uvf_ovf
+  set !allItems !itemType10 , _ , !itemmers , _ , !itemType16 ;, _ , !jewels
+  set #lpc !lpc
+return
+
+sub setpix
+  set !lpc #lpc
+  set #lpc 10000
+  set !itemx1 #CONTPOSX - 118
+  set !itemy1 #CONTPOSY - 141
+  set !itemx2 #CONTPOSX - 102
+  set !itemy2 #CONTPOSY - 142
+  set !itemx3 #CONTPOSX - 106
+  set !itemy3 #CONTPOSY - 142
+  set !itemx4 #CONTPOSX - 114
+  set !itemy4 #CONTPOSY - 143
+  set !itemx5 #contposx - 112
+  set !itemy5 #contposy - 137
+  set !itemx6 #contposx - 105
+  set !itemy6 #contposy - 142
+  set !itemx7 #contposx - 124
+  set !itemy7 #contposy - 138
+  set !itemx8 #contposx - 125
+  set !itemy8 #contposy - 132
+  set !itemx9 #contposx - 110
+  set !itemy9 #contposy - 145
+  set !itemx10 #CONTPOSX - 125
+  set !itemy10 #CONTPOSY - 139
+  set !itemx11 #contposx - 114
+  set !itemy11 #contposy - 141
+  set !itemx12 #contposx - 114
+  set !itemy12 #contposy - 141
+  set !itemx13 #contposx - 114
+  set !itemy13 #contposy - 141
+  set !itemx14 #contposx - 114
+  set !itemy14 #contposy - 141
+  set !itemx15 #contposx - 114
+  set !itemy15 #contposy - 141
+  set !itemx16 #contposx - 114
+  set !itemy16 #contposy - 141
+  set !itemx17 #contposx - 114
+  set !itemy17 #contposy - 136
+  set !itemx18 #contposx - 114
+  set !itemy18 #contposy - 137
+  set !numScanx1 #contposx + 47
+  set !numScany1 #contposy - 129
+  set !clickListDownx #contposx + 73
+  set !clickListDowny #contposy - 13
+  set !clickListUpx #contposx + 75
+  set !clickListUpy #contposy - 161
+  set !clickSellDownX #contposx + 244
+  set !clickSellDownY #contposy + 167
+  set !clickSellUpX #contposx + 242
+  set !clickSellUpY #contposy + 55
+  set !clickOkX #contposx + 44
+  set !clickOkY #contposy + 205
+  set !dClickToSellX #contposx - 65
+  set !dClickToSellY #contposy - 134
+  set !clickToSellX #contposx + 206
+  set !clickToSellY #contposy + 85
+  set !scanCheckX1 #contposx - 5
+  set !scanCheckY1 #contposy - 80
+  set !scanCheck1 4348531
+  set #lpc !lpc
+return
+
+sub gumpWait
+  namespace push
+  namespace local gw
+  set !timedelay #sCnt
+  while #sCnt <= !timedelay + 2
+  {
+    if #contName = %1 || #contName = %2 2
+      namespace pop
+    return #true
+  }
+  namespace pop
+return #false

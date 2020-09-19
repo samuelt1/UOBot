@@ -11,168 +11,161 @@
 ; Start Script up to 75 Remove Trap very fast. To busy to solved > 75 gain :D  Only for 9*9!
 ;==================================================
 ;==================================================
-chooseSkill remo
-if #skill < 1000
-   set %size 5 ; change for smaller or bigger
-if #skill < 950
-   set %size 4 ; change for smaller or bigger
-if #skill < 750
-   set %size 3 ; change for smaller or bigger
-
-;==================================================
-;==================================================
-
 
 ;0 build board
 ;x = blocked
-;y = clear path
 ;z = maybe
-;a = path traveled
 ;1 find kit
 set #lpc 400
 set %trainingkit LBKC
 gosub clickthereddata
 gosub findkit
+gosub initmenu
 
-while #true
-{
-
-for %x 1 %size
-{
-  for %y 1 %size
-  {
-      set %board . %x , %y zz
-  }
-}
-
-set %wefinished #false
-set %step 23
-set %board11 %step
-set %foundlocatoins 1
-
-;2 reset state, open kit
+;open kit
 gosub reset
 
-;main loop
-while ! %wefinished
+; main loop, never stop.
+while #true
 {
-  if %reset
+startover:
+
+chooseSkill remo
+if #skill < 1000
+   set %size 5 ; change for smaller or bigger
+if #skill < 900
+   set %size 4 ; change for smaller or bigger
+if #skill < 750
+   set %size 3 ; change for smaller or bigger
+   
+  for %x 1 %size
   {
-     gosub jumpforward
-     set %reset #false
+    for %y 1 %size
+    {
+        set %board . %x , %y zz
+    }
   }
-    ;look right
-    set %toedip %currentx + 1
-    set %pathright %toedip , %currenty
-    if %board . %pathright = zz
+
+  set %jrnl #jindex
+  set %wefinished #false
+  set %step 23
+  set %board11 %step
+  set %foundlocatoins 1
+
+  ;loop to solve individual instance of trap
+  while ! %wefinished
+  {
+
+
+    menu set status0 %board00 %board10 %board20 %board30 %board40 %board50
+    menu set status1 %board01 %board11 %board21 %board31 %board41 %board51
+    menu set status2 %board02 %board12 %board22 %board32 %board42 %board52
+    menu set status3 %board03 %board13 %board23 %board33 %board43 %board53
+    menu set status4 %board04 %board14 %board24 %board34 %board44 %board54
+    menu set status5 %board05 %board15 %board25 %board35 %board45 %board55
+    menu set status6 %pathright %pathleft %pathup  %pathdown
+    menu set status7 %currentx %currenty
+
+
+      set %toedip %currentx + 1
+      set %pathright %toedip , %currenty
+      set %toedip %currenty + 1
+      set %pathdown %currentx , %toedip
+      set %toedip %currentx - 1
+      set %pathleft %toedip , %currenty
+      set %toedip %currenty - 1
+      set %pathup %currentx , %toedip
+      
+    ;scan journal to see if we succeeded
+    while #jindex > %jrnl
     {
-       gosub goright
-       if #result
-       {
-       set %board . %currentx , %currenty  %step
-       if %board . %pathright = xx
-          set %board . %pathright zz
-       if %board . %pathleft = xx
-          set %board . %pathleft zz
-       if %board . %pathup = xx
-          set %board . %pathup zz
-       if %board . %pathdown = xx
-          set %board . %pathdown zz
-        set %foundlocatoins %foundlocatoins + 1
-        continue
-       }
-       else
-       {
-           gosub reset
-           continue
-       }
-    }
-    ;look down
-    set %toedip %currenty + 1
-    set %pathdown %currentx , %toedip
-    if %board . %pathdown = zz
-    {
-       gosub godown
-       if #result
-       {
-         set %board . %currentx , %currenty  %step
-         if %board . %pathright = xx
-            set %board . %pathright zz
-         if %board . %pathleft = xx
-            set %board . %pathleft zz
-         if %board . %pathup = xx
-            set %board . %pathup zz
-         if %board . %pathdown = xx
-            set %board . %pathdown zz
-          set %foundlocatoins %foundlocatoins + 1
-          continue
-       }
-       else
-       {
-           gosub reset
-           continue
+        set %jrnl %jrnl + 1
+        scanjournal %jrnl
+        if You_successfully_disarm in #journal
+        {
+          set %wefinished #true
+          goto startover
        }
     }
 
+      ;check known paths first
+      ;look right
+      set %conditional %step - 1
+      if %board . %pathright = %conditional
+      {
+         menu set status8 going right
+         gosub goright #false
+         continue
+      }
 
-    ;look left
-    set %toedip %currentx - 1
-    set %pathleft %toedip , %currenty
-    if %board . %pathleft = zz
-    {
-       gosub goleft
-       if #result
-       {
-         set %currentx %toedip
-         set %board . %currentx , %currenty  %step
-         if %board . %pathright = xx
-            set %board . %pathright zz
-         if %board . %pathleft = xx
-            set %board . %pathleft zz
-         if %board . %pathup = xx
-            set %board . %pathup zz
-         if %board . %pathdown = xx
-            set %board . %pathdown zz
-         set %foundlocatoins %foundlocatoins + 1
+      ;look down
+      set %conditional %step - 1
+      if %board . %pathdown  = %conditional
+      {
+         menu set status8 going down
+         gosub godown #false
          continue
-       }
-       else
-       {
-           gosub reset
-           continue
-       }
-    }
-       
-    ;look up
-    set %toedip %currenty - 1
-    set %pathup %currentx , %toedip
-    if %board . %pathup = zz
-    {
-       gosub goup
-       if #result
-       {
-         set %currenty %toedip
-         set %board . %currentx , %currenty  %step
-         if %board . %pathright = xx
-            set %board . %pathright zz
-         if %board . %pathleft = xx
-            set %board . %pathleft zz
-         if %board . %pathup = xx
-            set %board . %pathup zz
-         if %board . %pathdown = xx
-            set %board . %pathdown zz
-         set %foundlocatoins %foundlocatoins + 1
+      }
+
+
+      ;look left
+      set %conditional %step - 1
+      if %board . %pathleft  = %conditional
+      {
+         menu set status8 going left
+         gosub goleft #false
          continue
-       }
-       else
-       {
-           gosub reset
-           continue
-       }
-    }
+      }
+
+      ;look up
+      set %conditional %step - 1
+      if %board . %pathup  = %conditional
+      {
+         menu set status8 going up
+         gosub goup #false
+         continue
+      }
+      
+      ;check new paths
+      ;look right
+      if %board . %pathright = zz
+      {
+         menu set status8 going right
+         gosub goright #true
+         continue
+      }
+
+      ;look down
+      if %board . %pathdown = zz
+      {
+         menu set status8 going down
+         gosub godown #true
+         continue
+      }
+
+
+      ;look left
+      if %board . %pathleft = zz
+      {
+         menu set status8 going left
+         gosub goleft #true
+         continue
+      }
+
+      ;look up
+      if %board . %pathup = zz
+      {
+         menu set status8 going up
+         gosub goup #true
+         continue
+      }
+      set %resetclickx %leftx + #contposx
+      set %resetclicky %lefty + #contposy
+      click %resetclickx %resetclicky r
+      gosub reset
+      goto startover
+  }
 }
-}
-    
     
 sub InitMenu
     menu clear
@@ -200,6 +193,11 @@ sub reset
 
   gosub usecttk
 
+  while ! #result
+  {
+        gosub usecttk
+  }
+
   ; reset to the beginning
   set %step 23
 
@@ -211,126 +209,80 @@ sub reset
 
 return
 
-sub jumpforward
-  set %pathforward #true
-
-  while %pathforward
-  {
-            ;look right
-      set %toedip %currentx + 1
-      set %pathright %toedip , %currenty
-      set %conditional %step - 1
-      if %board . %pathright = %conditional
-      {
-         gosub goright
-
-         if #result
-            continue
-         else 2
-             event SysMessage We got a problem going right
-             set %wefinished #true
-             break
-      }
-
-      ;look down
-      set %toedip %currenty + 1
-      set %pathdown %currentx , %toedip
-      set %conditional %step - 1
-      if %board . %pathdown  = %conditional
-      {
-
-         gosub godown
-         if #result
-         {
-            continue
-         }
-         else
-         {
-             event SysMessage We got a problem going down
-             set %wefinished #true
-             break
-         }
-      }
-
-
-      ;look left
-      set %toedip %currentx - 1
-      set %pathleft %toedip , %currenty
-      set %conditional %step - 1
-      if %board . %pathleft  = %conditional
-      {
-         gosub goleft
-         if #result
-            continue
-         else 2
-             event SysMessage We got a problem going left
-             set %wefinished #true
-             break
-      }
-
-      ;look up
-      set %toedip %currenty - 1
-      set %pathup %currentx , %toedip
-      set %conditional %step - 1
-      if %board . %pathup  = %conditional
-      {
-         gosub goup
-         if #result
-            continue
-         else 2
-             event SysMessage We got a problem going up
-             set %wefinished #true
-             break
-      }
-      ; if we're this far it's because there is no more path forward
-      set %pathforward #false
-  }
-
-return
-
 sub goright
+     set %clearvalues %1
      gosub clickrandom %rightx %righty
      ; check if we're still in the game
      gosub waitingformygump contname generic_gump contsize 629_414 10
      if #result
      {
-       ; if we can move forward, then update pointers!
+       ;if we can move forward, then update pointers!
        set %step %step - 1
-       set %currentx %toedip
+       set %currentx %currentx + 1
+       set %board . %currentx , %currenty  %step
+
+       if %clearvalues
+       {
+         ; remove all the old "blocked" paths because since we moved, now maybe they aren't blocked anymore.
+         if %board . %pathright = xx
+            set %board . %pathright zz
+         if %board . %pathleft = xx
+            set %board . %pathleft zz
+         if %board . %pathup = xx
+            set %board . %pathup zz
+         if %board . %pathdown = xx
+            set %board . %pathdown zz
+       }
        return #true
      }
      else
      {
-        scanjournal 1
-        if You_successfully_disarm in #journal
-          set %wefinished #true
-         ;if we can't, mark the path as blocked
+         ;if we can't, mark the path as blocked and start over
          set %board . %pathright xx
+         gosub reset
          return #false
      }
 return
 
 sub goleft
+     set %clearvalues %1
     gosub clickrandom %leftx %lefty
     ; check if we're still in the game
     gosub waitingformygump contname generic_gump contsize 629_414 10
     if #result
     {
-     ; if we can move forward, then quick stalling, do it!
-     set %step %step - 1
-     set %currentx %toedip
-     return #true
+      ; if we can move forward, then quick stalling, do it!
+      set %step %step - 1
+      set %currentx %currentx - 1
+      set %board . %currentx , %currenty  %step
+
+       if %clearvalues
+       {
+        ; remove all the old "blocked" paths because since we moved, now maybe they aren't blocked anymore.
+        if %board . %pathright = xx
+           set %board . %pathright zz
+        if %board . %pathleft = xx
+           set %board . %pathleft zz
+        if %board . %pathup = xx
+           set %board . %pathup zz
+        if %board . %pathdown = xx
+           set %board . %pathdown zz
+      }
+
+      return #true
     }
     else
     {
        ;if we can't, mark the path as blocked
        set %board . %pathleft xx
+       gosub reset
        return #false
     }
 
 return
 
 sub goup
+     set %clearvalues %1
      gosub clickrandom %upx %upy
      ; check if we're still in the game
      gosub waitingformygump contname generic_gump contsize 629_414 10
@@ -338,36 +290,66 @@ sub goup
      {
        ; if we can move forward, then quick stalling, do it!
        set %step %step - 1
-       set %currenty %toedip
+       set %currenty %currenty - 1
+
+       if %clearvalues
+       {
+         ; remove all the old "blocked" paths because since we moved, now maybe they aren't blocked anymore.
+         set %board . %currentx , %currenty  %step
+         if %board . %pathright = xx
+            set %board . %pathright zz
+         if %board . %pathleft = xx
+            set %board . %pathleft zz
+         if %board . %pathup = xx
+            set %board . %pathup zz
+         if %board . %pathdown = xx
+            set %board . %pathdown zz
+       }
+       
        return #true
      }
      else
      {
          ;if we can't, mark the path as blocked
          set %board . %pathup xx
+         gosub reset
          return #false
      }
 return
 
 sub godown
+     set %clearvalues %1
      gosub clickrandom %downx %downy
      ; check if we're still in the game
      gosub waitingformygump contname generic_gump contsize 629_414 10
      if #result
      {
-       ; if we can move forward, then quick stalling, do it!
-       set %step %step - 1
-       set %currenty %toedip
-       return #true
+        ; if we can move forward, then quick stalling, do it!
+        set %step %step - 1
+        set %currenty %currenty + 1
+        set %board . %currentx , %currenty  %step
+
+       if %clearvalues
+       {
+          ; remove all the old "blocked" paths because since we moved, now maybe they aren't blocked anymore.
+          if %board . %pathright = xx
+            set %board . %pathright zz
+          if %board . %pathleft = xx
+            set %board . %pathleft zz
+          if %board . %pathup = xx
+            set %board . %pathup zz
+          if %board . %pathdown = xx
+            set %board . %pathdown zz
+        }
+        
+        return #true
      }
      else
      {
-        scanjournal 1
-        if You_successfully_disarm in #journal
-          set %wefinished #true
-         ;if we can't, mark the path as blocked
-         set %board . %pathdown xx
-         return #false
+        ;if we can't, mark the path as blocked
+        set %board . %pathdown xx
+        gosub reset
+        return #false
      }
 return
 
@@ -404,7 +386,9 @@ waitingformygump:
 if # . %1 <> %2 && # . %3 <> %4
    {
     if %gumptimeout < #scnt2
+    {
          return #false
+    }
     goto waitingformygump
    }
 return #true
@@ -429,9 +413,11 @@ set #ltargetkind 1
 event macro 13 48
 target 5s
 event macro 22
-gosub waitingformygump contname generic_gump contsize 629_414 50
+gosub waitingformygump contname generic_gump contsize 629_414 20
 if ! #result
+{
    return #false
+}
 wait 5
 return #true
 ;==================================================

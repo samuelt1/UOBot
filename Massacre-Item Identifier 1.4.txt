@@ -34,8 +34,6 @@
 ;items location (#findx #findy)
 ;Items container's ID
 
-;or, if you just want to keep it simple with the info it already has,
-;you could get rid of the menu, and put it all in the ultima titlebar so its not in the way at all.
 
 event SysMessage Target something!
 set #targCurs 1

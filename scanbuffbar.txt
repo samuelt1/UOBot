@@ -1,0 +1,67 @@
+;========================================================================================
+; Script Name: ENs BuffBarScanner
+; Author: JosephAJ, AKA Endless Night AKA EN
+; Version: V45
+; Client Tested with: ...
+; EUO version tested with: 1.5 (TV...)
+; Revision Date: 10/15
+; Public Release: 10-06, 09,10-08, 07,9-09, 9,11,12-10, 3,4,8/9/10-11, 12/12, 3/14, 10/15, 8/16, 2/17 , 2/20
+; Purpose: Scan and Manipulate The Buff/Debuff Bar (No Retrictions)
+;========================================================================================
+; (C) 2006-2016 All Rights Reserved JosephAJ
+; Please Read License/Disclaimers/Notes Located in ScanBuffBar-subs.txt
+;========================================================================================
+Set %BuffBarOLDLPC #LPC
+Set #LPC  20000
+set %BuffBarCalls %BuffBarCalls + 1
+namespace push
+namespace local ENs_BuffBarSubs . #charid
+  set !newString2
+  for !lc 0 !LoopCount
+   {
+   savePix !x2 . !lc  !y2 . !lc %BuffBarPixelLoc
+   set !newstring2 !newstring2 , _ , #pixcol
+   }
+  if %0 > 0 || !newstring2 <> !oldstring2 || !newstring2 = _0_0_0
+    gosub EN_BB_AdvanceScan %0 %1 %2 %3
+  set %BuffBarIconsFound  !BuffBarIconsFound
+  set %BuffBarIconNames   !BuffBarIconNames
+  set %BuffbarDirection   !BuffbarDirection
+namespace pop
+Set #LPC %BuffBarOLDLPC
+exit
+
+sub EN_BB_AdvanceScan
+  set %BuffBar2ndScan %BuffBar2ndScan + 1
+  SavePix !ButtonX1 . !Cnt !ButtonY1 . !Cnt %BuffBarPixelLoc
+  if  %1 > 0 || #pixcol <> !BuffBarKnownButtonCol1 || !newstring2 = _0_0_0
+     call ScanBuffBar-Subs OpenBuffBar %1 %2 %3 %4
+  set !BuffBarIconsFound 0
+  set !BuffBarIconNames _
+  set !oldString2  _ , !BuffBarKnownButtonCol1 , _ , !BuffBarKnownButtonCol2
+  set !Cnt 2
+  Repeat
+    savePix !x2 . !Cnt  !y2 . !Cnt %BuffBarPixelLoc
+    set !oldstring2 !oldstring2 , _ , #pixcol
+    set !debug #pixcol
+    If !Cnt . !debug > 1 || ! . !debug = N/A 2
+      savePix !x1 . !Cnt  !y1 . !Cnt %BuffBarPixelLoc
+      set !debug  !debug , _ , #pixcol
+    If ! . !debug <> N/A 2
+      set !BuffBarIconNames  !BuffBarIconNames , _ , ! . !debug , _
+      set !BuffBarIconsFound !BuffBarIconsFound + 1
+ ;   If ! . !debug = N/A
+ ;     set %BuffBarDebug !debug
+    set !Cnt !Cnt + 1
+  until ! . !debug = N/A  &&  !Cnt >= !BuffBarTolerance
+  set !loopcount !Cnt - 1
+  if !loopCount < !BuffBarTolerance
+    set !loopcount !BuffBarTolerance
+  set !x20 !BuffBarButtonPosX1
+  set !y20 !BuffBarButtonPosY1
+  set !x21 !BuffBarButtonPosX2
+  set !y21 !BuffBarButtonPosY2
+return
+
+
+

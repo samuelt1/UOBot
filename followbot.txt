@@ -1,0 +1,157 @@
+;==============================================================
+; Script Name: Followbot
+; Author: TFC
+; Version: 0.0
+; Client Tested with: 4.0.3b
+; EUO version tested with: 1.42.008a
+; Shard OSI / FS: OSI
+; Revision Date: 09.04.2020
+; Public Release: 09.04.2020
+; Purpose: Allows you to have a partner in crime
+;==============================================================
+
+;Commands:
+;Come here
+;Dig
+;Pick
+;Trap
+;Go Home
+;Run away
+;Hide
+;Follow me
+
+while #true
+{
+  set %teleported #false
+  finditem OTF G_5
+  if #findcnt > 0
+  {
+    gosub PathfindWait #findx #findy #findz
+    
+    if #contname = generic_gump
+    {
+       set %clickx 26 + #contposx
+       set %clicky 260 + #contposy
+       click %clickx %clicky dmc
+    }
+    if #charposx <> #findx && #charposy <> #findy
+    {
+       event ExMsg #charID 3 0 We teleported.
+       set %teleported #true
+    }
+    gosub hide
+    halt
+  }
+  else
+  {
+      event ExMsg #charID 3 0 no moongate here.
+      halt
+  }
+}
+
+sub hide
+
+    chooseSkill hidi
+    if %teleported && #skill > 50
+    {
+       event macro 13 21 ; hiding
+       event ExMsg #charID 3 0 hiding (or trying to).
+    }
+    ;TODO check journal, if hiding was successful return success.
+    ; if not, try to use egg bomb
+    ; if not, return failure
+return
+
+
+sub PathfindWait
+    set %moveres unknown
+    
+    if #charposx = %1 && #charposy = %2
+    {
+        set %moveres success
+        return
+    }
+    set %js #jindex
+    event pathfind %1 %2 %3
+    wait 10
+    set %je #jindex
+    for %ji %js %je
+    {
+        scanjournal %ji
+        if pathfinding in #journal
+        {
+            set %movex #charposx
+            set %movey #charposy
+            set %movetimer #systime + 500
+            PathfindWaitLoop:
+            ;gosub checkConnect ;need to make sure this works
+            if #systime < %movetimer
+                goto PathfindWaitLoop
+            if %movex = %1 && %movey = %2
+            {
+                set %moveres success
+                return
+            }
+            if %movex = #charposx && %movey = #charposy
+            {
+                set %moveres stopped
+                return
+            }
+            set %movex #charposx
+            set %movey #charposy
+            set %movetimer #systime + 500
+            goto PathfindWaitLoop
+        }
+        if can't_get_there in #journal
+        {
+            set %moveres error
+            return
+        }
+    }
+return
+
+
+sub checkConnect
+    if #CONTNAME = waiting_gump
+       gosub login
+return
+
+sub login
+    sleep 2000
+    key ENTER
+    startLogin:
+    set #LSHARD 0
+    if #CONTNAME = MainMenu_gump
+    {
+       menu Get passwordtext
+       msg #menuRes
+       key ENTER
+       gosub waitForPageLoad
+       key ENTER
+       if #shard <> Atlantic
+       {
+          click 600 450 dmc
+          gosub waitForPageLoad
+          click 600 450 dmc
+          goto startLogin
+       }
+       gosub waitForPageLoad
+       key ENTER
+       sleep 10000
+       return
+    }
+    else
+    {
+        sleep 1000
+        goto startLogin
+    }
+return #false
+
+sub waitForPageLoad
+    waitForShardPage:
+    if #CONTNAME <> normal_gump
+    {
+        sleep 100
+        goto waitForShardPage
+    }
+return
