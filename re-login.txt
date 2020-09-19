@@ -13,7 +13,7 @@ sub login
     set #LSHARD 0
     if #CONTNAME = MainMenu_gump
     {
-       msg %passwordtext
+       msg %1
        key ENTER
        gosub waitForPageLoad
        key ENTER
