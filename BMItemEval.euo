@@ -1,0 +1,528 @@
+;===============================================================
+; Script Name: BadManiac's Automagic Item Evaluation
+; Authors: BadManiac, Nilmer, Snicker7
+; Version: 1.62
+; Client Tested with: 5.0.2b
+; EUO version tested with: 1.5 Version 77
+; Shard OSI / FS: OSI / works on FS with correct item types
+; Revision Date: 06/10/2006
+; Public Release: 05/12/2004
+; Global Variables Used: None
+; Purpose: Called Item Evaluation
+; Evaluates the item ID sent as parameter 1 (%1)
+; Returns the item value in #RESULT
+;===============================================================
+; SCRIPT INIT===================================================
+SET %iev_lpc #LPC
+IF %iev_lpc < 400
+	SET #LPC 400
+IF %iev_once <> #TRUE
+{
+	;WEAPON TYPES=============================================================
+	SET %sword YPO_BNF_CPH_INF_FSF_OSF_ASF_HNF_FMH_CNF_LSF_NSF_ISF_SMH_RMH_CSF_ZRF_MPH_LPH_MSF_BSF_KPO_GUO_KTF_JTF_BPH_EPH_ZSF_ATF_JPH_SOH_POH_NMH_OMH_LPO_ZTO_XTH_YTH_HSF_KSF_NPO_XPO_FUO_JPO_QPF_NPF_KPH_FYG_RHM_SFR_
+	SET %fencing SRH_AQF_PPF_TSF_WSF_BUO_VPO_WPO_WRH_VRH_XRH_YRH_LTF_MTF_OPO_RRH_CUO_
+	SET %mace OLH_JOH_URH_EMH_WTH_DMH_QMH_CFF_BFF_PMH_GMH_ZPF_CQF_FFF_RPF_TRH_YSF_XSF_FBG_VTH_AUH_ZTH_UOH_VOH_AUO_MPO_BUH_CUH_DMH_GFF_QOH_HFF_TLH_GBG_
+	SET %bow WOH_TOH_QPO_SPO_WOH_TOH_JSF_USF_LMH_MMH_QPO_SPO_PPO_RPO_JSF_USF_LMH_MMH_PPO_RPO_JSF_
+	;Samurai Empire Weapons---
+	SET %se_sword CSF_ZRF_MPH_LPH_MSF_BSF_KPO_GUO_KTF_JTF_BPH_EPH_ZSF_ATF_JPH_SOH_POH_NMH_OMH_LPO_ZTO_XTH_YTH_HSF_KSF_NPO_XPO_FUO_JPO_QPF_NPF_KPH_FYG_RHM_JDP_EDP_YCP_KDP_
+	SET %se_fencing LDP_HDP_ZCP_FDP_
+	SET %se_mace DDP_ADP_IDP_
+	SET %se_bow XCP_
+	;Mondain's Legacy Weapons---
+	SET %ml_sword RFR_NFR_SFR_OFR_EFR_YFR_XFR_DFR_
+	SET %ml_fencing KFR_GFR_LFR_HFR_IFR_MFR_FFR_JFR_
+	SET %ml_mace VFR_BFR_WFR_CFR_
+	SET %ml_bow VER_PFR_wer_QFR_
+	;ARMOR TYPES================================================================
+	;Medable first----
+	SET %leatherarmor VKH_NJL_QJL_JKH_QKH_DLH_HKH_PKH_SKH_KKH_ELH_PSF_QSK_ATK_ZSK_OSK_YSK_NSK_
+	SET %medhelmet NJL_QJL_NZH_TDI_VVI_KZH_PZH_DZH_
+	SET %medgorget JKH_RJG_SJG_FJG_MWL_
+	SET %medarm HKH_PKH_
+	SET %medtunic QKH_DLH_
+	SET %femalemedtunic ATK_ZSK_OSK_NSK_
+	SET %medglove KKH_SKH_WTO_
+	SET %medlegging VKH_ELH_
+	SET %femalemedlegging QSK_YSK_PSK_
+	;Hats---
+	SET %hats CZH_HZH_GZH_BWI_WVI_XVI_YVI_IWI_HWI_KWI_JWI_EWI_JJN_OZH_DZH_BZH_EZH_VSH_QSH_VSH_NWL_
+	;Samurai Empire Medable Armor---
+	SET %se_leatherarmor RWO_GCP_UBP_OWO_LCP_SWO_GWO_CCP_NCP_OCP_
+	SET %se_medhelmet GWO_CCP_
+	SET %se_medgorget SWO_
+	SET %se_medarm OWO_
+	SET %se_medtunic RWO_NCP_
+	SET %se_medglove OCP_
+	SET %se_medleggins GCP_UBP_LCP_ECP_
+	SET %se_medarmor %se_leatherarmor , %se_medhelmet , %se_medgorget , %se_medarm , %se_medtunic , %se_medglove , %se_medleggins
+	;Mondain's Legacy Medable Armor---
+	SET %ml_medhelmet IJQ_
+	SET %ml_medgorget BAS_
+	SET %ml_medarm MAS_
+	SET %ml_medtunic ZZR_
+	SET %ml_medglove CAS_
+	SET %ml_medleggings OAS_LAS_
+	SET %ml_medarmor %ml_medhelmet , %ml_medgorget , %ml_medarm , %ml_medtunic , %ml_medglove , %ml_medleggings
+	;---
+	SET %medarmor %leatherarmor , %medHelmet , %hats , %medGorget , %medArm , %medTunic , %femaleMedTunic , %medGlove , %medLegging , %femaleMedLegging , %se_medarmor , %ml_medarmor
+	;Non medable---
+	SET %studdedarmor ALH_ULH_LLH_YKH_GLH_XKH_FLH_RLH_MLH_SSK_RSK_
+	SET %bonearmor ZPH_YPH_WPH_PPH_BQH_QPH_VPH_XPH_CQH_AQH_
+	SET %nonmedhelmet DSH_ASH_TSH_ESH_YPH_GSH_OSH_ZPH_ZRH_IWL_CSH_CSH_BSH_FSH_DPH_LKO_NWL_MKH_
+	SET %nonmedgorget NSH_ALH_
+	SET %nonmedarm BQH_JSH_XLH_GLH_MSH_YLH_QPH_YKH_DLO_
+	SET %nonmedtunic HSH_ULH_LLH_ZOH_IKH_VLH_KSH_WLH_WPH_PKO_PPH_RSK_
+	SET %femalenonmedtunic USK_SSK_MSK_TSK_LSK_USK_
+	SET %nonmedglove VPH_ISH_AQH_BMH_USH_XKH_FLH_KMH_RKO_
+	SET %nonmedlegging HMH_LSH_IMH_CQH_WSH_APH_MLH_RLH_NKH_XPH_NKO_
+	;Samurai Empire Non Medable Armor---
+	SET %se_studdedarmor MWO_NWO_FCP_PCP_TBP_
+	SET %se_nonmedhelmet RBP_DCP_QWO_DWO_SBP_VBP_FWO_
+	SET %se_nonmedgorget PCP_
+	SET %se_nonmedarm NWO_WBP_
+	SET %se_nonmedtunic MWO_LWO
+	SET %se_nonmedleggins FCP_TBP_ZBP_
+	SET %se_nonmedarmor %se_studdedarmor , %se_nonmedhelmet , %se_nonmedgorget , %se_nonmedarm , %se_nonmedtunic , %se_nonmedleggins
+	;Mondain's Legacy Non Medable Armor---
+	SET %ml_nonmedhelmet RJQ_UJQ_TJQ_
+	SET %ml_nonmedgorget QJQ_JJQ_
+	SET %ml_nonmedarm PJQ_GJQ_
+	SET %ml_nonmedtunic OJQ_ZIQ_
+	SET %ml_nonmedgloves NJQ_MJQ_
+	SET %ml_nonmedleggings AKQ_LJQ_
+	SET %ml_nonmedarmor %ml_nonmedhelmet , %ml_nonmedgorget , %ml_nonmedarm , %ml_nonmedtunic , %ml_nonmedgloves , %ml_nonmedleggings
+	;---
+	SET %nonmedarmor %studdedarmor , %bonearmor , %nonmedHelmet , %nonmedGorget , %nonmedArm , %nonmedTunic , %femaleNonMedTunic , %nonmedGlove , %nonmedLegging , %se_nonmedarmor , %ml_nonmedarmor
+	;INIT LISTS====================================================================
+	SET %weap %sword , %fencing , %mace , %bow , %se_sword , %se_fencing , %se_mace , %se_bow , %ml_sword , %ml_fencing , %ml_mace , %ml_bow
+	SET %armor %medarmor , %nonmedarmor
+	SET %shield LIK_MIK_CLK_AIK_CIK_LYD_GIK_NIK_ZHK_HLK_BLK_FIK_BIK_OIK_
+	SET %jewelery CWL_LWL_UJG_IJG_
+	SET %iev_once #TRUE
+}
+IF %1 = INIT
+{
+   SET #RESULT BMItemEval_OK
+   SET #LPC %iev_lpc
+   EXIT
+}
+; ITEM CHECK====================================================
+SET %object %1
+SET %value 0
+SET %resist 0
+SET %medable #FALSE
+SET %NA
+IF #FINDID <> %object
+{
+	FINDITEM %object
+	IF #FINDCNT < 1
+     SET %iev_done #TRUE
+}
+IF #FINDTYPE NOTIN %armor && #FINDTYPE NOTIN %jewelery && #FINDTYPE NOTIN %weap && #FINDTYPE NOTIN %shield
+ SET %iev_done #TRUE
+IF %iev_done <> #TRUE
+{
+  GOSUB BMGetProperty #FINDID
+  SET %iev_objecttype #FINDTYPE
+  ; SCRIPT START===================================================
+  IF #RESULT
+  {
+    IF %iev_objecttype IN %weap
+   	  GOSUB weapon
+    IF %iev_objecttype IN %armor
+	   GOSUB armor
+    IF %iev_objecttype IN %jewelery
+	    GOSUB jewelery
+    IF %iev_objecttype IN %shield
+	    GOSUB shield
+  }
+}
+SET #LPC %iev_lpc
+SET #RESULT %value
+EXIT
+
+; SCRIPT END ====================================================
+;===============================
+;Subs Begin here
+;===============================
+SUB weapon
+  GOSUB chanceIncrease
+	GOSUB damageIncrease
+	GOSUB speedIncrease
+	GOSUB channeling
+	GOSUB slayer
+	GOSUB leech
+	GOSUB lower
+	GOSUB spellChance
+	GOSUB bestWeapon
+	GOSUB luck
+	GOSUB elementdamage
+RETURN
+SUB armor
+	GOSUB medable
+	GOSUB regeneration
+ 	GOSUB resist
+	GOSUB lowercost
+	GOSUB increase
+	GOSUB luck
+	GOSUB selfRepair
+	GOSUB reflectPhysical
+RETURN
+SUB jewelery
+	GOSUB skill
+	GOSUB stats
+	GOSUB chanceIncrease
+	GOSUB damageIncrease
+	GOSUB luck
+	GOSUB night
+	GOSUB fastercast
+	GOSUB resist
+	GOSUB lowercost
+	GOSUB enhancepots
+RETURN
+SUB shield
+	GOSUB chanceIncrease
+	GOSUB selfRepair
+	GOSUB channeling
+	GOSUB fastercast
+	GOSUB reflectPhysical
+	GOSUB resist
+RETURN
+;=================================================
+SUB skill
+{
+	GOSUB Skills
+  SET %value %value + ( #RESULT / 3 )
+  RETURN
+}
+SUB fastercast
+{
+	IF faster , #spc , casting in #property && faster , #spc , cast , #spc , recovery in #property
+		SET %value %value + 4
+	GOSUB Property faster , #SPC , casting
+	IF #RESULT > 0
+	   SET %value %value + ( #RESULT * 6 )
+	GOSUB Property faster , #spc , cast , #spc , recovery
+	SET %value %value + ( #RESULT * 4 )
+  RETURN
+}
+SUB stats
+{
+	GOSUB Property intelligence , #spc , bonus
+	SET %value %value + ( #RESULT / 2 ) + ( #RESULT / 3 )
+	GOSUB Property strength , #spc , bonus
+	SET %value %value + ( #RESULT / 2 ) + ( #RESULT / 3 )
+	GOSUB Property dexterity , #spc , bonus
+	SET %value %value + ( #RESULT / 2 ) + ( #RESULT / 3 )
+  RETURN
+}
+SUB increase
+{
+	GOSUB Property hit , #SPC , point , #SPC , increase
+	SET %value %value + ( #RESULT / 2 )
+	GOSUB Property mana , #SPC , increase
+	SET %value %value + ( #RESULT / 2 )
+	GOSUB Property stamina , #SPC , increase
+	SET %value %value + ( #RESULT / 3 )
+  RETURN
+}
+SUB night
+{
+	IF night , #SPC , sight IN #property
+		SET %value %value + 1
+  RETURN
+}
+SUB selfRepair
+{
+	GOSUB Property self , #spc , repair
+	SET %value %value + ( #RESULT / 2 )
+  RETURN
+}
+SUB lowercost
+{
+	GOSUB Property lower , #spc , reagent , #spc , cost
+	IF #RESULT >= 12
+	{
+		SET %value %value + ( #RESULT / 2 ) + ( #RESULT / 3 )
+		IF %medable <> #TRUE
+			SET %value %value - ( #RESULT / 6 )
+	}
+	GOSUB Property lower , #spc , mana , #spc , cost
+	SET %value %value + ( #RESULT / 2 ) + ( #RESULT / 3 )
+  RETURN
+}
+SUB enhancepots
+{
+	GOSUB Property enhance , #spc , potions
+	SET %value %value + ( #RESULT / 6 )
+  RETURN
+}
+SUB regeneration
+{
+	GOSUB Property mana , #spc , regeneration
+	SET %value %value + ( #RESULT * 4 )
+	GOSUB Property hit , #spc , point , #spc , regeneration
+	SET %value %value + ( #RESULT * 4 )
+	GOSUB Property stamina , #spc , regeneration
+	SET %value %value + ( #RESULT * 4 )
+  RETURN
+}
+SUB slayer
+{
+	IF slayer in #property
+		SET %value %value + 3
+	IF ( dragon in #property ) || ( daemon in #property ) || ( blood , #SPC , elemental IN #PROPERTY )
+		SET %value %value + 3
+	IF ( repond in #property ) || ( undead in #property ) || ( demon in #property ) || ( reptile in #property ) || ( $elemental , #spc , slayer IN #PROPERTY ) || ( arachnid , #spc , slayer IN #PROPERTY )
+		SET %value %value + 5
+  RETURN
+}
+SUB elementdamage
+{
+	SET %elem_dam 0
+	GOSUB Property cold , #SPC , damage
+	IF #RESULT = 100
+		SET %elem_dam 5
+	GOSUB Property energy , #SPC , damage
+	IF #RESULT = 100
+		SET %elem_dam 5
+	GOSUB Property fire , #SPC , damage
+	IF #RESULT = 100
+		SET %elem_dam 5
+	GOSUB Property poison , #SPC , damage
+	IF #RESULT = 100
+		SET %elem_dam 7
+	IF %elem_dam > 0
+	{
+		SET %value %value + %elem_dam
+		IF %value < 10
+			SET %value 10
+	}
+  RETURN
+}
+SUB spellChance
+{
+	GOSUB Property hit , #spc , lightning
+	IF #RESULT >= 20
+		SET %value %value + ( #RESULT / 8 ) + ( #RESULT / 12 )
+	GOSUB Property hit , #spc , harm
+	IF #RESULT >= 20
+		SET %value %value + ( #RESULT / 8 ) + ( #RESULT / 12 )
+	GOSUB Property hit , #spc , fireball
+	IF #RESULT >= 20
+		SET %value %value + ( #RESULT / 8 ) + ( #RESULT / 12 )
+	GOSUB Property hit , #spc , dispel
+	IF #RESULT >= 20
+		SET %value %value + ( #RESULT / 8 ) + ( #RESULT / 20 )
+	GOSUB Property area
+	IF #RESULT >= 20
+		SET %value %value + ( #RESULT / 10 ) + ( #RESULT / 12 )
+  RETURN
+}
+SUB lower
+{
+	GOSUB Property lower , #spc , attack
+	IF #RESULT >= 20
+		SET %value %value + ( #RESULT / 5 )
+	GOSUB Property lower , #spc , defense
+	IF #RESULT >= 20
+		SET %value %value + ( #RESULT / 5 )
+  RETURN
+}
+SUB luck
+{
+	GOSUB Property luck
+	IF %iev_objecttype IN %hats
+		SET #RESULT #RESULT - 40
+	IF #RESULT >= 50
+		SET %value %value + ( #RESULT / 11 ) + ( #RESULT / 15 )
+  RETURN
+}
+SUB bestWeapon
+{
+	IF best , #SPC , weapon , #SPC , skill IN #PROPERTY
+		SET %value %value + 2
+  RETURN
+}
+SUB chanceIncrease
+{
+	GOSUB Property hit , #spc , chance
+	IF #RESULT >= 6
+		SET %value %value + ( #RESULT / 2 ) + ( #RESULT / 3 )
+	GOSUB Property defense , #spc , chance
+	IF #RESULT >= 6
+		SET %value %value + ( #RESULT / 2 ) + ( #RESULT / 3 )
+  RETURN
+}
+SUB speedIncrease
+{
+	GOSUB Property swing , #spc , speed , #spc , increase
+	IF #RESULT >= 10
+		SET %value %value + ( #RESULT / 3 ) + ( #RESULT / 10 )
+  RETURN
+}
+SUB channeling
+{
+	IF ( spell , #SPC , channeling IN #PROPERTY )
+	{
+		SET %value %value + 4
+		IF ( faster , #SPC , casting , #SPC , -1 IN #PROPERTY )
+			SET %value %value - 3
+	}
+	IF ( mage , #SPC , weapon IN #PROPERTY )
+	{
+		GOSUB Property mage , #SPC , weapon
+		SET %_mw_skill ABS #RESULT
+		SET %value %value + ( ( 31 - %_mw_skill ) / 4 )
+	}
+  RETURN
+}
+SUB medable
+{
+	IF ( %iev_objecttype IN %medarmor ) || ( mage , #SPC , armor IN #PROPERTY )
+	{
+		SET %value %value + 2
+		SET %medable #TRUE
+	}
+  RETURN
+}
+SUB leech
+{
+	GOSUB Property mana , #spc , leech
+	IF #RESULT >= 20
+		SET %value %value + ( #RESULT / 6 ) + ( #RESULT / 10 )
+	GOSUB Property life , #spc , leech
+	IF #RESULT >= 20
+		SET %value %value + ( #RESULT / 6 ) + ( #RESULT / 10 )
+	GOSUB Property stamina , #spc , leech
+	IF #RESULT >= 20
+		SET %value %value + ( #RESULT / 8 ) + ( #RESULT / 10 )
+  RETURN
+}
+SUB damageIncrease
+{
+	GOSUB Property spell , #SPC , damage , #spc , increase
+	IF #RESULT > 0
+		SET %value %value + ( #RESULT / 2 )
+	GOSUB Property $damage , #spc , increase
+	IF #RESULT >= 20
+		SET %value %value + ( #RESULT / 5 ) + ( #RESULT / 10 )
+  RETURN
+}
+SUB reflectPhysical
+{
+	GOSUB Property reflect , #SPC , physical , #SPC , damage
+		SET %value %value + ( #RESULT / 5 )
+  RETURN
+}
+SUB resist
+{
+	GOSUB Resists
+	IF %iev_objecttype IN %hats
+		SET #RESULT #RESULT - 12
+	IF %iev_objecttype IN %armor && #RESULT > 30
+		SET %value %value + ( #RESULT / 4 ) + ( #RESULT / 10 )
+	IF %iev_objecttype NOTIN %armor
+		SET %value %value + ( #RESULT / 5 )
+  RETURN
+}
+;---
+SUB Resists
+{
+	IF Resist , #SPC NOTIN #PROPERTY
+		RETURN #FALSE
+	SET %resiststring #PROPERTY
+	SET %totalresists 0
+  WHILE #TRUE
+	{
+		STR POS %resiststring Resist , #SPC
+		IF #STRRES > 0
+		{
+			SET #STRRES #STRRES + 6
+			STR DEL %resiststring 1 #STRRES
+			SET %resiststring #STRRES
+			STR POS #STRRES %
+			STR DEL %resiststring #STRRES 9999
+			SET %totalresists %totalresists + #STRRES
+			SET %ri 0
+		}
+		ELSE
+      BREAK
+	}
+	IF Total , #SPC , Resist , #SPC in #PROPERTY
+	{
+    GOSUB Property Total , #SPC , Resist , #SPC
+    SET %totalresists %totalresists - #RESULT
+  }
+  RETURN %totalresists
+}
+SUB Skills
+{
+	IF #SPC , + NOTIN #PROPERTY
+		RETURN #FALSE
+	SET %skillstring #PROPERTY
+	SET %totalskills 0
+	SET %allskilltotal 0
+  WHILE #TRUE
+	{
+		STR POS %skillstring #SPC , +
+		IF #STRRES > 0
+		{
+			SET #STRRES #STRRES + 1
+			STR DEL %skillstring 1 #STRRES
+			SET %skillstring #STRRES
+			STR POS #STRRES $
+			STR DEL %skillstring #STRRES 9999
+			SET %allskilltotal %allskilltotal + #STRRES
+			IF #STRRES >= 10
+			  SET %totalskills %totalskills + #STRRES
+		}
+		ELSE
+      BREAK
+	}
+  IF %totalskills >= 10
+    SET %totalskills %allskilltotal
+  RETURN %totalskills
+}
+SUB Property
+{
+	IF ( %0 <> 1 ) || ( %1 NOTIN #PROPERTY )
+		RETURN #FALSE
+	SET %_property %1
+	STR POS #PROPERTY %_property
+	STR DEL #PROPERTY 1 #STRRES
+	SET %_string #STRRES
+	STR POS #STRRES $
+	STR DEL %_string #STRRES 9999
+	SET %_string #STRRES
+	STR LEN %_string
+	IF skill IN %_string
+		SET #STRRES #STRRES - 6
+	IF % IN %_string
+		SET #STRRES #STRRES - 1
+	SET %num_len 0
+	FOR %i #STRRES 1
+	{
+		SET %num_len %num_len + 1
+		STR MID %_string %i 1
+		IF #SPC IN #STRRES
+		{
+			STR MID %_string %i %num_len
+			SET %i 1
+		}
+	}
+  RETURN #STRRES
+}
+SUB BMGetProperty
+{
+  SET %prop_timeout #SYSTIME + 1500
+  EVENT PROPERTY %1
+  WHILE #PROPERTY = $ || No , #SPC , Data IN #PROPERTY
+  {
+    IF No , #SPC , Data IN #PROPERTY
+      EVENT PROPERTY %1
+    IF #SYSTIME > %prop_timeout
+      RETURN #FALSE
+  }
+  RETURN #TRUE
+}

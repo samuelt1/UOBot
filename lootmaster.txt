@@ -1,0 +1,75 @@
+;event SysMessage Target loot bag!
+;set #targCurs 1
+;while #targCurs = 1
+;{
+;      wait 10
+;}
+
+finditem LKF C_ , #backpackid
+set %lootbag #findid
+event SysMessage lootbag -  %lootbag
+event SysMessage corpseb -  #contID
+event SysMessage corpseb -  #backpackid
+set %ignorelist _
+
+
+while #true
+{
+  ;find monsters to kill
+  finditem YFM G_10
+  if #findkind = 1
+  {
+     ignoreItem #findid
+     event PathFind #findx #findy #findz
+     event SysMessage #findx #findy #findz
+     while #finddist > 2
+     {
+      wait 10
+     }
+     set #lobjectid #findid
+     event macro 17 0
+     event SysMessage found elemental
+     wait 1s
+     gosub lootitems
+  }
+  if #charposx <> 5918 && #charposy <> 286
+  {
+     event PathFind 5918 286 0
+  }
+  
+  while #charposx <> 5918 && #charposy <> 286
+  {
+        wait 10
+  }
+}
+
+
+
+sub lootitems
+  ;loot items
+  finditem * C_ , #contid
+  wait 1s
+
+  for #FINDINDEX 1 #FINDCNT
+  {
+    event Property #findID
+    event SysMessage #findID
+    if magic in #property ; && ( Weight: , #spc , 50 ) notin #property
+    {
+      wait 1s
+      Exevent Drag #findid
+      wait 10
+      Exevent Dropc %lootbag
+      wait 1s
+    }
+    if arrow in #property
+    {
+      wait 1s
+    	Exevent Drag #findid #findstack
+    	wait 10
+    	Exevent Dropc %lootbag
+      wait 1s
+    }
+  }
+return
+

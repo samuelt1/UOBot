@@ -1,0 +1,1526 @@
+;=============================================================
+; Script Name:  BadManiac's Automagic Looting 2
+; Author: BadManiac
+; Version: 2.70 FINAL
+; Client Tested with: 5.0.9.1
+; EUO version tested with: 1.5 Test Version 110
+; Shard OSI / FS: OSI / works on FS with correct item types
+; Revision Date: 29/03/2007
+; Public Release: 05/12/2004
+; Global Variables Used:
+;	*bml_busy Denotes Script is busy looting
+;	*bml_minvalue Contains the last min value for equipment
+;	*bml_settings Contains the last used settings for the script
+;	*bml_hotkey Stores the current looting hotkey
+; Purpose:
+; Powerful fast Automagic Looting with item evaluation, corpse cutting,
+; resource gathering and cutting, and looting equipment over a certain value
+;=============================================================
+SET #LPC 50
+;=============================================================
+;###############  USER SETTINGS BELOW ONLY!  #################
+;=============================================================
+; This timer is the only thing you need to edit if the script
+; has problems.
+; Should be around 5, but lowering it to 2-3 works fine for
+; low ping high speed conn's. FS'ers should leave it at 4-5
+; Dialup and high ping users might have to set it as high as
+; 6 or 7.
+;=============================================================
+SET %bml_waittime 5
+;=============================================================
+; Time to wait between actions to prevent errors.
+; Minimum on EA is 10, and for freeshards 5, for fast conn's.
+; Recommended 13 as this is UO's default action delay.
+;=============================================================
+SET %bml_action_wait 12
+;=============================================================
+; user1 and user2 are for the users personal lists. They are selectable
+; in the menu and you can add your own loot types to them.
+; The lists below are examples of what you may want to include
+;=============================================================
+;Plate of Cookies, Fertile Dirt, Tribal Mask,Mask of Orcish Kin, Evil Orc Helm, Fire Horn
+SET %user1 SLI_NZF_PZH_VSH_NWL_IWL_ZWF_
+;Bandage, Raw Ribs, Gargoyle Pickaxe, Book of Truth
+SET %user2 ZLF_VRD_FWL_QPF_NPF_FTK_
+;=============================================================
+;#############  EDIT NOTHING BELOW THIS LINE  ################
+;=============================================================
+; The lootlists are set here, other is a list of various
+; other loot that doesn't fit anywhere else.
+;=============================================================
+SET %gold POF_
+SET %jewels HVF_UVF_FVF_EVF_OVF_VUF_GVF_RVF_BVF_VVF_NVF_ZVF_
+SET %reagents KUF_JUF_KZF_JZF_MZF_WZF_RZF_SZF_DUF_TZF_UZF_YZF_IUF_
+SET %scrolls AUL_BUL_CUL_DUL_EUL_FUL_GUL_HUL_IUL_JUL_KUL_LUL_MUL_NUL_OUL_PUL_QUL_RUL_SUL_TUL_UUL_VUL_WUL_XUL_YUL_ZUL_AVL_GVL_FVL_IVL_HVL_CVL_NTL_OTL_PTL_QTL_RTL_STL_TTL_UTL_VTL_WTL_XTL_YTL_ZTL_QXL_PXL_ZXL_NXL_WXL_VXL_YXL_XXL_ZFJ_BYL_CYL_DYL_EYL_FYL_GYL_HYL_IYL_JYL_KYL_KYM_PYM_SYM_TYM_WYM_UYM_GCR_ZBR_NCR_ACR_HCR_LCR_ICR_CCR_UCR_OCR_KCR_DCR_JCR_FCR_
+SET %arrowsbolts RWF_LNK_FKF_
+SET %solenloot GMF_OKF_TTO_IJG_
+SET %jukaloot JSL_USL_WOH_YWL_
+SET %paragonloot IIF_IKF_BUD_HIF_
+SET %peerlesskeys QCK_FIL_XVK_OWK_MIG_YWK_ZFM_LZF_XOF_OXM_DXM_RBN_IXM_UBN_BXM_CGM
+;SET %questloot YJM_MSG_GHH_UVH_WLI_VRD_YWK_RY_QY_SY_PY_
+;Resource loot lists
+SET %leather EEG_GED_DEG_
+SET %feather VLK_
+SET %wool HFG_OFF_
+SET %scale STO_
+SET %bones OJK_XIK_SJK_IJK_TJK_BJK_UJK_DJK_MJK_AJK_LJK_FJK_RJK_EJK_ZIK_YIK_JJK_GJK_KJK_HJK_
+;Itemtypes for bones and leather after cutting with scissor
+SET %cutresources JJG_GUF_
+;Seeds, TMap, Demon Bones, Tribal Berry, Origami Paper, Healthy Gland
+SET %other PDF_XVH_OZF_QQD_QIP_NWK_
+;=============================================================
+;This is a list of the different bags types that will be opened and looted,
+;as well as types for knives and scissors for cutting corpses and leather.
+;DON'T EDIT.
+;=============================================================
+SET %bags ZJF_LKF_CKF_YKK
+SET %knives TSF_GMH_BNF_CNF_FMH_WSF
+SET %scissors KAG_JAG
+SET %bwarcleaver HFR_
+;=====================================
+;Set lootlists for equippment
+;=====================================
+GOSUB SetEquipLootlists
+;=====================================
+; Script INIT
+;=====================================
+GOSUB BMEuoVer
+IF #RESULT < 15000
+{
+   DISPLAY OK This script does not support your version of EasyUO. , $ , You must use Version 1.5 , $ , HALTED!
+   HALT
+}
+GOSUB CheckFreeShard bml_freeshard
+GOSUB ShowLootMenu
+GOSUB LootInit
+;=====================================
+; Script MAIN LOOP
+;=====================================
+WHILE #TRUE
+{
+	;Make script less intrusive by checking for lifted objects, target cursor, charcter status or char movement.
+  REPEAT
+  {
+    GOSUB CheckStatus
+  }
+  UNTIL #RESULT
+	GOSUB CheckWeight
+	;If hotkey is set, wait until the specified key is pressed before starting to loot.
+	IF %bml_hotkey
+	{
+    WHILE #TRUE
+    {
+        ONHOTKEY *bml_hotkey
+           BREAK
+    }
+	}
+	;All is well, go ahead and look for corpses in range to loot.
+	GOSUB LookForCorpse
+	IF #RESULT <> #FALSE
+	{
+    GOSUB ScanForBags
+	  IF ! #RESULT
+	    GOTO bml_lootdone
+		;Set global to denote that we are busy looting
+		SET *bml_busy #TRUE
+		GOSUB LootPack %bml_corpseid %bml_corpsetype
+		IF #RESULT = #TRUE
+		{
+       FINDITEM %bml_corpseid
+       IF #FINDKIND <> -1
+       {
+          IGNOREITEM %bml_corpseid BmLooter
+          IF %bml_hidecorpse
+            HIDEITEM %bml_corpseid
+       }
+    }
+		IF #RESULT = lootright || #RESULT = instanced
+       GOSUB IgnoreList %bml_corpseid
+  }
+bml_lootdone:
+	;Set global to denote that we are done looting
+	SET *bml_busy #FALSE
+	GOSUB IgnoreList
+	WAIT %bml_waittime
+}
+;================================================================
+;SUBROUTINES START HERE.
+;================================================================
+;LootInit=====================
+SUB LootInit
+{
+	IF %bml_cutcorpse
+	{
+    FINDITEM %bwarcleaver C_ , #BACKPACKID
+    IF #FINDKIND <> -1
+    {
+      FOR #FINDINDEX 1 #FINDCNT
+      {
+        GOSUB BMGetProperty #FINDID
+        IF Butcher's IN #PROPERTY
+        {
+          SET %bml_bwc #TRUE
+          BREAK
+        }
+      }
+    }
+    IF ! %bml_bwc
+    {
+      FINDITEM %scissors C_ , #BACKPACKID
+		  IF #FINDKIND = -1
+		  {
+		  	DISPLAY OK You need scissors to cut looted resources. $ HALTED!
+	 	  	HALT
+		  }
+		  FINDITEM %knives C_ , #BACKPACKID
+		  IF #FINDKIND = -1
+		  {
+			  DISPLAY OK You need a knife to cut corpses to loot resources. $ HALTED!
+			  HALT
+		  }
+    }
+	}
+	IF %bml_lootequipment
+	{
+    SET #RESULT #FALSE
+    CALL BMItemEval.euo INIT
+    IF #RESULT <> BMItemEval_OK
+    {
+      DISPLAY YESNO You selected equipment loot options , $ , But you don't have the BMItemEval.euo script file in the same folder as this file. , $ , Would you like to simply loot all equipment items regardless of item value?
+      IF #DISPRES = NO
+      {
+        DISPLAY OK Please read the setup instructions in the EasyUO PSL thread for this script. , $ , HALTED!
+        HALT
+      }
+      SET *bml_minvalue 0
+    }
+  }
+	IF %lootbag = #TRUE
+	{
+		SET #LTARGETID N/A
+		DISPLAY OK Please target your LOOTBAG and click it. $
+		SET #TARGCURS 1
+    WHILE #TARGCURS = 1
+      WAIT 1
+		SET %lootbagid #LTARGETID
+		SET %regbagid %lootbagid
+	}
+	IF %regbag = #TRUE
+	{
+		DISPLAY OK Please target our REGBAG and click it.$
+		SET #LTARGETID N/A
+		SET #TARGCURS 1
+    WHILE #TARGCURS = 1
+      WAIT 1
+		SET %regbagid #LTARGETID
+	}
+	IGNOREITEM RESET BmLooter
+	EXEVENT DROPC #BACKPACKID
+	GOSUB BMWaitAction
+	SET %idx 0
+	;Reset globals for Seg's Bandage healer and CEOMedic
+	SET *510 ok
+	SET *BUSY 0
+	RETURN
+}
+;LookForCorpse================
+SUB LookForCorpse
+{
+	FINDITEM YFM G_2
+	SET %findzdist ABS ( #CHARPOSZ - #FINDZ )
+	;If the corpse is too far away. Don't loot it.
+	IF #FINDKIND = -1 || #FINDDIST > 2 || %findzdist > 12
+		RETURN #FALSE
+	IF %bml_ignoreplayers
+	{
+    GOSUB BMGetProperty #FINDID
+    IF corpse$ NOTIN #PROPERTY && #CHARNAME NOTIN #PROPERTY
+    {
+	    IGNOREITEM #FINDID BmLooter
+	    RETURN #FALSE
+    }
+  }
+	SET %bml_corpsetype #FINDTYPE
+	SET %bml_corpseid #FINDID
+  RETURN #FINDID
+}
+;ScanForBags===========
+SUB ScanForBags
+{
+  IF #CHARGHOST = YES
+    RETURN #FALSE
+  IF %lootbag = #TRUE
+  {
+    REPEAT
+    {
+      FINDITEM %lootbagid C
+      IF #FINDKIND = -1
+	    {
+        IF #CLILOGGED = 0
+          HALT
+        IF #SCNT > %lbspamto || %lbspamto = N/A
+        {
+          EVENT EXMSG #CHARID 3 33 Can't find lootbag. Waiting!
+          SET %lbspamto #SCNT + 10
+        }
+	    }
+    }
+    UNTIL #FINDKIND <> -1
+  }
+	IF %regbag = #TRUE
+	{
+	  REPEAT
+    {
+	    FINDITEM %regbagid C
+	    IF #FINDKIND = -1
+	    {
+	      IF #CLILOGGED = 0
+          HALT
+        IF #SCNT > %rbspamto || %rbspamto = N/A
+        {
+		      EVENT EXMSG #CHARID 3 33 Can't find regbag. Waiting!
+          SET %rbspamto #SCNT + 10
+	      }
+      }
+    }
+    UNTIL #FINDKIND <> -1
+  }
+  RETURN #TRUE
+}
+;LootPack=====================
+; %1 is the source cont ID
+; %2 is the source cont type
+;=============================
+SUB LootPack
+{
+  IF %1 = %lootbagid || %1 = %regbagid || %1 = #BACKPACKID || %1 = #CHARID || %0 <> 2
+     RETURN #FALSE
+  SET %idx %idx + 1
+  NAMESPACE PUSH
+  NAMESPACE LOCAL BMLootPack . %idx
+  SET !fcontid . %idx %1
+  SET !conttype . %idx %2
+  SET !success #TRUE
+  ;Make script less intrusive by checking for lifted objects, target cursor, or char movement.
+  REPEAT
+  {
+    GOSUB CheckStatus
+  }
+  UNTIL #RESULT
+	;Cut corpse if specified
+	IF %bml_cutcorpse && %idx = 1
+	{
+		GOSUB CutCorpse !fcontid . %idx
+		IF #RESULT <> #TRUE
+		{
+        NAMESPACE CLEAR
+        NAMESPACE POP
+        SET %idx %idx - 1
+        RETURN #RESULT
+	  }
+  }
+  REPEAT
+  {
+    GOSUB CheckStatus
+  }
+  UNTIL #RESULT
+  ;Open corpses and containers near the lower right corner of the game area for 800x600 res.
+  IF %idx <= 1 || !conttype . %idx = YFM
+    GOSUB OpenCorpse !fcontid . %idx
+  IF %idx > 1 || !conttype . %idx <> YFM
+    GOSUB OpenContainer !fcontid . %idx !conttype . %idx
+	IF #RESULT <> #TRUE
+	{
+     NAMESPACE CLEAR
+     NAMESPACE POP
+     SET %idx %idx - 1
+     RETURN #RESULT
+  }
+	SET !contid . %idx #CONTID
+	IF !contid . %idx <> !fcontid . %idx
+	{
+    FINDITEM YFM CA_ , !fcontid . %idx
+    IF #FINDCNT > 1
+	    SET !success instanced
+  }
+  WAIT %bml_waittime
+  GOSUB BMWaitAction
+  ;=====================
+  ; Looting starts here
+  ;=====================
+  GOSUB LootItems !contid . %idx
+  IF %bml_lootequipment
+     GOSUB LootEquipment !contid . %idx
+  WHILE ! %bml_ignorebags
+  {
+    FINDITEM %bags C_ , !contid . %idx
+    IF #FINDCNT < 1 || #FINDBAGID <> !contid . %idx
+      BREAK
+    SET !bml_currentbag #FINDID
+    GOSUB LootPack !bml_currentbag #FINDTYPE
+    IF #RESULT <> #TRUE
+      IGNOREITEM !bml_currentbag BmLooter_temp
+  }
+  IF %bml_dragcut
+    GOSUB TidyResources
+  ; Loot end-----
+  ;=====================
+  ; Close Container
+  ;=====================
+  IF %bml_closecorpse || %idx > 1
+	{
+    SET !closeid !contid . %idx
+    SET !closetimeout #SCNT2 + 25
+    REPEAT
+		{
+      IF #CONTID <> !closeid
+			{
+				CLICK 730 440 DMC
+				WAIT %bml_waittime
+      }
+			IF #CONTID = !closeid
+   			CLICK 730 440 R DMC
+      GOSUB WaitForVar CONTID <> !closeid 9
+    }
+    UNTIL #RESULT = #TRUE || #SCNT2 > !closetimeout
+	}
+  IF %idx <= 1
+  {
+    FINDITEM !fcontid . %idx G
+    IF #FINDDIST > 2
+      SET !success range
+  }
+  FINDITEM !contid . %idx
+	IF #FINDKIND <> -1 && %idx > 1
+		IGNOREITEM !contid . %idx BmLooter
+	SET %idx %idx - 1
+	SET #RESULT !success
+  NAMESPACE CLEAR
+  NAMESPACE POP
+	RETURN #RESULT
+}
+;LootItems====================
+; %1 is the source cont ID
+;=============================
+SUB LootItems
+{
+  SET !contid %1
+  SET !done #FALSE
+  WHILE #TRUE
+  {
+    FINDITEM %bml_corpseid G
+    IF #FINDKIND = -1 || #FINDDIST > 2
+      BREAK
+  	;Make script less intrusive by checking for target cursor, or char movement and waiting.
+    REPEAT
+    {
+      GOSUB CheckStatus
+    }
+    UNTIL #RESULT
+    ;Check weight before each drag operation to make sure we're not overweight.
+	  GOSUB CheckWeight
+	  FINDITEM %bml_lootlist C_ , !contid
+    IF #FINDKIND = -1 && !done
+       BREAK
+	  IF #FINDKIND = -1 && ! !done
+	  {
+       IGNOREITEM RESET BmLooter_once
+       SET !done #TRUE
+       CONTINUE
+    }
+    IF #FINDBAGID <> !contid
+    {
+       IGNOREITEM #FINDID BmLooter_temp
+       CONTINUE
+    }
+	  SET #RESULT #TRUE
+	  SET !lastitem #FINDID
+	  IF #findtype IN %reagents , %necroregs
+	  {
+		   GOSUB MoveItem !lastitem #FINDBAGID %regbagid
+		   GOTO li_finishcurrent
+	  }
+	  IF #FINDTYPE IN %leather , %bones
+	  {
+		   GOSUB MoveAndCut !lastitem %lootbagid
+		   GOTO li_finishcurrent
+	  }
+	  IF #FINDTYPE IN IJG_QPF_NPF
+	  {
+       GOSUB BMGetProperty !lastitem
+		   IF binding NOTIN #PROPERTY && gargoyle NOTIN #PROPERTY
+		   {
+		     IGNOREITEM !lastitem BmLooter_temp
+		     GOTO li_finishcurrent
+		   }
+	  }
+	  IF #FINDTYPE = WOH ;Bow
+	  {
+      GOSUB BMGetProperty %bml_corpseid
+      IF Juka NOTIN #PROPERTY
+		  {
+		    IGNOREITEM !lastitem BmLooter_temp
+		    GOTO li_finishcurrent
+		  }
+    }
+	  GOSUB MoveItem !lastitem #FINDBAGID %lootbagid
+li_finishcurrent:
+	  ;Last drag failed, temporarily ignore the item before proceeding.
+	  IF #RESULT = #FALSE
+		   IGNOREITEM !lastitem BmLooter_once
+	  ELSE
+		   IGNOREITEM RESET BmLooter_once
+  }
+  IGNOREITEM RESET BmLooter_temp
+  RETURN
+}
+;LootEquipment================
+; %1 is the source cont ID
+;=============================
+SUB LootEquipment
+{
+  SET !contid %1
+  SET !done #FALSE
+  WHILE #TRUE
+  {
+    FINDITEM %bml_corpseid G
+    IF #FINDCNT < 1 || #FINDDIST > 2
+      BREAK
+    REPEAT
+    {
+      GOSUB CheckStatus
+    }
+    UNTIL #RESULT
+    ;Check weight before each drag operation to make sure we're not overweight.
+	  GOSUB CheckWeight
+    SET #RESULT 0
+	  FINDITEM %bml_equiplootlist C_ , !contid
+    IF #FINDCNT < 1 && !done
+       BREAK
+	  IF #FINDCNT < 1 && ! !done
+	  {
+       IGNOREITEM RESET BmLooter_once
+       SET !done #TRUE
+       CONTINUE
+    }
+    IF #FINDBAGID <> !contid
+    {
+       IGNOREITEM #FINDID BmLooter_temp
+       CONTINUE
+    }
+	  SET !lastitem #FINDID
+	  CALL BMItemEval.euo !lastitem
+	  SET !value #RESULT
+	  IF %bml_lootsets
+	  {
+       GOSUB BMGetProperty !lastitem
+       IF Only , #SPC , When , #SPC , Full , #SPC , Set IN #PROPERTY || Power IN #PROPERTY || Vanquishing IN #PROPERTY || Mystic IN #PROPERTY
+	       SET !value *bml_minvalue
+    }
+	  IF !value < *bml_minvalue && !value > -1
+	     IGNOREITEM !lastitem BmLooter
+	  ELSE
+		   GOSUB MoveItem !lastitem #FINDBAGID %lootbagid
+	  ;Last drag failed, temporarily ignore the item before proceeding.
+    IF #RESULT = #FALSE
+		   IGNOREITEM %lootitem BmLooter_once
+	  ELSE
+		   IGNOREITEM RESET BmLooter_once
+  }
+  IGNOREITEM RESET BmLooter_temp
+  RETURN
+}
+;OpenCorpse================
+; %1 is the ID of the corpse to open
+;=============================
+SUB OpenCorpse
+{
+	IF %1 = %lootbagid || %1 = %regbagid || %1 = #BACKPACKID || %1 = #CHARID
+		RETURN #FALSE
+  NAMESPACE PUSH
+  NAMESPACE LOCAL opencorpse
+  SET !corpseid %1
+oc_opencorpse:
+  SET #LOBJECTID !corpseid
+  SET !timeout #SCNT2 + 30
+  SET !jstart #JINDEX + 1
+  GOSUB BMWaitAction %bml_action_wait
+  SET #nextCPosX 656
+	SET #nextCPosY 388
+  EVENT MACRO 17 0
+  WAIT %bml_waittime
+  GOSUB BMWaitAction
+  SET !success #TRUE
+  REPEAT
+  {
+    IF #SCNT2 > !timeout
+      RETURN #FALSE
+    FINDITEM !corpseid G
+    SET !jend #JINDEX + 1
+    FOR !i !jstart !jend
+    {
+      SCANJOURNAL !i
+      IF You_must_wait IN #JOURNAL
+       GOTO oc_opencorpse
+  		IF may_not_loot IN #JOURNAL || criminal_act IN #JOURNAL || did_not_earn_the_right IN #JOURNAL || did_not_slay_this_creature IN #JOURNAL
+        SET !success lootright
+      IF I_can't_reach_that. IN #JOURNAL || out_of_sight. IN #JOURNAL || #FINDDIST > 2
+		    SET !success range
+    }
+    WAIT 1
+  }
+  UNTIL YFM IN #CONTTYPE || !success <> #TRUE
+  IF !success && ( #CONTPOSX <> 656 || #CONTPOSY <> 388 )
+  {
+    WAIT %bml_waittime
+    CONTPOS 656 388
+  }
+  SET #RESULT !success
+  NAMESPACE CLEAR
+  NAMESPACE POP
+  RETURN #RESULT
+}
+;OpenContainer================
+; %1 is the ID of the container to open
+; %2 is the TYPE of the container
+;=============================
+SUB OpenContainer
+{
+  IF %1 = %lootbagid || %1 = %regbagid || %1 = #BACKPACKID || %1 = #CHARID
+		RETURN #FALSE
+	NAMESPACE PUSH
+	NAMESPACE LOCAL opencont
+	SET !contid %1
+	SET !conttype %2
+oc_opencont:
+	SET !timeout #SCNT2 + 50
+	SET !success #TRUE
+	SET #LOBJECTID !contid
+	GOSUB BMWaitAction %bml_action_wait
+	SET !jstart #JINDEX + 1
+	SET !oldcontid #CONTID
+ 	SET #nextCPosX 656
+	SET #nextCPosY 388
+	EVENT MACRO 17 0
+	WAIT %bml_waittime
+	GOSUB BMWaitAction
+	REPEAT
+  {
+		IF #SCNT2 > !timeout
+		{
+		  SET !success #FALSE
+		  BREAK
+    }
+    FOR !j !jstart #JINDEX
+    {
+      SCANJOURNAL !j
+		  IF You_must_wait IN #JOURNAL
+    	  GOTO oc_opencont
+		  IF I_can't_reach_that. IN #JOURNAL || Out_of_sight || #JOURNAL
+		  {
+			  SET !success range
+			  BREAK
+      }
+    }
+    IF !success <> #TRUE
+      BREAK
+    WAIT 1
+	}
+  UNTIL #CONTID <> #BACKPACKID && #CONTID <> !oldcontid || #CONTID = !contid
+	SET #RESULT !success
+	NAMESPACE CLEAR
+	NAMESPACE POP
+	RETURN #RESULT
+}
+;############################################################
+;==================================
+;* @packageversion 1.0
+;* @purpose   move items from one location to another
+;* @author    Bad_Maniac
+;* @param
+;      %1 req Item to move
+;      %2 req Move from location
+;      %3 req Move to location
+;      %4 opt Quantity
+;* @return    Returns #True or #False
+;* @Calling Example
+;  gosub moveItem [Item to Move] [From location] [To location] [Quantity] (nothing in qty uses #findstack)
+;==================================
+SUB moveItem
+{
+  IF %0 < 3 || %0 > 4
+    RETURN #FALSE
+  NAMESPACE PUSH
+  NAMESPACE LOCAL BMMI
+  SET !itemId %1
+  IF %0 = 4
+    SET !qty %4
+  ELSE
+    SET !qty 0
+  SET !itemLocation C_ , %2
+  SET !newItemLocation %3
+  
+  IF !fShard <> #TRUE && !fShard <> #FALSE
+    GOSUB CheckFreeShard _fShard
+  ;Timing Settings
+  IF !fShard
+    SET !actionwait 5  ;If on a freeshard use this wait
+  ELSE
+    SET !actionwait %bml_action_wait ; Should be 10 - 13
+  FINDITEM !itemId !itemLocation
+  IF #FINDKIND = -1
+    RETURN #FALSE
+  IF !qty = 0
+    SET !qty #FINDSTACK
+  IF #FINDKIND <> -1
+  {
+    GOSUB BMWaitAction !actionwait
+    EXEVENT DRAG #FINDID !qty
+    EXEVENT DROPC !newItemLocation
+    GOSUB BMWaitAction
+  }
+  NAMESPACE POP
+RETURN #TRUE
+;############################################################
+; MoveAndCut====================
+; %1 is the item ID to drag
+; %2 ID of the dest container
+;===============================
+SUB MoveAndCut
+	SET %mi_itemid %1
+	SET %mi_destcont %2
+	IF %mi_itemid <> #FINDID
+	  FINDITEM %mi_itemid
+	IF #FINDCNT < 1
+		RETURN #FALSE
+	SET %mac_cont #FINDBAGID
+	SET %mac_itemtype #FINDTYPE
+	IF %bml_freeshard
+	{
+		;Cut the resource on the corpse
+		GOSUB Cut %mi_itemid
+    FINDITEM %cutresources C_ , %mac_cont
+  	IF #RESULT = #FALSE || #FINDCNT < 1
+			RETURN #FALSE
+		SET %mi_itemid #FINDID
+	}
+  GOSUB BMWaitAction
+  WAIT %bml_waittime
+	SET %mac_dragtimer #SCNT2 + 50
+  IF %bml_freeshard
+    GOSUB MoveItem %mi_itemid %mac_cont %mi_destcont
+  ELSE
+	  GOSUB MoveItem %mi_itemid %mac_cont #BACKPACKID
+  REPEAT
+	{
+		FINDITEM %mi_itemid C_ , %mac_cont
+	}
+	UNTIL #FINDKIND = -1 || #SCNT2 > %mac_dragtimer
+	IF ! %bml_freeshard
+	{
+    SET %mac_cuttimer #SCNT2 + 50
+    REPEAT
+      FINDITEM %mac_itemtype #BACKPACKID
+    UNTIL #FINDKIND <> -1 || #SCNT2 > %mac_cuttimer
+    IF #FINDKIND = -1
+    {
+      DISPLAY OK WTF!?
+      PAUSE
+    }
+    GOSUB Cut #FINDID
+	}
+RETURN #TRUE
+; TidyResources=================
+;===============================
+SUB TidyResources
+{
+  WHILE #TRUE
+  {
+	  FINDITEM %cutresources C_ , #BACKPACKID
+	  IF #FINDCNT < 1
+      BREAK
+    IF #FINDBAGID <> %lootbagid
+      GOSUB MoveItem #FINDID #FINDBAGID %lootbagid
+    }
+  }
+  RETURN
+}
+; Cut===========================
+; %1 ID of the item to cut
+;===============================
+SUB Cut
+{
+  SET %cut_itemid %1
+	FINDITEM %scissors C_ , #BACKPACKID
+	SET #LOBJECTID #FINDID
+	SET %bml_cut_timeout #SCNT2 + 50
+	SET %bml_jindex #JINDEX
+cut_start:
+    GOSUB BMWaitAction %bml_action_wait
+  	EVENT MACRO 17 0
+   	TARGET 5s
+   	WAIT %bml_waittime
+	  IF You_must_wait_to_perform_another_action IN #SYSMSG
+	  {
+      GOSUB BMWaitAction
+      GOTO cut_start
+	  }
+   	IF #TARGCURS <> 1
+      GOTO cut_start:
+   	SET #LTARGETKIND 1
+    SET #LTARGETID %cut_itemid
+	  EVENT MACRO 22 0
+	  GOSUB BMWaitAction
+	  WAIT %bml_waittime
+    REPEAT
+    {
+      FINDITEM %cut_itemid
+      FOR %i %bml_jindex #JINDEX
+	    {
+		    SCANJOURNAL %i
+		    IF That_is_too_far_away IN #JOURNAL
+			    RETURN #FALSE
+	    }
+    }
+    UNTIL #FINDCNT < 1 || #SCNT2 > %bml_cut_timeout
+  }
+	RETURN #TRUE
+}
+; CutCorpse=====================
+; %1 ID of the corpse to cut
+;===============================
+SUB CutCorpse
+{
+  SET !cutid %1
+  FINDITEM !fcontid . 1 G
+  IF #FINDCNT < 1 || #FINDDIST > 2
+    RETURN #FALSE
+cut_corpse:
+  IF %bml_bwc
+    FINDITEM %bwarcleaver C
+  IF ! %bml_bwc || ( %bml_bwc && #FINDKIND = -1 )
+	  FINDITEM %knives C
+	SET #LOBJECTID #FINDID
+	SET #LTARGETID !cutid
+	SET #LTARGETKIND 1
+	GOSUB BMWaitAction %bml_action_wait
+	SET !bml_jstart #JINDEX + 1
+	EVENT MACRO 17 0
+	TARGET 5s
+	EVENT MACRO 22 0
+	GOSUB BMWaitAction
+	WAIT %bml_waittime
+	SET !cut_corpse_timeout #SCNT2 + 25
+	SET !bml_jend #JINDEX + 1
+  WHILE #SCNT2 < !cut_corpse_timeout
+  {
+    FOR !ji !bml_jstart !bml_jend
+    {
+      SCANJOURNAL !ji
+			IF You_see_nothing_useful_to_carve IN #JOURNAL || You_carve_some IN #JOURNAL || You_skin_it IN #JOURNAL || You_pluck_the_bird IN #JOURNAL || You_may_not_dismember_that IN #JOURNAL
+         RETURN #TRUE
+			IF  I_can't_reach_that. IN #JOURNAL || too_far IN #JOURNAL
+				RETURN range
+			IF may_not_loot IN #JOURNAL || criminal_action IN #JOURNAL || You_did_not_earn_the_right_to_loot IN #JOURNAL || did_not_slay_this_creature IN #JOURNAL
+				RETURN lootright
+			IF You_must_wait_to_perform_another_action. IN #JOURNAL
+				GOTO cut_corpse
+		}
+	}
+	RETURN #FALSE
+}
+; CheckStatus===================
+SUB CheckStatus
+{
+	IF %cs_statustimer = N/A
+		SET %cs_statustimer #SYSTIME + 600
+	IF %cs_charpos = N/A
+		SET %cs_charpos #CHARPOSX , #CHARPOSY
+	IF %cs_charpos <> #CHARPOSX , #CHARPOSY
+	{
+		IF #SYSTIME > %cs_statustimer
+		{
+      SET %cs_charpos #CHARPOSX , #CHARPOSY
+      SET %cs_statustimer #SYSTIME + 600
+    }
+		RETURN #FALSE
+	}
+	IF #LLIFTEDKIND = 1 || #CONTNAME = drag_gump || #CONTNAME = stack_gump || #TARGCURS = 1 || #CLILOGGED = 0 || #CHARGHOST = YES || H IN #CHARSTATUS
+	{
+	  WAIT %bml_action_wait
+	  GOSUB BMWaitAction
+		RETURN #FALSE
+	}
+	;Check if other scripts are busy.
+	;Currently supports CEOMedic and Seg's stable bandage healer >11.0
+	IF ( N/A NOTIN *BUSY && *BUSY <> 0 ) || ( ok NOTIN *510 && paused NOTIN *510 )
+	{
+    WAIT %bml_action_wait
+		GOSUB BMWaitAction
+  }
+	RETURN #TRUE
+}
+; CheckWeight==================
+SUB CheckWeight
+{
+	IF %bml_maxweight = N/A
+	{
+    IF #MAXWEIGHT = N/A
+    {
+      EVENT MACRO 8 2
+      GOSUB WaitForVar MAXWEIGHT <> N/A
+      IF ! #RESULT
+      {
+        DISPLAY OK Cannot get your max weight. HALTING!
+        HALT
+      }
+    }
+    SET %bml_maxweight #MAXWEIGHT - 25
+    IF ! %bml_freeshard
+		{
+		  FINDITEM #CHARID
+      IF #FINDTYPE IN HS_IS
+        SET %bml_maxweight %bml_maxweight + 60
+    }
+	}
+	IF #WEIGHT > %bml_maxweight
+	{
+    ;Call your Bag of Sending script here ;)
+    
+    WHILE #WEIGHT > %bml_maxweight
+    {
+      IF #SCNT > %bml_owspamto || %bml_owspamto = N/A
+      {
+        EVENT EXMSG #CHARID 3 33 Nearly overweight! Please unload some loot.
+        SET %bml_owspamto #SCNT + 6
+      }
+      WAIT 10
+    }
+  }
+	RETURN
+}
+; BMWaitAction==================
+; %1 time to wait in 10th of a second
+; If no arguments are passed, it sets
+; the timer to the current time
+;===============================
+SUB BMWaitAction
+{
+	IF %0 < 1 || %1 = N/A || %bmwatimer = N/A
+	{
+		SET %bmwatimer #SCNT2
+    SET %1 0
+	}
+	WHILE ( %bmwatimer + %1 ) > #SCNT2
+    WAIT 1
+	RETURN
+}
+; WaitForVar====================
+; %1 sysvar to wait for without #
+; %2 comparison operator = <> ...
+; %3 value to compare with
+; %4 optional timeout, default 5 seconds
+;===============================
+SUB WaitForVar
+{
+	SET %wfv_timeout #SCNT2 + 50
+	IF %0 = 4
+		SET %wfv_timeout #SCNT2 + %4
+wfv_waitloop:
+		IF #SCNT2 > %wfv_timeout
+			RETURN #FALSE
+		IF ! ( # . %1 %2 %3 )
+			GOTO wfv_waitloop
+	RETURN #TRUE
+}
+; IgnoreList====================
+; %1 Item to ignore for 3 minutes
+;===============================
+SUB IgnoreList
+{
+  NAMESPACE PUSH
+  NAMESPACE LOCAL IgnoreList
+  SET !item #FALSE
+  IF %0 > 0
+    SET !item %1
+  IF !timer < #SCNT || !timer = N/A
+  {
+    IF !timer <> N/A
+       SET !resetcnt ( #SCNT - !timer ) / 10 + 1
+    ELSE
+      SET !resetcnt 1
+    SET !timer #SCNT - ( #SCNT % 10 ) + 10
+    FOR !i 1 !resetcnt
+    {
+      SET !resetlist !timer - ( 190 + ( !i * 10 ) )
+      IGNOREITEM RESET !resetlist
+    }
+  }
+  IF !item <> #FALSE
+    IGNOREITEM !item !timer
+  NAMESPACE POP
+  RETURN
+}
+;SetEquipLootlists===============
+SUB SetEquipLootlists
+{
+	;WEAPON TYPES=============================================================
+	SET %sword YPO_BNF_CPH_INF_FSF_OSF_ASF_HNF_FMH_CNF_LSF_NSF_ISF_SMH_RMH_CSF_ZRF_MPH_LPH_MSF_BSF_KPO_GUO_KTF_JTF_BPH_EPH_ZSF_ATF_JPH_SOH_POH_NMH_OMH_LPO_ZTO_XTH_YTH_HSF_KSF_NPO_XPO_FUO_JPO_QPF_NPF_KPH_FYG_RHM_SFR_
+	SET %fencing SRH_AQF_PPF_TSF_WSF_BUO_VPO_WPO_WRH_VRH_XRH_YRH_LTF_MTF_OPO_RRH_CUO_
+	SET %mace OLH_JOH_URH_EMH_WTH_DMH_QMH_CFF_BFF_PMH_GMH_ZPF_CQF_FFF_RPF_TRH_YSF_XSF_FBG_VTH_AUH_ZTH_UOH_VOH_AUO_MPO_BUH_CUH_DMH_GFF_QOH_HFF_TLH_GBG_
+	SET %bow WOH_TOH_QPO_SPO_WOH_TOH_JSF_USF_LMH_MMH_QPO_SPO_PPO_RPO_JSF_USF_LMH_MMH_PPO_RPO_JSF_
+	;Samurai Empire Weapons---
+	SET %se_sword CSF_ZRF_MPH_LPH_MSF_BSF_KPO_GUO_KTF_JTF_BPH_EPH_ZSF_ATF_JPH_SOH_POH_NMH_OMH_LPO_ZTO_XTH_YTH_HSF_KSF_NPO_XPO_FUO_JPO_QPF_NPF_KPH_FYG_RHM_JDP_EDP_YCP_KDP_
+	SET %se_fencing LDP_HDP_ZCP_FDP_
+	SET %se_mace DDP_ADP_IDP_
+	SET %se_bow XCP_
+	;Mondain's Legacy Weapons---
+	SET %ml_sword RFR_NFR_SFR_OFR_EFR_YFR_XFR_DFR_
+	SET %ml_fencing KFR_GFR_LFR_HFR_IFR_MFR_FFR_JFR_
+	SET %ml_mace VFR_BFR_WFR_CFR_
+	SET %ml_bow VER_PFR_wer_QFR_
+	;ARMOR TYPES================================================================
+	;Medable first----
+	SET %leatherarmor VKH_NJL_QJL_JKH_QKH_DLH_HKH_PKH_SKH_KKH_ELH_PSF_QSK_ATK_ZSK_OSK_YSK_NSK_
+	SET %medhelmet NJL_QJL_NZH_TDI_VVI_KZH_PZH_DZH_
+	SET %medgorget JKH_RJG_SJG_FJG_MWL_
+	SET %medarm HKH_PKH_
+	SET %medtunic QKH_DLH_
+	SET %femalemedtunic ATK_ZSK_OSK_NSK_
+	SET %medglove KKH_SKH_WTO_
+	SET %medlegging VKH_ELH_
+	SET %femalemedlegging QSK_YSK_PSK_
+	;Hats---
+	SET %hats CZH_HZH_GZH_BWI_WVI_XVI_YVI_IWI_HWI_KWI_JWI_EWI_JJN_OZH_DZH_BZH_EZH_VSH_QSH_VSH_NWL_
+	;Samurai Empire Medable Armor---
+	SET %se_leatherarmor RWO_GCP_UBP_OWO_LCP_SWO_GWO_CCP_NCP_OCP_
+	SET %se_medhelmet GWO_CCP_
+	SET %se_medgorget SWO_
+	SET %se_medarm OWO_
+	SET %se_medtunic RWO_NCP_
+	SET %se_medglove OCP_
+	SET %se_medleggins GCP_UBP_LCP_ECP_
+	SET %se_medarmor %se_leatherarmor , %se_medhelmet , %se_medgorget , %se_medarm , %se_medtunic , %se_medglove , %se_medleggins
+	;Mondain's Legacy Medable Armor---
+	SET %ml_medhelmet IJQ_
+	SET %ml_medgorget BAS_
+	SET %ml_medarm MAS_
+	SET %ml_medtunic ZZR_
+	SET %ml_medglove CAS_
+	SET %ml_medleggings OAS_LAS_
+	SET %ml_medarmor %ml_medhelmet , %ml_medgorget , %ml_medarm , %ml_medtunic , %ml_medglove , %ml_medleggings
+	;---
+	SET %medarmor %leatherarmor , %medHelmet , %hats , %medGorget , %medArm , %medTunic , %femaleMedTunic , %medGlove , %medLegging , %femaleMedLegging , %se_medarmor , %ml_medarmor
+	;Non medable---
+	SET %studdedarmor ALH_ULH_LLH_YKH_GLH_XKH_FLH_RLH_MLH_SSK_RSK_
+	SET %bonearmor ZPH_YPH_WPH_PPH_BQH_QPH_VPH_XPH_CQH_AQH_
+	SET %nonmedhelmet DSH_ASH_TSH_ESH_YPH_GSH_OSH_ZPH_ZRH_IWL_CSH_CSH_BSH_FSH_DPH_LKO_NWL_MKH_
+	SET %nonmedgorget NSH_ALH_
+	SET %nonmedarm BQH_JSH_XLH_GLH_MSH_YLH_QPH_YKH_DLO_
+	SET %nonmedtunic HSH_ULH_LLH_ZOH_IKH_VLH_KSH_WLH_WPH_PKO_PPH_RSK_
+	SET %femalenonmedtunic USK_SSK_MSK_TSK_LSK_USK_
+	SET %nonmedglove VPH_ISH_AQH_BMH_USH_XKH_FLH_KMH_RKO_
+	SET %nonmedlegging HMH_LSH_IMH_CQH_WSH_APH_MLH_RLH_NKH_XPH_NKO_
+	;Samurai Empire Non Medable Armor---
+	SET %se_studdedarmor MWO_NWO_FCP_PCP_TBP_
+	SET %se_nonmedhelmet RBP_DCP_QWO_DWO_SBP_VBP_FWO_EWO_
+	SET %se_nonmedgorget PCP_
+	SET %se_nonmedarm NWO_WBP_
+	SET %se_nonmedtunic MWO_LWO_
+	SET %se_nonmedleggins FCP_TBP_ZBP_
+	SET %se_nonmedarmor %se_studdedarmor , %se_nonmedhelmet , %se_nonmedgorget , %se_nonmedarm , %se_nonmedtunic , %se_nonmedleggins
+	;Mondain's Legacy Non Medable Armor---
+	SET %ml_nonmedhelmet RJQ_UJQ_TJQ_
+	SET %ml_nonmedgorget QJQ_JJQ_
+	SET %ml_nonmedarm PJQ_GJQ_
+	SET %ml_nonmedtunic OJQ_ZIQ_
+	SET %ml_nonmedgloves NJQ_MJQ_
+	SET %ml_nonmedleggings AKQ_LJQ_
+	SET %ml_nonmedarmor %ml_nonmedhelmet , %ml_nonmedgorget , %ml_nonmedarm , %ml_nonmedtunic , %ml_nonmedgloves , %ml_nonmedleggings
+	;---
+	SET %nonmedarmor %studdedarmor , %bonearmor , %nonmedHelmet , %nonmedGorget , %nonmedArm , %nonmedTunic , %femaleNonMedTunic , %nonmedGlove , %nonmedLegging , %se_nonmedarmor , %ml_nonmedarmor
+	;INIT LISTS====================================================================
+	SET %bml_swordlist %sword  , %se_sword , %ml_sword
+	SET %bml_fencinglist %fencing , %se_fencing , %ml_fencing
+	SET %bml_macelist %mace , %se_mace , %ml_mace
+	SET %bml_bowlist %bow , %se_bow , %ml_bow
+	SET %bml_armorlist %medarmor , %nonmedarmor
+	SET %bml_shieldlist LIK_MIK_CLK_AIK_CIK_LYD_GIK_NIK_ZHK_HLK_BLK_FIK_BIK_OIK_
+	SET %bml_jewelerylist CWL_LWL_UJG_IJG_
+	SET %bml_instrumentlist OQF_LQF_PRF_KRF_MQF_QRF_RGP_PGP_ ;RGP & PGP are the Samurai Empire Instruments
+	RETURN
+}
+;--------- EasyUO Menu Designer Code Begin ---------
+sub showLootMenu
+{
+	menu Clear
+	menu Window Title Automagic Looting
+	menu Window Color BtnFace
+	menu Window Size 222 346
+	menu Font Transparent #true
+	menu Font Align Right
+	menu Shape EUOShape1 0 216 221 2 3 7 1 Black 7 Black
+	menu Shape EUOShape2 0 124 225 2 3 7 1 Black 7 Black
+	menu Shape EUOShape3 52 284 109 29 3 7 2 Black 7 BtnFace
+	menu Shape EUOShape4 0 100 225 2 3 7 1 Black 7 Black
+	menu Shape EUOShape5 0 284 221 2 3 7 1 Black 7 Black
+	menu Font Name MS Sans Serif
+	menu Font Size 8
+	menu Font Style
+	menu Font Color WindowText
+	menu Font Transparent #false
+	menu Font Align Left
+	;---
+	menu Text EUOLabel1 28 196 Minimum Loot Score:
+	menu Text EUOLabel2 156 196 (1-40)
+	menu Font BGColor Window
+	menu Edit value 128 192 25 10
+	menu Edit hotkey 144 288 13 A
+	menu Font BGColor BtnFace
+	;---
+	menu Check goldchk 0 0 109 17 #false Gold
+	menu Check gemchk 0 16 109 17 #false Gems
+	menu Check regchk 0 32 109 17 #false Reagents
+	menu Check ammochk 0 48 109 17 #false Ammo
+	menu Check scrollchk 0 64 109 17 #false Scrolls
+	menu Check instrumentchk 0 80 109 17 #false Instruments
+	menu Check solenchk 112 0 109 17 #false Solen Loot
+	menu Check jukachk 112 16 109 17 #false Juka Loot
+	menu Check paragonchk 112 32 109 17 #false Paragon Loot
+	menu Check peerlesschk 112 48 109 17 #false Peerless Keys
+	menu Check resourcechk 112 64 109 17 #false Resources
+	menu Check otherchk 112 80 109 17 #false Other
+	;---
+	menu Check user1chk 0 104 109 17 #false User1
+	menu Check user2chk 112 104 109 17 #false User2
+	;---
+	menu Check swordchk 0 128 109 17 #false Swords
+	menu Check fencechk 112 128 109 17 #false Fencing
+	menu Check macechk 0 144 109 17 #false Maces
+	menu Check bowchk 112 144 109 17 #false Bows
+	menu Check armorchk 0 160 109 17 #false Armor
+	menu Check shieldchk 112 160 109 17 #false Shields
+	menu Check jewelchk 0 176 109 17 #false Jewellery
+	menu Check setchk 112 176 109 17 #false Equipment Sets
+	;---
+  menu Check hidechk 0 220 109 13 #false Hide Corpses
+	menu Check closechk 112 220 109 13 #true Close Corpse
+	menu Check regbagchk 0 236 109 13 #false Use Regbag
+	menu Check cutchk 112 236 109 13 #false Cut Corpses
+	menu Check dragcutchk 0 252 109 13 #false Drag After Cut
+	menu Check bagchk 112 252 109 13 #false Open Bags
+  menu Check allchk 0 268 109 13 #false Everything
+  menu Check ignorechk 112 268 109 13 #false Ignore Players
+  menu Check hotkeychk 56 292 85 13 #false Use HotKey
+	;---
+ 	menu Button startbutton 52 314 109 29 [ START ]
+	;---
+	SET %null
+	IF *bml_minvalue <> %null && *bml_minvalue <> N/A
+		MENU SET value *bml_minvalue
+	IF *bml_hotkey  <> %null && *bml_hotkey <> N/A
+		MENU SET hotkey *bml_hotkey
+	IF *bml_settings <> %null && *bml_settings <> N/A
+	{
+		IF gold IN *bml_settings
+			menu SET goldchk #TRUE
+		IF gem IN *bml_settings
+			menu SET gemchk #TRUE
+		IF reg IN *bml_settings
+			menu SET regchk #TRUE
+		IF ammo IN *bml_settings
+			menu SET ammochk #TRUE
+		IF scroll IN *bml_settings
+			menu SET scrollchk #TRUE
+		IF instrument IN *bml_settings
+			menu SET instrumentchk #TRUE
+		IF solen IN *bml_settings
+			menu SET solenchk #TRUE
+		IF juka IN *bml_settings
+			menu SET jukachk #TRUE
+		IF paragon IN *bml_settings
+			menu SET paragonchk #TRUE
+		IF peerless IN *bml_settings
+			menu SET peerlesschk #TRUE
+		IF resource IN *bml_settings
+			menu SET resourcechk #TRUE
+		IF sword IN *bml_settings
+			menu SET swordchk #TRUE
+		IF fence IN *bml_settings
+			menu SET fencechk #TRUE
+		IF mace IN *bml_settings
+			menu SET macechk #TRUE
+		IF bow IN *bml_settings
+			menu SET bowchk #TRUE
+		IF armor IN *bml_settings
+			menu SET armorchk #TRUE
+		IF shield IN *bml_settings
+			menu SET shieldchk #TRUE
+		IF jewel IN *bml_settings
+			menu SET jewelchk #TRUE
+		IF sets IN *bml_settings
+			menu SET setchk #TRUE
+		IF other IN *bml_settings
+			menu SET otherchk #TRUE
+		IF user1 IN *bml_settings
+			menu SET user1chk #TRUE
+		IF user2 IN *bml_settings
+			menu SET user2chk #TRUE
+		IF hide IN *bml_settings
+			menu SET hidechk #TRUE
+		IF close NOTIN *bml_settings
+			menu SET closechk #FALSE
+		IF regbag IN *bml_settings
+			menu SET regbagchk #TRUE
+		IF cut IN *bml_settings
+			menu SET cutchk #TRUE
+		IF dragcut IN *bml_settings
+      menu SET dragcutchk #TRUE
+ 		IF all IN *bml_settings
+			menu SET allchk #TRUE
+		IF ignore IN *bml_settings
+		  menu SET ignorechk #TRUE
+		IF hotkey IN *bml_settings
+			menu SET hotkeychk #TRUE
+    SET %curbagmode 0
+    IF lbags IN *bml_settings
+      SET %curbagmode 1
+    IF ibags IN *bml_settings
+      SET %curbagmode 2
+    GOSUB CycleBagChk
+	}
+	menu Show
+	SET #MENUBUTTON N/A
+  WHILE #TRUE
+  {
+    MENU GET bagchk
+    IF #MENURES = #FALSE
+    {
+      GOSUB CycleBagChk
+    }
+    IF #MENUBUTTON = startbutton
+      BREAK
+	  IF #MENUBUTTON = closed
+		  HALT
+  }
+	Menu HIDE
+	;=========================================================================================================
+	;Below the lootlist is set according to the users menu choices, everything specified will be looted automagically.
+	;=========================================================================================================
+	GOSUB ClearGlobal bml_settings
+	GOSUB ClearGlobal bml_minvalue
+	SET %bml_lootlist
+	SET %lootbag #TRUE
+	SET %bml_ignoreplayers #FALSE
+	SET %bml_closecorpse #FALSE
+	SET %bml_hidecorpse #FALSE
+	SET %bml_openbags #FALSE
+	SET %bml_hotkey #FALSE
+	MENU GET goldchk
+	IF #MENURES
+	{
+		SET %bml_lootlist %bml_lootlist , %gold
+		GOSUB WriteToGlobal bml_settings gold
+	}
+	MENU GET gemchk
+	IF #MENURES
+	{
+		SET %bml_lootlist %bml_lootlist , %jewels
+		GOSUB WriteToGlobal bml_settings gem
+	}
+	MENU GET regchk
+	IF #MENURES
+	{
+		SET %bml_lootlist %bml_lootlist , %reagents
+		GOSUB WriteToGlobal bml_settings reg
+		MENU GET regbagchk
+		SET %regbag #MENURES
+		IF #MENURES
+			GOSUB WriteToGlobal bml_settings regbag
+	}
+	MENU GET ammochk
+	IF #MENURES
+	{
+		SET %bml_lootlist %bml_lootlist , %arrowsbolts
+		GOSUB WriteToGlobal bml_settings ammo
+	}
+	MENU GET solenchk
+	IF #MENURES
+	{
+		SET %bml_lootlist %bml_lootlist , %solenloot
+		GOSUB WriteToGlobal bml_settings solen
+	}
+	MENU GET jukachk
+	IF #MENURES
+	{
+		SET %bml_lootlist %bml_lootlist , %jukaloot
+		GOSUB WriteToGlobal bml_settings juka
+	}
+	MENU GET paragonchk
+	IF #MENURES
+	{
+		SET %bml_lootlist %bml_lootlist , %paragonloot
+		GOSUB WriteToGlobal bml_settings paragon
+	}
+	MENU GET peerlesschk
+	IF #MENURES
+	{
+		SET %bml_lootlist %bml_lootlist , %peerlesskeys
+		GOSUB WriteToGlobal bml_settings peerless
+	}
+	MENU GET resourcechk
+	IF #MENURES
+	{
+		SET %bml_lootlist %bml_lootlist , %leather
+		SET %bml_lootlist %bml_lootlist , %feather
+		SET %bml_lootlist %bml_lootlist , %bones
+		SET %bml_lootlist %bml_lootlist , %wool
+		SET %bml_lootlist %bml_lootlist , %scale
+		GOSUB WriteToGlobal bml_settings resource
+	}
+	MENU GET instrumentchk
+	IF #MENURES
+	{
+		SET %bml_lootlist %bml_lootlist , %bml_instrumentlist
+		GOSUB WriteToGlobal bml_settings instrument
+	}
+	MENU GET otherchk
+	IF #MENURES
+	{
+		SET %bml_lootlist %bml_lootlist , %other
+		GOSUB WriteToGlobal bml_settings other
+	}
+	MENU GET scrollchk
+	IF #MENURES
+	{
+		SET %bml_lootlist %bml_lootlist , %scrolls
+		GOSUB WriteToGlobal bml_settings scroll
+	}
+	MENU GET user1chk
+	IF #MENURES
+	{
+		SET %bml_lootlist %bml_lootlist , %user1
+		GOSUB WriteToGlobal bml_settings user1
+	}
+	MENU GET user2chk
+	IF #MENURES
+	{
+		SET %bml_lootlist %bml_lootlist , %user2
+		GOSUB WriteToGlobal bml_settings user2
+	}
+	MENU GET cutchk
+	SET %bml_cutcorpse #MENURES
+	IF #MENURES
+		GOSUB WriteToGlobal bml_settings cut
+	;=======================================
+	;Set the Equipment lootlist from the user selection
+	;=======================================
+	SET %bml_equiplootlist
+	SET %bml_lootequipment #FALSE
+	SET %bml_lootsets #FALSE
+	MENU GET value
+	SET *bml_minvalue #MENURES
+	MENU GET swordchk
+	IF #MENURES
+	{
+		SET %bml_equiplootlist %bml_equiplootlist , %bml_swordlist
+		GOSUB WriteToGlobal bml_settings sword
+	}
+	MENU GET  fencechk
+	IF #MENURES
+	{
+		SET %bml_equiplootlist %bml_equiplootlist , %bml_fencinglist
+		GOSUB WriteToGlobal bml_settings fence
+	}
+	MENU GET macechk
+	IF #MENURES
+	{
+		SET %bml_equiplootlist %bml_equiplootlist , %bml_macelist
+		GOSUB WriteToGlobal bml_settings mace
+	}
+	MENU GET bowchk
+	IF #MENURES
+	{
+		SET %bml_equiplootlist %bml_equiplootlist , %bml_bowlist
+		GOSUB WriteToGlobal bml_settings bow
+	}
+	MENU GET armorchk
+	IF #MENURES
+	{
+		SET %bml_equiplootlist %bml_equiplootlist , %bml_armorlist
+		GOSUB WriteToGlobal bml_settings armor
+	}
+	MENU GET shieldchk
+	IF #MENURES
+	{
+		SET %bml_equiplootlist %bml_equiplootlist , %bml_shieldlist
+		GOSUB WriteToGlobal bml_settings shield
+	}
+	MENU GET jewelchk
+	IF #MENURES
+	{
+		SET %bml_equiplootlist %bml_equiplootlist , %bml_jewelerylist
+		GOSUB WriteToGlobal bml_settings jewel
+	}
+	MENU GET setchk
+	IF #MENURES
+	{
+		SET %bml_lootsets #TRUE
+		GOSUB WriteToGlobal bml_settings sets
+	}
+	;=====================
+	; Other check boxes
+	;=====================
+	MENU GET hidechk
+	IF #MENURES
+	{
+		GOSUB WriteToGlobal bml_settings hide
+		SET %bml_hidecorpse #TRUE
+	}
+	MENU GET closechk
+	IF #MENURES
+	{
+		GOSUB WriteToGlobal bml_settings close
+		SET %bml_closecorpse #TRUE
+	}
+	MENU GET hotkeychk
+	IF #MENURES
+	{
+		GOSUB WriteToGlobal bml_settings hotkey
+		MENU GET hotkey
+		SET *bml_hotkey #MENURES
+		SET %bml_hotkey #TRUE
+	}
+	IF %bml_equiplootlist <> %null
+		SET %bml_lootequipment #TRUE
+  ;---
+  IF %curbagmode = 2
+  {
+    SET %bml_lootlist %bml_lootlist , %bags
+    GOSUB WriteToGlobal bml_settings lbags
+  }
+  IF %curbagmode = 3
+  {
+    SET %bml_ignorebags #TRUE
+    GOSUB WriteToGlobal bml_settings ibags
+  }
+  ;--
+  MENU GET dragcutchk
+  IF #MENURES
+  {
+    GOSUB WriteToGlobal bml_settings dragcut
+    SET %bml_dragcut #TRUE
+  }
+  MENU GET ignorechk
+	IF #MENURES
+	{
+		GOSUB WriteToGlobal bml_settings ignore
+		SET %bml_ignoreplayers #TRUE
+  }
+	MENU GET allchk
+	IF #MENURES
+	{
+		GOSUB WriteToGlobal bml_settings all
+		SET %bml_lootlist *
+		RETURN
+	}
+	;=======================================
+	IF %bml_lootlist = %reagents
+	{
+		SET %lootbag #FALSE
+		SET %regbag #TRUE
+	}
+	IF %bml_lootlist = %null && %bml_equiplootlist = %null
+	{
+		DISPLAY OK No loot selected!$Halting script.
+		HALT
+	}
+RETURN
+SUB CycleBagChk
+{
+  SET %curbagmode %curbagmode + 1
+  IF  %curbagmode > 3
+    SET %curbagmode 1
+  MENU DELETE bagchk
+  IF %curbagmode = 1
+    SET %bagchkname Open , #SPC , Bags
+  IF %curbagmode = 2
+    SET %bagchkname Loot , #SPC , Bags
+  IF %curbagmode = 3
+    SET %bagchkname Ignore , #SPC , Bags
+  menu Check bagchk 112 252 109 13 #true %bagchkname
+  RETURN
+}
+;------------------------------
+;* @name CheckFreeShard
+;* @ver 1.0 2Feb05
+;* @author  Roadkill
+;* @purpose  checks if you're on a known OSI shard or not
+;* @params %1 optional, variablename to return #true/#false in, #true if on a freeshard
+;* @returns #result and @%1 #true if on a freeshard, #false if on a known OSI shard.
+;* @example call rksubs.txt CheckFreeShard <@%1 varname, opt><@#result #true if #shard notin osi list
+;------------------------------
+sub CheckFreeShard
+	set !OSIshards pacific_sonoma_baja_legends_atlantic_chesapeake_catskills_lake , #spc , austin
+	+_napa , #spc , valley_lake , #spc , superior_great , #spc , lakes_siege , #spc , perilous_europa
+	+_drachenfels_oceania_origin_wakoku_formosa_arirang_balhae_asuka_yamato_mugen_hokuto_mizuho_izumo_sakura_
+	set !result #shard notin !OSIshards
+	if %0 >= 1 && %1 <> n/a
+		set % . %1 !result
+return !result
+;BMEuoVer========================
+; Returns the numerical EUO version
+;================================
+SUB BMEuoVer
+{
+	SET %euover #EUOVER
+  REPEAT
+	{
+		STR POS %euover _
+		IF #STRRES > 0
+		{
+			STR DEL %euover #STRRES 1
+			SET %euover #STRRES
+		}
+	}
+  UNTIL #STRRES = 0
+}
+RETURN %euover
+;BMGetProperty======================
+;%1 is the itemID to get the property of
+;================================
+SUB BMGetProperty
+{
+  SET %prop_timeout #SYSTIME + 1500
+  EVENT PROPERTY %1
+  WHILE #PROPERTY = $ || No , #SPC , Data IN #PROPERTY
+  {
+    IF No , #SPC , Data IN #PROPERTY
+      EVENT PROPERTY %1
+    IF #SYSTIME > %prop_timeout
+      RETURN #FALSE
+  }
+  RETURN #TRUE
+}
+;WriteToGlobal======================
+;%1 is the global to write to (no *)
+;%2 to %N are the words or values to write
+;================================
+SUB WriteToGlobal
+{
+	FOR %i 2 %0
+	{
+		IF % . %i NOTIN * . %1
+			SET * . %1 * . %1 , % . %i , _
+	}
+	RETURN
+}
+;ClearGlobal=======================
+;%1 is the global to clear (no *)
+;================================
+SUB ClearGlobal
+{
+	SET * . %1
+	RETURN
+}

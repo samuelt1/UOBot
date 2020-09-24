@@ -64,17 +64,17 @@ Repeat
   Call ScanBuffBar  ; Presumes file is in same location as euo
   setuotitle %BuffBarCalls - BAR: %BuffbarDirection - Icons: %BuffBarIconsFound - %BuffBarIconNames - #lTargetID
   Wait 5
-    
-  while #jindex > %jrnl
+
+  ;if poisoned cure it
+  if C in #charstatus
   {
-    set %jrnl %jrnl + 1
-    scanjournal %jrnl
-    if you_started_honorable_combat in #journal
-    {
-       event macro 27 0  ; attack last target
-    }
+      event Macro 15 201 ; cleanse by fire
+      target 30
+      event macro 23 0 ;target self
+      wait 35 ; 0 FCR, Cast Recovery
   }
-  
+
+
   if ( ( #hits * 10 ) / #maxhits ) < 9 && %confidencetimer < #scnt
   {
       set %confidencetimer #scnt + 4
@@ -91,14 +91,16 @@ Repeat
       event macro 23 0 ;target self
       wait 35 ; 0 FCR, Cast Recovery
   }
-  
-  ;if poisoned cure it
-  if C in #charstatus
+
+    
+  while #jindex > %jrnl
   {
-      event Macro 15 201 ; cleanse by fire
-      target 30
-      event macro 23 0 ;target self
-      wait 35 ; 0 FCR, Cast Recovery
+    set %jrnl %jrnl + 1
+    scanjournal %jrnl
+    if you_started_honorable_combat in #journal
+    {
+       event macro 27 0  ; attack last target
+    }
   }
   
   if G in #charstatus
