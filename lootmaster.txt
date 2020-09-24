@@ -1,34 +1,28 @@
-;event SysMessage Target loot bag!
-;set #targCurs 1
-;while #targCurs = 1
-;{
-;      wait 10
-;}
-
 finditem LKF C_ , #backpackid
 set %lootbag #findid
-event SysMessage lootbag -  %lootbag
-event SysMessage corpseb -  #contID
-event SysMessage corpseb -  #backpackid
-set %ignorelist _
-
 
 while #true
 {
   ;find monsters to kill
+  finditem ED G_10
+  set #ltargetid #findid
+  ignoreItem #findid
+  event macro 22 0 ; last target
+  event macro 27 0  ;attack target with weapon
+
+  
   finditem YFM G_10
   if #findkind = 1
   {
      ignoreItem #findid
      event PathFind #findx #findy #findz
-     event SysMessage #findx #findy #findz
+     
      while #finddist > 2
      {
       wait 10
      }
      set #lobjectid #findid
      event macro 17 0
-     event SysMessage found elemental
      wait 1s
      gosub lootitems
   }
