@@ -1,6 +1,7 @@
-finditem LKF C_ , #backpackid
-set %lootbag #findid
-
+set %charposx #CHARPOSX
+set %charposy #CHARPOSY
+set %charposz #CHARPOSZ
+gosub setLootBag
 while #true
 {
   ;find monsters to kill
@@ -9,14 +10,13 @@ while #true
   ignoreItem #findid
   event macro 22 0 ; last target
   event macro 27 0  ;attack target with weapon
-
   
   finditem YFM G_10
   if #findkind = 1
   {
      ignoreItem #findid
      event PathFind #findx #findy #findz
-     
+
      while #finddist > 2
      {
       wait 10
@@ -26,18 +26,43 @@ while #true
      wait 1s
      gosub lootitems
   }
-  if #charposx <> 5918 && #charposy <> 286
+  if #charposx <> %charposx && #charposy <> %charposy
   {
-     event PathFind 5918 286 0
+     event PathFind %charposx %charposy %charposz
   }
-  
-  while #charposx <> 5918 && #charposy <> 286
+
+  while #charposx <> %charposx && #charposy <> %charposy
   {
         wait 10
   }
+  gosub checkWeight
 }
 
+sub checkWeight
+  if #weight > #maxweight
+     gosub unload
+return
 
+sub unload
+  set %findIndex 1
+  repeat
+  {
+    finditem WN_BO %findIndex G_1
+    Exevent Drag %lootbag
+    wait 10
+    Exevent Dropc #findid
+    wait 1s
+    finditem %lootbag C_ , #backpackid
+    set %findIndex %findIndex + 1
+  }
+  until #FINDCNT = 0
+  gosub setLootBag
+return
+
+sub setLootBag
+  finditem LKF C_ , #backpackid
+  set %lootbag #findid
+return
 
 sub lootitems
   ;loot items
@@ -66,4 +91,3 @@ sub lootitems
     }
   }
 return
-
