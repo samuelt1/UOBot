@@ -1,42 +1,44 @@
-sleep 2000
-startLogin:
-set #LSHARD 0
-if #CONTNAME = MainMenu_gump
-{
-    msg samman
+gosub checkConnect
+exit
+
+sub checkConnect
+    if #CONTNAME = waiting_gump
+       gosub login
+return
+
+sub login
+    sleep 2000
     key ENTER
-    gosub waitForPageLoad
-        wait 2s
-    key ENTER
-        wait 2s
-        gosub waitForPageLoad
-        wait 2s
-    if #shard <> Atlantic
+    startLogin:
+    set #LSHARD 0
+    if #CONTNAME = MainMenu_gump
     {
-        click 595 444 dmc
-        wait 2s
-        gosub waitForPageLoad
-        wait 2s
-        click 595 444 dmc
-        wait 2s
-        wait 60s
+       msg %1
+       key ENTER
+       gosub waitForPageLoad
+       key ENTER
+       if #shard <> Atlantic
+       {
+          click 590 410 dmc
+          gosub waitForPageLoad
+          click 590 410 dmc
+          goto startLogin
+       }
+       gosub waitForPageLoad
+       key ENTER
+       sleep 10000
+       return
+    }
+    else
+    {
+        sleep 1000
         goto startLogin
     }
-    gosub waitForPageLoad
-    key ENTER
-    wait 60s
-    return
-}
-else
-{
-    sleep 1000
-    goto startLogin
-}
-
+return #false
 
 sub waitForPageLoad
     waitForShardPage:
-    if waiting in #CONTNAME
+    if #CONTNAME <> normal_gump
     {
         sleep 100
         goto waitForShardPage
