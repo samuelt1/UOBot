@@ -1,0 +1,37 @@
+set %timer #scnt + 10
+
+while #true
+{
+  if #contname = trade_gump
+  {
+     click 54 44 dmc
+     wait 1s
+  }
+
+  if %timer < #scnt
+  {
+    event macro 13 21
+    set %timer #scnt + 10
+  }
+  
+  finditem LKF_CKF C_ , #backpackid
+  if #findcnt > 0
+  {
+    set %lootbag #findid
+
+    set %findIndex 1
+    repeat
+    {
+      finditem WN_BO %findIndex G_1
+      Exevent Drag %lootbag
+      wait 10
+      Exevent Dropc #findid
+      wait 1s
+      finditem LKF_CKF C_ , #backpackid
+      set %findIndex %findIndex + 1
+    }
+    until #FINDCNT = 0
+  }
+}
+
+

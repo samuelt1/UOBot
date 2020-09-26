@@ -1,0 +1,13 @@
+while #true
+{
+     if #mana > 10
+     {
+      set #ltargetid MVZVHF
+      event macro 15 202
+      target 3s
+      event macro 22 0
+      wait 3s
+      event macro 15 149
+      wait 1s
+     }
+}
