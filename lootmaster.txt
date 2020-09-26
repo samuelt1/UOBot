@@ -2,20 +2,27 @@ set %charposx #CHARPOSX
 set %charposy #CHARPOSY
 set %charposz #CHARPOSZ
 gosub setLootBag
+set %overweight #false
+
 while #true
 {
-  ;find monsters to kill
-  finditem ED G_10
-  set #ltargetid #findid
-  ignoreItem #findid
-  event macro 22 0 ; last target
-  event macro 27 0  ;attack target with weapon
   
-  finditem YFM G_10
+  gosub fight
+  
+  finditem YFM G_16
   if #findkind = 1
   {
      ignoreItem #findid
-     event PathFind #findx #findy #findz
+     if #findx < 5913 && #findy > 350 ;don't leave the cave
+        gosub PathfindWait 5913 #findy #findz
+     else
+         gosub PathfindWait #findx #findy #findz
+
+     
+     if #charposy > 1000 ;if I left the cave, come back
+     {
+        move 3506 2777 1 3s
+     }
 
      while #finddist > 2
      {
@@ -24,23 +31,52 @@ while #true
      set #lobjectid #findid
      event macro 17 0
      wait 1s
+     gosub fight
      gosub lootitems
   }
-  if #charposx <> %charposx && #charposy <> %charposy
-  {
-     event PathFind %charposx %charposy %charposz
-  }
 
-  while #charposx <> %charposx && #charposy <> %charposy
-  {
-        wait 10
-  }
+  gosub fight
+  
+  gosub PathfindWait %charposx %charposy %charposz
+  
   gosub checkWeight
 }
 
+sub fight
+
+  ;find monsters to kill
+  finditem ED G_10
+  set #ltargetid #findid
+  ignoreItem #findid
+  event macro 22 0 ; last target
+  wait 10
+  event macro 27 0  ;attack target with weapon
+  wait 10
+return
+
 sub checkWeight
-  if #weight > #maxweight
-     gosub unload
+  if %overweight
+  {
+     ;get out of this cave, unload, and come back
+     ;gosub PathfindWait 5912 355 %charposz
+     ;gosub unload ;old sam's code
+     gosub gohome
+     gosub newunload
+     gosub gofight
+     gosub PathfindWait 3508 2777 23
+     set %overweight #false
+  }
+return
+
+
+sub newunload
+  Exevent Drag %lootbag
+  wait 10
+  Exevent Dropc SPNFVI
+  wait 1s
+  click 54 44 dmc
+  wait 1s
+  gosub setLootBag
 return
 
 sub unload
@@ -57,11 +93,16 @@ sub unload
   }
   until #FINDCNT = 0
   gosub setLootBag
+  set %overweight #false
+  
 return
 
 sub setLootBag
   finditem LKF C_ , #backpackid
   set %lootbag #findid
+  
+  finditem CKF C_ , #backpackid
+  set %gembag #findid
 return
 
 sub lootitems
@@ -72,7 +113,6 @@ sub lootitems
   for #FINDINDEX 1 #FINDCNT
   {
     event Property #findID
-    event SysMessage #findID
     if magic in #property ; && ( Weight: , #spc , 50 ) notin #property
     {
       wait 1s
@@ -80,14 +120,108 @@ sub lootitems
       wait 10
       Exevent Dropc %lootbag
       wait 1s
+
+      if #weight > #maxweight
+      {
+          wait 1s
+         ;put item back like in the mummy movie
+          Exevent Drag #findid
+          wait 10
+          Exevent Dropc #contid
+          set %overweight #true
+          wait 1s
+          break
+      }
+      
     }
     if arrow in #property
     {
       wait 1s
     	Exevent Drag #findid #findstack
     	wait 10
-    	Exevent Dropc %lootbag
+    	Exevent Dropc #backpackid
+      wait 1s
+    }
+    
+    if Citrine in #property || Amethyst in #property || Amber in #property || Sapphire in #property || Tourmaline in #property || Ruby in #property || Emerald in #property || Diamond in #property
+    {
+      wait 1s
+    	Exevent Drag #findid #findstack
+    	wait 10
+    	Exevent Dropc %gembag
       wait 1s
     }
   }
+return
+
+sub gohome
+    event macro 15 210
+    target 4s
+    set #ltargetid XPFLAUD
+    event macro 22 0 ; last target
+    
+    while #charposx <> 803
+    {
+          wait 10
+    }
+
+return
+
+sub gofight
+    event macro 15 210
+    target 4s
+    set #ltargetid TNFLAUD
+    event macro 22 0 ; last target
+
+    while #charposx <> 3516
+    {
+          wait 10
+    }
+
+return
+
+sub PathfindWait
+    set %moveres unknown
+    if #charposx = %1 && #charposy = %2
+    {
+        set %moveres success
+        return
+    }
+    set %js #jindex
+    event pathfind %1 %2 %3
+    wait 10
+    set %je #jindex
+    for %ji %js %je
+    {
+        scanjournal %ji
+        if pathfinding in #journal
+        {
+            set %movex #charposx
+            set %movey #charposy
+            set %movetimer #systime + 500
+            PathfindWaitLoop:
+            gosub checkConnect
+            if #systime < %movetimer
+                goto PathfindWaitLoop
+            if %movex = %1 && %movey = %2
+            {
+                set %moveres success
+                return
+            }
+            if %movex = #charposx && %movey = #charposy
+            {
+                set %moveres stopped
+                return
+            }
+            set %movex #charposx
+            set %movey #charposy
+            set %movetimer #systime + 500
+            goto PathfindWaitLoop
+        }
+        if can't_get_there in #journal
+        {
+            set %moveres error
+            return
+        }
+    }
 return
