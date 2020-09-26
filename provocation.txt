@@ -1,0 +1,18 @@
+while #true
+{
+  finditem LQF C
+  set #LOBJECTID #FINDID
+  event macro 17
+  event macro 13 22
+  target 5s
+  set #LTARGETID GZZQYG
+  event macro 22
+  target 5s
+  set #LTARGETID CIUBPI
+  event macro 22
+  msg all stop
+  key enter
+  msg all stay
+  key enter
+  wait 10s
+}

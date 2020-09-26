@@ -1,0 +1,48 @@
+finditem NJL C
+#findid
+event macro 13 56
+wait 10
+set %x  30 + #CONTPOSX
+set %y  71 + #CONTPOSY
+click %x %y dmc
+wait 10
+set #lTargetID #FINDID
+wait 10
+event Macro 22 0
+wait 10
+set %x  26 + #CONTPOSX
+set %y  126 + #CONTPOSY
+click %x %y dmc
+wait 10
+set %x  265 + #CONTPOSX
+set %y  100 + #CONTPOSY
+click %x %y dmc
+wait 10
+set %x  309 + #CONTPOSX
+set %y  380 + #CONTPOSY
+click %x %y dmc
+wait 10
+set %x  405 + #CONTPOSX
+set %y  420 + #CONTPOSY
+click %x %y dmc
+wait 50
+
+repeat
+{
+  gosub waitcontainer AYQ
+  set %x  30 + #CONTPOSX
+  set %y  100 + #CONTPOSY
+  click %x %y dmc
+  wait 10
+  ;gosub checkTooMuch
+}
+until #false
+halt
+
+sub waitcontainer
+  while #CONTKIND <> %1
+  wait 10
+return
+sub checkTooMuch
+      your_chance_to_learn
+return

@@ -1,0 +1,18 @@
+set %puthere YWOMGVD
+
+
+finditem FVF_OVF_VUF_HVF_GVF_UVF_BVF_EVF_RVF C
+                      ;display  #FINDCNT
+    for %i #FINDCNT 1
+    {
+finditem FVF_OVF_VUF_HVF_GVF_UVF_BVF_EVF_RVF %i C
+
+                           ;display %puthere    #FINDID #FINDSTACK
+            Exevent Drag #FINDID #FINDSTACK
+            wait 10
+            Exevent Dropc %puthere
+            wait 1s
+                          }
+
+                          halt
+

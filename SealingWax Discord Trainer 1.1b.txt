@@ -1,0 +1,301 @@
+;===============================================================
+; Script Name: SealingWax's Discord Trainer
+; Authors: SealingWax
+; Version: 1.1b
+; Client Tested with: 5.0.1d
+; EUO version tested with: 1.5 TV 64
+; Shard OSI / FS: OSI / Never tested outside of OSI.
+; Public Release: 09/18/2005
+; Latest Revision: 11/09/2005
+; Global Variables Used: none
+; Purpose: Trains Discordance to 120 using any number of targets.
+;===============================================================
+;==Note==============
+; Before running, you must be in a location where you can target
+; your animals but they can't reach you (i.e. a boat, your front
+; steps, across a river). Take your tamer, or have a friend tame
+; and release animals of your current skill level where you wish
+; to train. You must have the ability to either cast invisibilty
+; on yourself or use hiding in order to remove the discordance
+; effect from your targets.
+;====================
+;==Variables=========
+; Change this variable (X) to the number of targets you will
+; have.
+set %totaltargets 6
+; Change this variable (X) to determine the method you choose
+; to cancel your discordance:
+; 1 - Invis
+; 2 - Double Invis (to use if targets are revealing you)
+; 3 - Hiding
+set %cancel 1
+gosub setup
+
+;====================
+;==Setup=============
+
+sub setup
+
+if %totaltargets = X
+{
+ display ok You must set the variable number of targets you will$be using before you start.
+ halt
+}
+if %cancel = X
+{
+ display ok You must set the variable for your discord cancelling$method before you start.
+ halt
+}
+if %cancel = 3
+display yesno You have chosen to use hiding as your cancellation method.$Hiding may not work if you are training on any creatures$that flag against you.$$Do you wish to continue using hiding?
+if #dispres = no
+{
+  display ok Script halted.
+  halt
+}
+event macro 8 7
+set %pack #contid
+
+display ok Now we are going to set up your discord targets.
+target:
+
+for %i 1 %totaltargets
+{
+ display ok Please target animal number %i
+ set #targcurs 1
+ Targetloop:
+ if #targcurs = 1
+ {
+  goto Targetloop
+ }
+ else
+ {
+  set %target . %i #ltargetid
+  wait 20
+ }
+}
+chooseskill discordance
+set %start #skill
+set %gains #skill - %start
+set %attempts 0
+
+gosub menu
+
+;====================
+;==Menu==============
+
+sub menu
+
+menu clear
+Menu window size 300 150
+Menu window color red
+menu font color white
+menu font bgcolor red
+menu font size 14
+menu text title 25 10 SealingWax's Discord Trainer
+menu font size 7
+menu text ver 125 30 Version 1.1a
+menu font size 10
+menu text count 75 50 Total Attempts:
+menu text countnum 200 50 %attempts
+menu text start 75 65 Starting Skill:
+menu text startnum 200 65 %start
+menu text current 75 80 Current Skill:
+menu text currentnum 200 80 #skill
+menu text gains 75 95 Total Gains:
+menu text gainsnum 200 95 %gains
+menu text status 75 110 Status:
+menu text curentstatus 125 110 %status
+menu show
+gosub disco
+
+;====================
+;==Main=Loop=========
+
+sub disco
+
+if #charghost = Yes
+{
+ set %status Paused. Dead :(
+ menu set curentstatus %status
+ display ok Something happened and now you're dead.$Go ahead and res up, then hit play.$Script paused.
+ pause
+}
+for %i 1 %totaltargets
+{
+ set #ltargetid %target . %i
+ loop:
+ set %status Running...
+ menu set curentstatus %status
+ event macro 13 15
+ wait 30
+ scanjournal 1
+ if What_instrument_shall_you in #journal
+ {
+  gosub playnew
+ }
+ else
+ {
+  event macro 22 0
+  set %attempts %attempts + 1
+  menu set countnum %attempts
+ }
+ scanjournal 1
+ if You_attempt_to_disrupt in #journal
+ {
+  wait 5s
+  goto loop
+ }
+ else
+ {
+  scanjournal 1
+  if That_is_too_far in #journal
+  {
+   gosub playnew
+  }
+  else
+  {
+   menu set currentnum #skill
+   set %gains #skill - %start
+   menu set gainsnum %gains
+   wait 11s
+  }
+ }
+}
+
+;====================
+;==Disco=Cancel======
+
+sub cancel
+
+set %status Cancelling...
+menu set curentstatus %status
+cancel:
+if %cancel = 1
+{
+ event macro 15 43
+ wait 55
+ event macro 23 0
+ wait 40
+ if H notin #charstatus
+ {
+  goto cancel
+ }
+ else
+ {
+  wait 15s
+  gosub disco
+ }
+}
+if %cancel = 2
+{
+ event macro 15 43
+ wait 55
+ event macro 23 0
+ wait 30
+ event macro 15 43
+ wait 55
+ event macro 23 0
+ wait 40
+ if H notin #charstatus
+ {
+  goto cancel
+ }
+ else
+ {
+  wait 15s
+  gosub disco
+ }
+}
+if %cancel = 3
+{
+ event macro 13 21
+ wait 2s
+ if H notin #charstatus
+ {
+  wait 11s
+  goto cancel
+ }
+ else
+ {
+  wait 15s
+  gosub skillcheck
+ }
+}
+
+;====================
+;==New=Instrument====
+
+sub playnew
+
+set %status Finding Instrument..
+menu set curentstatus %status
+finditem MQF_QRF_LQF_PRF C_
+wait 1s
+set #lobjectid #findid
+wait 2s
+event macro 17 0
+if #findkind = -1
+{
+ if %cancel = 1
+ {
+  event macro 15 43
+  target
+  event macro 23 0
+  wait 40
+  if H notin #charstatus
+  {
+   gosub playnew
+  }
+ }
+ if %cancel = 2
+ {
+  event macro 15 43
+  target
+  event macro 23 0
+  wait 30
+  event macro 15 43
+  target
+  event macro 23 0
+  wait 40
+  if H notin #charstatus
+  {
+   gosub playnew
+  }
+ }
+ if %cancel = 3
+ {
+  event macro 13 21
+  wait 2s
+  if H notin #charstatus
+  {
+   wait 11s
+   gosub playnew
+  }
+ }
+ set %status Paused
+ menu set curentstatus %status
+ display ok Can't find anymore instruments. Restock$and hit play. Script paused.
+ Pause
+}
+else
+{
+ gosub disco
+}
+;====================
+;==Skill=Check=======
+sub skillcheck
+
+set #skill discord
+if #skill = #skillcap
+{
+ set %status Done!!
+ menu set curentstatus %status
+ display ok Your discordance is capped out.
+ halt
+}
+else
+{
+ gosub disco
+}
+;====================

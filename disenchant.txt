@@ -1,37 +1,42 @@
-set %enchantbag CFHMSUD
+set %enchantbag #backpackid
 ignoreItem enchantbag
-gosub openBags
+;gosub openBags
 for %loop 1 2
 {
     findItem * c
     for %i #FINDCNT 1
     {
         findItem * %i c
-        if #FINDTYPE in ZJF_LKF_RXJC_CKF
-        {
-            Set #LOBJECTID #findID
-            event macro 17
-            wait 1s
-            ignoreItem #FINDID
-            continue
-        }
+        ;if #FINDTYPE in ZJF_LKF_RXJC_CKF
+        ;{
+        ;    Set #LOBJECTID #findID
+        ;    event macro 17
+        ;    wait 1s
+        ;    ignoreItem #FINDID
+        ;    continue
+        ;}
         event Property #findID
-        set %temp Minor Magic Item
+        set %temp minor , #spc , Magic , #spc , Item
         if %temp in #property
         {
             set %returnbag #FINDBAGID
+            ;put into enchant bag
             Exevent Drag #FINDID #FINDSTACK
             wait 10
             Exevent Dropc %enchantbag
             wait 1s
+            ;open enchant menu
             event macro 13 56
             wait 10
             set %x 26 + #CONTPOSX
             set %y 190  + #CONTPOSY
+            ;click unravel
             click %x %y dmc
             target 1s
+            ;target item
             set #lTargetID #FINDID
-            wait 10
+            wait 1s
+            ;select targeted
             event Macro 22 0
             wait 10
             if #CONTKIND = AYQ
@@ -55,31 +60,34 @@ for %loop 1 2
         }
     }
 }
-halt
+halt 
 
 sub openBags
-    Set #LOBJECTID #backpackid
-    event macro 17
-    wait 1s
-    Set #LOBJECTID STMTMUD
-    event macro 17
-    wait 1s
-    Set #LOBJECTID QFKYFVD
-    event macro 17
-    wait 1s
-    Set #LOBJECTID OIDSFUD
-    event macro 17
-    wait 1s
-    Set #LOBJECTID ANQHHVD
-    event macro 17
-    wait 1s
-    Set #LOBJECTID MRKTMUD
-    event macro 17
-    wait 1s
-    Set #LOBJECTID VNFQNPD
-    event macro 17
-    wait 1s
-    Set #LOBJECTID %enchantbag
-    event macro 17
-    wait 1s
+    event macro 8 7
+    sleep 1200
+
+    findItem WN_BO g_2
+    for %i 1 #FINDCNT
+    {
+        findItem WN_BO %i g_2
+        Set #LOBJECTID #FINDID
+        event macro 17
+        sleep 1200
+    }
+    
+
+    findItem ZJF_LKF_RXJC_CKF c
+    repeat
+    {
+        for %i #FINDCNT 1
+        {
+            findItem ZJF_LKF_RXJC_CKF %i c
+            Set #LOBJECTID #FINDID
+            event macro 17
+            sleep 1200
+            ignoreitem #FINDID
+        }
+        findItem ZJF_LKF_RXJC_CKF c
+    }
+    until #FINDCNT = 0
 return

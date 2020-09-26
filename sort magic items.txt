@@ -1,0 +1,71 @@
+finditem * C
+for %i #FINDCNT 1
+{
+  finditem * %i C
+  event Property #findID
+  set %minor minor , #spc , Magic , #spc , Item
+  set %lesser lesser , #spc , Magic , #spc , Item
+  set %greater greater , #spc , Magic , #spc , Item
+  set %major major , #spc , Magic , #spc , Item
+  set %artifact artifact
+
+  if %minor in #property
+  {
+    if #FINDBAGID in CFHMSUD
+       continue
+    Exevent Drag #FINDID #FINDSTACK
+    wait 10
+    Exevent Dropc CFHMSUD
+    wait 1s
+    continue
+  }
+  if %lesser in #property
+  {
+    if #FINDBAGID in TZCSFUD_SZCSFUD
+       continue
+    Exevent Drag #FINDID #FINDSTACK
+    wait 10
+    Exevent Dropc TZCSFUD
+    wait 1s
+    Exevent Drag #FINDID #FINDSTACK
+    wait 10
+    Exevent Dropc SZCSFUD
+    wait 1s
+    continue
+  }
+  if %greater in #property
+  {
+    if #FINDBAGID in BXXLNVD_KFPHHVD
+       continue
+    Exevent Drag #FINDID #FINDSTACK
+    wait 10
+    Exevent Dropc BXXLNVD
+    wait 1s
+    Exevent Drag #FINDID #FINDSTACK
+    wait 10
+    Exevent Dropc KFPHHVD
+    wait 1s
+    continue
+  }
+  if %major in #property
+  {
+    if #FINDBAGID in QWWSHQD
+       continue
+    Exevent Drag #FINDID #FINDSTACK
+    wait 10
+    Exevent Dropc QWWSHQD
+    wait 1s
+    continue
+  }
+  if %artifact in #property
+  {
+    if #FINDBAGID in EXXLNVD
+       continue
+    Exevent Drag #FINDID #FINDSTACK
+    wait 10
+    Exevent Dropc EXXLNVD
+    wait 1s
+    continue
+  }
+}
+halt

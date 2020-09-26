@@ -1,0 +1,50 @@
+set %x -25
+set %y -10
+
+   ; event macro 8 7
+   ; sleep 1200
+   ;      gosub moveBag
+    findItem WN_BO g_2
+    for %i 1 #FINDCNT
+    {
+        findItem WN_BO %i g_2
+        Set #LOBJECTID #FINDID
+        event macro 17
+         gosub moveBag
+        sleep 1200
+    }
+
+
+    findItem ZJF_LKF_RXJC_CKF c
+    repeat
+    {
+        for %i #FINDCNT 1
+        {
+            findItem ZJF_LKF_RXJC_CKF %i c
+            Set #LOBJECTID #FINDID
+            event macro 17
+         gosub moveBag
+            sleep 1200
+            ignoreitem #FINDID
+        }
+        findItem ZJF_LKF_RXJC_CKF c
+    }
+    until #FINDCNT = 0
+    halt
+    
+    sub moveBag
+    wait 10
+    
+       set #CONTPOSX %x
+       set #CONTPOSY %y
+
+       if %y > 600
+       {
+       set %x %x + 185
+       set %y -10
+       }
+       else
+       {
+         set %y %y + 157
+       }
+    return

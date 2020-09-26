@@ -2,7 +2,7 @@ gosub checkConnect
 exit
 
 sub checkConnect
-    if #CONTNAME = waiting_gump
+    if #CONTKIND = ORQB
        gosub login
 return
 

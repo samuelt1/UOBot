@@ -1,0 +1,279 @@
+;==================================
+; Script Name: MusicDiscord.Skyttl3
+; Author: Ricky
+; Version: 1.2
+; Client Tested with:  4.0.6a
+; EUO version tested with: 1.42.009D
+; Shard OSI / FS: Both
+; Revision Date: 
+; Public Release: 9/12/04
+; Global Variables Used: 
+; Purpose: Train Music and Discord to 120!  Choose between Drums or Lute!
+;==================================
+display ok Please target the object of your discordance.
+set #targcurs 1
+setup1:
+if #targcurs = 1
+{
+	goto setup1
+}
+set %Animal #ltargetid
+
+gosub showeuomenu1
+
+loop:
+gosub bloop
+goto loop
+
+sub closed
+   menu Hide
+halt
+
+sub bloop
+if ! %menubloop 2
+set #menubutton n/a
+set %menubutton #true
+bloop:
+if #menubutton <> n/a
+{
+gosub #menubutton
+set #menubutton n/a
+return
+}
+goto bloop
+
+sub drumsmusic
+findItem MQF C_ ,
+set #lobjectid #findid
+if #findKind = -1
+{
+	display ok Unable to locate drums. Please restart this script.$
+	menu Hide
+	halt
+}
+set %skillname Music
+chooseskill musicianship
+if #skill = #skillcap
+{
+	display ok You're music is already at cap!
+	menu Hide
+	halt
+}
+gosub menuloop
+loop2:
+findItem MQF C_ ,
+set #lobjectid #findid
+if #findKind = -1
+{
+	display ok Unable to locate drums. Please restart this script.$
+	menu Hide
+	halt
+}
+event Macro 17 0
+	menu Delete EUOLabel3
+	menu Text EUOLabel3 56 68 #skill
+wait 2s
+goto loop2
+
+sub lutemusic
+findItem PRF C_ ,
+set #lobjectid #findid
+if #findKind = -1
+{
+	display ok Unable to locate Lute. Please restart this script.$
+	menu Hide
+	halt
+}
+set %skillname Music
+chooseskill music
+if #skill = #skillcap
+{
+	display ok You're music is already at cap!
+	menu Hide
+	halt
+}
+gosub menuloop
+loop3:
+findItem PRF C_ ,
+set #lobjectid #findid
+if #findKind = -1
+{
+	display ok Unable to locate Lute. Please restart this script.$
+	menu Hide
+	halt
+}
+event Macro 17 0
+	menu Delete EUOLabel4
+	menu Text EUOLabel4 56 68 #skill
+wait 2s
+goto loop3
+
+sub drumsdisc
+findItem MQF C_ ,
+set #lobjectid #findid
+if #findKind = -1
+{
+	display ok Unable to locate drums. Please restart this script.$
+	menu Hide
+	halt
+}
+set %skillname Discordance
+chooseskill discordance
+if #skill = #skillcap
+{
+	display ok You're music is already at cap!
+	menu Hide
+	halt
+}
+gosub menuloop
+loop4:
+findItem MQF C_ ,
+set #lobjectid #findid
+if #findKind = -1
+{
+	display ok Unable to locate drums. Please restart this script.$
+	menu Hide
+	halt
+}
+event Macro 13 15
+wait 1s
+set %ltargetid %Animal
+event Macro 22 0
+	menu Delete EUOLabel4
+	menu Text EUOLabel4 56 68 #skill
+wait 2s
+goto loop4
+
+sub lutedisc
+findItem PRF C_ ,
+set #lobjectid #findid
+if #findKind = -1
+{
+	display ok Unable to locate Lute. Please restart this script.$
+	menu Hide
+	halt
+}
+set %skillname Discordance
+chooseskill discordance
+if #skill = #skillcap
+{
+	display ok You're music is already at cap!
+	menu Hide
+	halt
+}
+gosub menuloop
+loop5:
+findItem PRF C_ ,
+set #lobjectid #findid
+if #findKind = -1
+{
+	display ok Unable to locate Lute. Please restart this script.$
+	menu Hide
+	halt
+}
+event Macro 13 15
+wait 1s
+set %ltargetid %Animal
+event Macro 22 0
+	menu Delete EUOLabel4
+	menu Text EUOLabel4 56 68 #skill
+wait 2s
+goto loop5
+
+sub menuloop
+	menu Clear
+	menu Window Title SkillStats
+	menu Window Color WindowText
+	menu Window Size 192 96
+	menu Font Transparent #true
+	menu Font Align Right
+	menu Font Name Script
+	menu Font Size 18
+	menu Font Style i
+	menu Font Color Yellow
+	menu Font Transparent #false
+	menu Font Align Left
+	menu Font BGColor WindowText
+	menu Text EUOLabel1 28 16 MusicDiscord.Skyttl3
+	menu Font Name MS Sans Serif
+	menu Font Size 8
+	menu Font Style
+	menu Font Color White
+	menu Text EUOLabel2 56 44 %skillname
+	menu Show 421 270
+return
+;--------- EasyUO Menu Designer Code Begin ---------
+sub showEUOMenu3
+	menu Clear
+	menu Window Title Discord.Skyttl3
+	menu Window Color WindowText
+	menu Window Size 241 149
+	menu Font Transparent #true
+	menu Font Align Right
+	menu Font Name Script
+	menu Font Size 18
+	menu Font Style i
+	menu Font Color Yellow
+	menu Font Transparent #false
+	menu Font Align Left
+	menu Font BGColor WindowText
+	menu Text EUOLabel1 44 16 MusicDiscord.Skyttl3
+	menu Font Name MS Sans Serif
+	menu Font Size 8
+	menu Font Style
+	menu Font Color White
+	menu Text EUOLabel2 76 52 Choose a weapon
+	menu Button lutedisc 76 80 75 21 Lute
+	menu Button drumsdisc 76 104 75 21 Drums
+	menu Show 421 270
+return
+sub showEUOMenu2
+	menu Clear
+	menu Window Title Music.Skyttl3
+	menu Window Color WindowText
+	menu Window Size 239 152
+	menu Font Transparent #true
+	menu Font Align Right
+	menu Font Name Script
+	menu Font Size 18
+	menu Font Style i
+	menu Font Color Yellow
+	menu Font Transparent #false
+	menu Font Align Left
+	menu Font BGColor WindowText
+	menu Text EUOLabel1 44 16 MusicDiscord.Skyttl3
+	menu Font Name MS Sans Serif
+	menu Font Size 8
+	menu Font Style
+	menu Font Color White
+	menu Text EUOLabel2 76 52 Choose a weapon
+	menu Button lutemusic 76 80 75 21 Lute
+	menu Button drumsmusic 76 104 75 21 Drums
+	menu Show 421 270
+return
+sub showEUOMenu1
+	menu Clear
+	menu Window Title MusicDiscord.Skyttl3
+	menu Window Color BtnText
+	menu Window Size 239 153
+	menu Font Transparent #true
+	menu Font Align Right
+	menu Font Name Script
+	menu Font Size 18
+	menu Font Style i
+	menu Font Color Yellow
+	menu Font Transparent #false
+	menu Font Align Left
+	menu Font BGColor BtnText
+	menu Text EUOLabel1 44 16 MusicDiscord.Skyttl3
+	menu Font Name MS Sans Serif
+	menu Font Size 8
+	menu Font Style
+	menu Font Color White
+	menu Text EUOLabel2 56 48 Choose which skill to work
+	menu Font BGColor WindowText
+	menu Button showeuomenu2 72 72 75 21 Musicianship
+	menu Button showeuomenu3 72 100 75 21 Discordance
+	menu Show 421 270
+return
+;--------- EasyUO Menu Designer Code End ---------
