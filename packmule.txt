@@ -37,19 +37,21 @@ while #true
     }
     wait 1s
     set %moveItem %lootbag
+    set %movestack 1
     set %findIndex 1
     repeat
     {
       finditem WN_BO %findIndex G_2
-      Exevent Drag %moveItem
+      Exevent Drag %moveItem %movestack
       wait 10
       Exevent Dropc #findid
       wait 1s
       gosub findFull
       if #RESULT
          set %findIndex %findIndex + 1
-      finditem LKF_CKF_TXJC_WKR C_ , #backpackid
+      finditem LKF_CKF_TXJC_WKR_TKR C_ , #backpackid
       set %moveItem #FINDID
+      set %movestack #findstack
     }
     until #FINDCNT = 0
   }
