@@ -11,7 +11,9 @@ while #true
 
   if %timer < #scnt
   {
-    event macro 13 21
+    finditem LQF C_ , #backpackid
+    set #LOBJECTID #FINDID
+    event macro 17
     set %timer #scnt + 100
   }
 
