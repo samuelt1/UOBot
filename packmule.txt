@@ -3,6 +3,7 @@ set %jrnl #jindex
 
 while #true
 {
+  gosub dropEmpty
   if #contname = trade_gump
   {
      click 54 44 dmc
@@ -51,7 +52,7 @@ while #true
       gosub findFull
       if #RESULT
          set %findIndex %findIndex + 1
-      finditem LKF_CKF_TXJC_WKR_TKR C_ , #backpackid
+      finditem LKF_CKF_TXJC_WKR_VKR_TKR C_ , #backpackid
       set %moveItem #FINDID
       set %movestack #findstack
     }
@@ -60,7 +61,7 @@ while #true
 }
 
 sub findFull
-  while #jindex >= %jrnl
+  while #jindex > %jrnl
    {
         set %jrnl %jrnl + 1
         scanjournal %jrnl
@@ -68,3 +69,20 @@ sub findFull
            return #true
    }
 return #false
+
+sub dropEmpty
+  finditem LKF C
+  for #FINDINDEX 1 #FINDCNT
+  {
+      event Property #findID
+      if Weight: , #spc , 1 , #spc , Stone in #property
+      {
+        set %x  #CHARPOSX + 1
+        set %y  #CHARPOSY
+        exevent drag #findID #findstack
+        wait 10
+        exevent dropg %x %y
+        wait 1s
+      }
+   }
+return
