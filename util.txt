@@ -1,0 +1,11 @@
+finditem LKF G_2
+for #FINDINDEX 1 #FINDCNT
+{
+     exevent drag #findID #findstack
+     wait 10
+     exevent dropc #backpackid
+     wait 1s
+   }
+}
+
+halt

@@ -1,0 +1,123 @@
+; poisoned pixel        4390755
+; healthy pixel         16751690
+
+set %healtpoint 99
+
+gosub init
+
+
+while #true
+{
+      gosub ispoisoned %PetID_1
+      if #result || #CONTHP >= %healtpoint
+      {
+         event SysMessage Don't heal me
+      }
+      else
+      {
+          event macro 15 28 ; greater heal
+          set #LTARGETID %PetID_1
+          target 5s
+          event macro 22 0 ;target self
+      }
+      wait 1s
+      
+      gosub ispoisoned %PetID_2
+      if #result || #CONTHP >= %healtpoint
+      {
+         event SysMessage Don't heal me
+      }
+      else
+      {
+          event macro 15 28 ; greater heal
+          set #LTARGETID %PetID_2
+          target 5s
+          event macro 22 0 ;target self
+      }
+      wait 1s
+
+      gosub ispoisoned %PetID_3
+      if #result || #CONTHP >= %healtpoint
+      {
+         event SysMessage Don't heal me
+      }
+      else
+      {
+          event macro 15 28 ; greater heal
+          set #LTARGETID %PetID_3
+          target 5s
+          event macro 22 0 ;target self
+      }
+      wait 1s
+}
+
+
+sub ispoisoned
+
+  event statbar %1
+  wait 5
+  set %contposx 38 + #CONTPOSX
+  set %contposy 43 + #CONTPOSY
+  savePix  %contposx %contposy 1
+  wait 5
+  if #PIXCOL = 4390755
+  {
+     return #true
+  }
+
+  if #PIXCOL = 16751690
+  {
+     return #false
+  }
+
+return error
+
+sub init
+;===========================
+  Display ok Drag Pet 1 healthbar where you want it - and target it.
+  Set #TARGCURS 1
+  While #TARGCURS = 1
+  {
+   Wait 1s
+  }
+
+  Set %PetID_1 #LTARGETID
+  wait 5
+  event statbar %PetID_1
+  wait 5
+  set %PetID_1x #contposx
+  set %PetID_1y #contposy
+  
+;===========================
+  Display ok Drag Pet 2 healthbar where you want it - and target it.
+  Set #TARGCURS 1
+  While #TARGCURS = 1
+  {
+   Wait 1s
+  }
+
+  Set %PetID_2 #LTARGETID
+  wait 5
+  event statbar %PetID_2
+  wait 5
+  set %PetID_2x #contposx
+  set %PetID_2y #contposy
+
+;===========================
+  Display ok Drag Pet 2 healthbar where you want it - and target it.
+  Set #TARGCURS 1
+  While #TARGCURS = 1
+  {
+   Wait 1s
+  }
+
+  Set %PetID_3 #LTARGETID
+  wait 5
+  event statbar %PetID_3
+  wait 5
+  set %PetID_3x #contposx
+  set %PetID_3y #contposy
+
+return
+
+halt

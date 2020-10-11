@@ -1,69 +1,361 @@
+set %lonely normal
+gosub init
+
 set %charposx #CHARPOSX
 set %charposy #CHARPOSY
 set %charposz #CHARPOSZ
 gosub setLootBag
 set %overweight #false
+set %dedbody
+set %idling #false
 
+if %lonely = lonely && #charposy > 330
+   gosub gotospot
+   
+if %lonely = middle && #charposy > 330
+   gosub gotomiddle
+     
 while #true
 {
-  
-  gosub fight
+  set %freeloader #false
+
+  if %lonely <> middle
+     gosub fight
   
   finditem YFM G_16
   if #findkind = 1
   {
-     ignoreItem #findid
+     set %idling #false
+     set %dedbody #findid
      if #findx < 5913 && #findy > 350 ;don't leave the cave
         gosub PathfindWait 5913 #findy #findz
      else
          gosub PathfindWait #findx #findy #findz
 
-     
-     if #charposy > 1000 ;if I left the cave, come back
+     if #charposz > 0 ;if I left the cave, come back
      {
-        move 3506 2777 1 3s
+        gosub PathfindWait 3507 2779 23
+        wait 10
+
+        if #findx < 5913 && #findy > 350 ;don't leave the cave
+          gosub PathfindWait 5913 #findy #findz
+        else
+           gosub PathfindWait #findx #findy #findz
      }
 
-     while #finddist > 2
-     {
-      wait 10
-     }
      set #lobjectid #findid
-     event macro 17 0
+     event macro 17 0 ; last object
+     wait 15
+     
+     if #contsizex = 144
+        set %mobbody #contid
+     else
+         set %mobbody 0
+
      wait 1s
-     gosub fight
+     if %lonely <> middle
+        gosub fight
      gosub lootitems
+     event exmsg #charid 3 30 Done Looting!
   }
 
   gosub fight
-  
-  gosub PathfindWait %charposx %charposy %charposz
-  
   gosub checkWeight
+  
+  if %idling
+     gosub gotonextwp
+     
+  set %idling #true
 }
+
+sub init
+
+  menu window title TFC Tamer
+  menu window size 320 300
+  menu edit waypointstext 10 190 300
+  menu show
+  menu HideEUO
+  set %jrnl #jindex
+
+  set %w -1
+  ;gosub AddWaypoint
+  set %statusposx #contposx
+  set %statusposy #contposy
+  set %charstartx #charposx
+  set %charstarty #charposy
+  set %charstartz #charposz
+
+  gosub LoadWaypoints
+
+return
+
+sub gotonextwp
+  ; if already at current wp, then move to next wp
+  gosub Distance #charposx #charposy %waypointx . %currwp %waypointy . %currwp
+
+  if %distance < 3
+  {
+    set %currwp %currwp + 1
+    if %currwp > %w
+    {
+       set %currwp 0
+    }
+    gosub PathfindWait %waypointx . %currwp %waypointy . %currwp %waypointz . %currwp
+    if %moveres = error
+    {
+       gosub gohalfway %waypointx . %currwp %waypointy . %currwp %waypointz . %currwp
+       if %moveres = error
+       {
+          break
+       }
+    }
+    return
+  }
+
+  ; if not at a waypoint, find the next closest one
+  gosub FindNearestWP
+  set %currwp %nearestwp
+
+  ; move on to next waypoint
+  ; if we fail to move at each step, then still check the error and stop trying to move
+  gosub PathfindWait %waypointx . %currwp %waypointy . %currwp %waypointz . %currwp
+  if %moveres = error
+  {
+     gosub gohalfway %waypointx . %currwp %waypointy . %currwp %waypointz . %currwp
+     if %moveres = error
+     {
+        break
+     }
+  }
+return
+
+
+sub gohalfway
+       set %newx ( #charposx + %1 ) / 2
+       set %newy ( #charposy + %2 ) / 2
+       set %newz %3
+       gosub PathfindWait %newx %newy %newz
+return
+
+
+sub IterateWaypoints
+    ;gosub distance %waypointx0 %waypointy0 %waypointx1 %waypointy1
+    event ExMsg #charID 3 0 #charposx , #spc , #charposy , #spc , %waypointx . %w , #spc , %waypointy . %w , #spc , %w
+    ;for %i 0 %w
+    ;{
+    ;    event ExMsg #charID 3 0 %waypointx . %i , #spc , %waypointy . %i
+    ;    wait 1s
+    ;}
+return
+
+sub FindNearestWP
+    set %nearestwp 0
+    set %nearestwpdist 999
+
+    for %i 0 %w
+    {
+        gosub Distance #charposx #charposy %waypointx . %i %waypointy . %i
+        if %distance < %nearestwpdist
+        {
+           set %nearestwpdist %distance
+           set %nearestwp %i
+        }
+    }
+return
+
+;%1=x1, %2=y1, %3=x2, %4=y2
+sub Distance
+    set %dx %3 - %1
+    set %dy %4 - %2
+    set %temp %dx * %dx + %dy * %dy
+    gosub Sqrt %temp
+    set %distance %sqrt
+return
+
+sub Sqrt
+    set %s ( ( %1 / 2 ) + %1 / ( %1 / 2 ) ) / 2 ; /*first guess*/
+    for %si 1 4    ;/*average of guesses*/
+    {
+        set %s ( %s + %1 / %s ) / 2
+    }
+    set %sqrt %s
+}
+return
+
+sub AddWaypoint
+    set %w %w + 1
+    set %waypointx . %w #charposx
+    set %waypointy . %w #charposy
+    set %waypointz . %w #charposz
+    set %currwp %w
+    set %waypointPointer %w
+    gosub addWaypointToBox
+return
+
+sub LoadWaypoints
+    set %w 0
+    set %currwp %w
+    if %lonely = lonely
+       menu set waypointstext 5919 286 0;
+    if %lonely = normal
+       menu set waypointstext 5919 351 0;5923 355 0;5934 361 0;5948 361 0;5965 361 0;5977 355 0;5988 351 0;5986 342 0;5994 330 0;5992 316 0;5993 301 0;5986 291 0;5976 285 0;5966 278 0;5955 278 0;5939 278 0;5926 284 0;5913 295 0;5909 311 0;5908 327 0;5912 328 0;5913 341 0;
+    if %lonely = middle
+       menu set waypointstext 5956 326 0;
+
+    menu get waypointstext
+    set %waypointsbuffer #menuRes
+    str len %waypointsbuffer
+    event SysMessage #strRes
+    while #strRes > 0
+    {
+    gosub GetWaypoint
+    set %w %w + 1
+    str len %waypointsbuffer
+    }
+    set %w %w - 1
+    event SysMessage waypoints loaded
+return
+
+sub GetWaypoint
+    str pos %waypointsbuffer #smc
+    set %waypointBufferPos #strRes
+    set %quickmath %waypointBufferPos - 1
+    str left %waypointsbuffer %quickmath
+    set %waypointfull #strRes
+    str del %waypointsbuffer 1 %waypointBufferPos
+    set %waypointsbuffer #strRes
+    event SysMessage %waypointfull
+    gosub GetCoord
+    set %waypointx . %w #result
+    gosub GetCoord
+    set %waypointy . %w #result
+    gosub GetCoord
+    set %waypointz . %w #result
+return
+
+sub GetCoord
+    if  #spc in %waypointfull
+    {
+    str pos %waypointfull #spc
+    set %waypointfullPos #strRes
+    set %quickmath %waypointfullPos - 1
+    str left %waypointfull %quickmath
+    set %cord #strRes
+    str del %waypointfull 1 %waypointfullPos
+    set %waypointfull #strRes
+    }
+    else
+    {
+        set %cord %waypointfull
+    }
+return %cord
+
+sub printWaypoints
+    menu set waypointstext
+    for %waypointPointer 0 %w
+    {
+     gosub addWaypointToBox
+    }
+return
+
+sub gotospot
+
+  gosub PathfindWait 5914 342 0
+  gosub PathfindWait 5909 329 0
+  gosub PathfindWait 5909 315 0
+  gosub PathfindWait 5911 298 0
+  gosub PathfindWait 5919 286 0
+
+return
+
+sub gotomiddle
+
+  gosub PathfindWait 5927 355 0
+  gosub PathfindWait 5937 362 0
+  gosub PathfindWait 5948 362 0
+  gosub PathfindWait 5967 362 0
+  gosub PathfindWait 5982 355 0
+  gosub PathfindWait 5993 338 0
+  gosub PathfindWait 5993 320 0
+  wait 1s
+
+  set #lobjectid MGNCOMD
+  event macro 17 0 ; last target
+
+return
+
+sub pickupbags
+  finditem LKF G_2
+  for #FINDINDEX 1 #FINDCNT
+  {
+       exevent drag #findID #findstack
+       wait 10
+       exevent dropc #backpackid
+       wait 1s
+     }
+  }
+return
 
 sub fight
 
   ;find monsters to kill
-  finditem ED G_10
-  set #ltargetid #findid
-  ignoreItem #findid
-  event macro 22 0 ; last target
-  wait 10
-  event macro 27 0  ;attack target with weapon
-  wait 10
+  set %threat #true
+  set %slowkill #scnt + 10
+  while %threat
+  {
+    finditem ED G_10
+    if #findcnt > 0
+    {
+      set %threat #true
+      set #ltargetid #findid
+      ;ignoreItem #findid
+      event macro 22 0 ; last target
+      wait 10
+      event macro 27 0  ;attack target with weapon
+      wait 5
+      if %slowkill < #scnt
+         gosub PathfindWait #findx #findy #findz
+      wait 1s
+    }
+    else
+      set %threat #false
+  }
 return
 
 sub checkWeight
   if %overweight
   {
-     ;get out of this cave, unload, and come back
-     ;gosub PathfindWait 5912 355 %charposz
-     ;gosub unload ;old sam's code
      gosub gohome
      gosub newunload
+     gosub pickupbags
      gosub gofight
-     gosub PathfindWait 3508 2777 23
+     key LEFT
+     wait 5
+     key LEFT
+     wait 5
+     key LEFT
+     wait 5
+     key LEFT
+     wait 5
+     key UP
+     wait 5
+
+     if %lonely = lonely
+        gosub gotospot
+
+     if %lonely = middle
+        gosub gotomiddle
+     
+     ;gosub PathfindWait 3507 2778 23
+     ;wait 1s
+
+     ;while #charposz > 0 ;if I left the cave, come back
+     ;{
+     ;   gosub gofight
+     ;   gosub PathfindWait 3507 2778 23
+     ;   wait 1s
+     ;}
+     ;move 3506 2778 0 1s
      set %overweight #false
   }
 return
@@ -72,29 +364,11 @@ return
 sub newunload
   Exevent Drag %lootbag
   wait 10
-  Exevent Dropc SPNFVI
+  Exevent Dropc JVEWNE ;sam's character
   wait 1s
   click 54 44 dmc
-  wait 1s
+  wait 5s
   gosub setLootBag
-return
-
-sub unload
-  set %findIndex 1
-  repeat
-  {
-    finditem WN_BO %findIndex G_1
-    Exevent Drag %lootbag
-    wait 10
-    Exevent Dropc #findid
-    wait 1s
-    finditem %lootbag C_ , #backpackid
-    set %findIndex %findIndex + 1
-  }
-  until #FINDCNT = 0
-  gosub setLootBag
-  set %overweight #false
-  
 return
 
 sub setLootBag
@@ -106,76 +380,89 @@ sub setLootBag
 return
 
 sub lootitems
+  if %mobbody = 0
+  {
+     ignoreitem %dedbody
+     return
+  }
   ;loot items
-  finditem * C_ , #contid
+  finditem * C_ , %mobbody
+  
   wait 1s
-
+  set %iamfull #false
+  
   for #FINDINDEX 1 #FINDCNT
   {
     event Property #findID
-    if magic in #property ; && ( Weight: , #spc , 50 ) notin #property
+    if magic in #property || artifact in #property ; && ( Weight: , #spc , 50 ) notin #property
     {
       wait 1s
       Exevent Drag #findid
+      set %lastitem #findid
       wait 10
-      Exevent Dropc %lootbag
-      wait 1s
 
       if #weight > #maxweight
       {
-          wait 1s
-         ;put item back like in the mummy movie
-          Exevent Drag #findid
-          wait 10
-          Exevent Dropc #contid
-          set %overweight #true
-          wait 1s
-          break
+        Exevent Dropc %mobbody
+        if %mobbody = #backpackid
+           halt
+        set %overweight #true
+        wait 1s
+        set %iamfull #true
+        break
       }
-      
+      Exevent Dropc %lootbag
+      if %lootbag = #backpackid
+         halt
+      wait 10
     }
     if arrow in #property
     {
       wait 1s
     	Exevent Drag #findid #findstack
     	wait 10
-    	Exevent Dropc #backpackid
-      wait 1s
-    }
-    
-    if Citrine in #property || Amethyst in #property || Amber in #property || Sapphire in #property || Tourmaline in #property || Ruby in #property || Emerald in #property || Diamond in #property
-    {
-      wait 1s
-    	Exevent Drag #findid #findstack
-    	wait 10
-    	Exevent Dropc %gembag
+    	Exevent Dropc CSIMXTD
       wait 1s
     }
   }
+  if ! %iamfull
+     ignoreitem %dedbody
 return
 
 sub gohome
-    event macro 15 210
-    target 4s
-    set #ltargetid XPFLAUD
-    event macro 22 0 ; last target
-    
-    while #charposx <> 803
+    while #charposx <> 801
     {
-          wait 10
+      set #lobjectid UBZUROD
+      set #ltargetkind 1
+      event macro 17 0 ; last target
+      wait 1s
+      set #contposx 0
+      set #contposy 0
+      wait 5
+
+      click 140 195 dmc
+      wait 5
+      click 300 180 dmc
+      wait 3s
     }
 
 return
 
 sub gofight
-    event macro 15 210
-    target 4s
-    set #ltargetid TNFLAUD
-    event macro 22 0 ; last target
-
-    while #charposx <> 3516
+    while #charposx <> 3510
     {
-          wait 10
+      set #lobjectid UBZUROD
+      set #ltargetkind 1
+      event macro 17 0 ; last target
+      wait 1s
+      set #contposx 0
+      set #contposy 0
+      wait 5
+
+      click 140 195 dmc
+      wait 5
+      click 140 180 dmc
+      wait 3s
     }
 
 return
