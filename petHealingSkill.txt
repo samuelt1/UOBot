@@ -1,54 +1,78 @@
 ; poisoned pixel        4390755
 ; healthy pixel         16751690
 
-set %healtpoint 99
+set %healtpoint 60
+set %emergency 48
 
 gosub init
 
 
 while #true
 {
+;=========PET 1===========================
       gosub ispoisoned %PetID_1
-      if #result || #CONTHP >= %healtpoint
+      if ( #result = #true )  && ( #CONTHP <= %emergency )
       {
-         event SysMessage Don't heal me
+          set #ltargetkind 2
+          event macro 15 24 ; Cure Poison
+          set #LTARGETID %PetID_1
+          target 5s
+          event macro 22 0 ;target pet
+          event SysMessage Curing #LTARGETID
+          wait 5
       }
-      else
+      if ( #result = #false )  && ( #CONTHP <= %healtpoint )
       {
+          set #ltargetkind 1
           event macro 15 28 ; greater heal
           set #LTARGETID %PetID_1
           target 5s
-          event macro 22 0 ;target self
+          event macro 22 0 ;target pet
+          event SysMessage Healing #LTARGETID
       }
-      wait 1s
-      
+
+;=========PET 2===========================
       gosub ispoisoned %PetID_2
-      if #result || #CONTHP >= %healtpoint
+      if ( #result = #true )  && ( #CONTHP <= %emergency )
       {
-         event SysMessage Don't heal me
+          set #ltargetkind 2
+          event macro 15 24 ; Cure Poison
+          set #LTARGETID %PetID_2
+          target 5s
+          event macro 22 0 ;target pet
+          event SysMessage Curing #LTARGETID
+          wait 5
       }
-      else
+      if ( #result = #false )  && ( #CONTHP <= %healtpoint )
       {
+          set #ltargetkind 1
           event macro 15 28 ; greater heal
           set #LTARGETID %PetID_2
           target 5s
-          event macro 22 0 ;target self
+          event macro 22 0 ;target pet
+          event SysMessage Healing #LTARGETID
       }
-      wait 1s
-
+;=========PET 3===========================
       gosub ispoisoned %PetID_3
-      if #result || #CONTHP >= %healtpoint
+      if ( #result = #true )  && ( #CONTHP <= %emergency )
       {
-         event SysMessage Don't heal me
+          set #ltargetkind 2
+          event macro 15 24 ; Cure Poison
+          set #LTARGETID %PetID_3
+          target 5s
+          event macro 22 0 ;target pet
+          event SysMessage Curing #LTARGETID
+          wait 5
       }
-      else
+      if ( #result = #false )  && ( #CONTHP <= %healtpoint )
       {
+          set #ltargetkind 1
           event macro 15 28 ; greater heal
           set #LTARGETID %PetID_3
           target 5s
-          event macro 22 0 ;target self
+          event macro 22 0 ;target pet
+          event SysMessage Healing #LTARGETID
       }
-      wait 1s
 }
 
 
@@ -104,7 +128,7 @@ sub init
   set %PetID_2y #contposy
 
 ;===========================
-  Display ok Drag Pet 2 healthbar where you want it - and target it.
+  Display ok Drag Pet 3 healthbar where you want it - and target it.
   Set #TARGCURS 1
   While #TARGCURS = 1
   {
