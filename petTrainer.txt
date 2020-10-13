@@ -1,0 +1,53 @@
+set %containerx 39
+set %containery 781
+set %found #false
+set %petid TUBJYI
+
+while #true
+{
+    gosub checkHealth
+    gosub find
+    gosub kill
+    gosub invisble
+}
+
+sub invisble
+if h notin #CHARSTATUS
+{
+  event macro 15 43
+  target 5s
+  event macro 23
+ }
+return
+
+sub find
+  finditem IS g_10
+  if #findcnt = 0
+     set %found #false
+return
+
+sub checkHealth
+ if #CONTID = %petid
+ {
+   if #CONTHP < 90
+    gosub heal
+ }
+return
+
+sub heal
+  event macro 15 28
+  target 2s
+  set #LTARGETID %petid
+  event macro 22
+return
+
+sub kill
+  if %found || #findcnt = 0
+     return
+  msg all kill
+  key enter
+  target 2s
+  set #LTARGETID #findid
+  event macro 22
+  set %found #true
+return
