@@ -177,6 +177,7 @@ sub InitMenu
     menu font style n
     menu check dontmove 10 135 130 15 #false Don't Move Character
     menu check returnstart 10 150 130 15 #false Return To Start
+    menu check killparagon 10 165 130 15 #false Kill Paragon
     menu font style b
     menu text lblstatistics 150 5 Statistics
     menu font style n
