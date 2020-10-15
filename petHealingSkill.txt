@@ -1,78 +1,40 @@
 ; poisoned pixel        4390755
 ; healthy pixel         16751690
-
+set %pets 3
 set %healtpoint 60
 set %emergency 48
-
+;set %invis #true
+set %invis #false
 gosub init
 
 
 while #true
 {
-;=========PET 1===========================
-      gosub ispoisoned %PetID_1
-      if ( #result = #true )  && ( #CONTHP <= %emergency )
-      {
-          set #ltargetkind 2
-          event macro 15 24 ; Cure Poison
-          set #LTARGETID %PetID_1
-          target 5s
-          event macro 22 0 ;target pet
-          event SysMessage Curing #LTARGETID
-          wait 5
-      }
-      if ( #result = #false )  && ( #CONTHP <= %healtpoint )
-      {
-          set #ltargetkind 1
-          event macro 15 28 ; greater heal
-          set #LTARGETID %PetID_1
-          target 5s
-          event macro 22 0 ;target pet
-          event SysMessage Healing #LTARGETID
-      }
-
-;=========PET 2===========================
-      gosub ispoisoned %PetID_2
-      if ( #result = #true )  && ( #CONTHP <= %emergency )
-      {
-          set #ltargetkind 2
-          event macro 15 24 ; Cure Poison
-          set #LTARGETID %PetID_2
-          target 5s
-          event macro 22 0 ;target pet
-          event SysMessage Curing #LTARGETID
-          wait 5
-      }
-      if ( #result = #false )  && ( #CONTHP <= %healtpoint )
-      {
-          set #ltargetkind 1
-          event macro 15 28 ; greater heal
-          set #LTARGETID %PetID_2
-          target 5s
-          event macro 22 0 ;target pet
-          event SysMessage Healing #LTARGETID
-      }
-;=========PET 3===========================
-      gosub ispoisoned %PetID_3
-      if ( #result = #true )  && ( #CONTHP <= %emergency )
-      {
-          set #ltargetkind 2
-          event macro 15 24 ; Cure Poison
-          set #LTARGETID %PetID_3
-          target 5s
-          event macro 22 0 ;target pet
-          event SysMessage Curing #LTARGETID
-          wait 5
-      }
-      if ( #result = #false )  && ( #CONTHP <= %healtpoint )
-      {
-          set #ltargetkind 1
-          event macro 15 28 ; greater heal
-          set #LTARGETID %PetID_3
-          target 5s
-          event macro 22 0 ;target pet
-          event SysMessage Healing #LTARGETID
-      }
+  if %invis
+    gosub invis
+  for %i 1 %pets
+  {
+    gosub ispoisoned %PetID_ , %i
+    if ( #result = #true )  && ( #CONTHP <= %emergency )
+    {
+      set #ltargetkind 2
+      event macro 15 24 ; Cure Poison
+      set #LTARGETID %PetID_ , %i
+      target 5s
+      event macro 22 0 ;target pet
+      event SysMessage Curing #LTARGETID
+      wait 5
+    }
+    if ( #result = #false )  && ( #CONTHP <= %healtpoint )
+    {
+      set #ltargetkind 1
+      event macro 15 28 ; greater heal
+      set #LTARGETID %PetID_ , %i
+      target 5s
+      event macro 22 0 ;target pet
+      event SysMessage Healing #LTARGETID
+    }
+  }
 }
 
 
@@ -98,50 +60,31 @@ return error
 
 sub init
 ;===========================
-  Display ok Drag Pet 1 healthbar where you want it - and target it.
+for %i 1 %pets
+{
+  Display ok Drag Pet %i healthbar where you want it - and target it.
   Set #TARGCURS 1
   While #TARGCURS = 1
   {
    Wait 1s
   }
 
-  Set %PetID_1 #LTARGETID
+  Set %PetID_ , %i #LTARGETID
   wait 5
-  event statbar %PetID_1
+  event statbar %PetID_ , %i
   wait 5
-  set %PetID_1x #contposx
-  set %PetID_1y #contposy
-  
-;===========================
-  Display ok Drag Pet 2 healthbar where you want it - and target it.
-  Set #TARGCURS 1
-  While #TARGCURS = 1
-  {
-   Wait 1s
-  }
-
-  Set %PetID_2 #LTARGETID
-  wait 5
-  event statbar %PetID_2
-  wait 5
-  set %PetID_2x #contposx
-  set %PetID_2y #contposy
-
-;===========================
-  Display ok Drag Pet 3 healthbar where you want it - and target it.
-  Set #TARGCURS 1
-  While #TARGCURS = 1
-  {
-   Wait 1s
-  }
-
-  Set %PetID_3 #LTARGETID
-  wait 5
-  event statbar %PetID_3
-  wait 5
-  set %PetID_3x #contposx
-  set %PetID_3y #contposy
-
+  set %PetID_ , %i , x #contposx
+  set %PetID_ , %i , y #contposy
+}
 return
 
 halt
+
+sub invis
+if H notin #CHARSTATUS
+{
+  event macro 15 43
+  target 5s
+  event macro 23
+}
+return
